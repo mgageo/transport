@@ -24,11 +24,11 @@ osmdata_get_objet_polyline <- function(ref, type = "relation", force = FALSE) {
   return(invisible(enc))
 }
 #
-osmdata_query <- function(query, type, force = FALSE) {
+osmdata_query <- function(query, fic, force = FALSE) {
   library(readr)
   library(tidyverse)
   library(osmdata)
-  dsn <- overpass_query(query, type, force)
+  dsn <- overpass_query(query, fic, force)
   res <- osmdata_sf(, dsn)
   return(invisible(res))
 }

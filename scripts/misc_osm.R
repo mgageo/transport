@@ -438,6 +438,83 @@ all_tags=yes
   return(invisible(nc))
 }
 #
+#
+osm_overpass_query <- function(requete, fic, force = FALSE, layer = "points") {
+  library(tidyverse)
+  library(stringr)
+  dsn2 <- sprintf("%s/%s.Rds", transportDir, fic)
+  if (file.exists(dsn2) && force == FALSE) {
+    nc <- readRDS(dsn2)
+    return(invisible(nc))
+  }
+  dsn1 <- overpass_query(requete, fic, force = force)
+# https://github.com/r-spatial/sf/issues/1157
+  ini_new <- "#configuration osm import
+attribute_name_laundering=no
+[points]
+osm_id=yes
+osm_version=yes
+osm_timestamp=yes
+osm_uid=yes
+osm_user=yes
+osm_changeset=yes
+all_tags=yes
+[lines]
+osm_id=yes
+osm_version=yes
+osm_timestamp=yes
+osm_uid=yes
+osm_user=yes
+osm_changeset=yes
+all_tags=yes
+[multipolygons]
+osm_id=yes
+osm_version=yes
+osm_timestamp=yes
+osm_uid=yes
+osm_user=yes
+osm_changeset=yes
+all_tags=yes
+[multilinestrings]
+osm_id=yes
+osm_version=yes
+osm_timestamp=yes
+osm_uid=yes
+osm_user=yes
+osm_changeset=yes
+all_tags=yes
+[other_relations]
+osm_id=yes
+osm_version=yes
+osm_timestamp=yes
+osm_uid=yes
+osm_user=yes
+osm_changeset=yes
+all_tags=yes
+"
+  writeLines(ini_new, "ini_new.ini")
+  nc <- st_read(dsn1, layer = layer, options = "CONFIG_FILE=ini_new.ini")
+  if(nrow(nc) > 0) {
+
+# comment faire sale
+    for (i in 1:nrow(nc)) {
+      all_tags <- nc[[i, "all_tags"]]
+      pattern <- '"([^"]+)"=>"([^"]+)"'
+      kv.list <<- all_tags %>%
+        str_match_all(pattern)
+      kv.df <- kv.list %>%
+        data.frame()
+      for (j in 1:nrow(kv.df)) {
+        k <- kv.df[j, "X2"]
+        v <- kv.df[j, "X3"]
+        nc[i, k] <- v
+      }
+    }
+  }
+  saveRDS(nc, file = dsn2)
+  return(invisible(nc))
+}
+#
 # pour le parcours des relations route
 # source("geo/scripts/transport.R"); config_xls("tub");nc <- osm_relations_route_parcours()
 osm_relations_route_parcours <- function(force = FALSE) {
@@ -454,7 +531,7 @@ osm_relations_route_parcours <- function(force = FALSE) {
 #  nc <- cbind(nc, st_coordinates(st_centroid(nc)))
 #  plot(st_geometry(nc))
 #  text(st_coordinates(st_centroid(nc)), labels = nc$ref.network, cex=1.2, col='black')
-  return(invisible(nc))
+  return(invisible(res))
 }
 osm_relations_routes <- function(force = FALSE) {
   carp()

@@ -36,7 +36,10 @@ mobibreizh_gtfs_reseaux <- function() {
   df <- mobibreizh_agency_lire() %>%
     filter(reseau != "") %>%
     filter(agency_id != "") %>%
-    filter(agency_id == "TUB")
+    filter(gtfs_dir != "") %>%
+    filter(grepl("Conseil", gestionnaire)) %>%
+    glimpse()
+#  return()
   for (i in 1:nrow(df)) {
     reseau <- df[i, "reseau"]
     agency_id <- df[i, "agency_id"]

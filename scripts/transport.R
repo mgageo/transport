@@ -46,7 +46,9 @@ source("geo/scripts/transport_objets.R")
 #
 # les différents réseaux
 source("geo/scripts/transport_axeo.R")
+source("geo/scripts/transport_kiceo.R")
 source("geo/scripts/transport_lila.R")
+source("geo/scripts/transport_qub.R")
 source("geo/scripts/transport_rmat.R")
 source("geo/scripts/transport_star.R")
 source("geo/scripts/transport_surf.R")

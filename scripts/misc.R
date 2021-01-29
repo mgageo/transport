@@ -4,6 +4,8 @@
 # auteur : Marc Gauthier
 # licence: Creative Commons Paternité - Pas d'Utilisation Commerciale - Partage des Conditions Initiales à l'Identique 2.0 France
 #
+# https://quanti.hypotheses.org/1813
+#
 ## quelques options générales ------------------------------------
 #
 options("encoding" = "UTF-8")
@@ -11,6 +13,7 @@ par(mar = c(0, 0, 0, 0), oma = c(0, 0, 0, 0), mai = c(0, 0, 0, 0))
 options(stringsAsFactors = FALSE)
 # le timeout sur le téléchargement via download.file
 options(timeout=120)
+options(scipen=999) # pour désactiver l'écriture scientifique des nombres
 #options(OutDec= ",")
 # https://stackoverflow.com/questions/62140483/how-to-interpret-dplyr-message-summarise-regrouping-output-by-x-override
 options(dplyr.summarise.inform = F)
@@ -44,7 +47,9 @@ detach_package <- function(pkg, character.only = FALSE) {
   }
 }
 #
-# comme en perl
+## comme en perl
+#
+# message à la console avec indication de l'origine
 carp <- function(...) {
   curcall <- as.character(deparse(sys.call(-1)))
   carp_call <<- gsub('\\(.*$', '', curcall)
@@ -60,7 +65,7 @@ carp <- function(...) {
   flush.console()
 }
 #
-# comme en perl
+# message à la console
 Carp <- function(...) {
   msg <- sprintf(...)
   print(msg)
@@ -93,7 +98,7 @@ die <- function(...) {
   stop('die')
 }
 #
-# fonctions "système de fichiers"
+## fonctions "système de fichiers"
 # ===============================
 # options("encoding" = "UTF-8")
 # getOption("encoding")
