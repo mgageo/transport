@@ -19,11 +19,11 @@ osmapi_get_node_ways <- function(node, force = FALSE) {
 # source("geo/scripts/transport.R"); res <- osmapi_get_objet(ref = "11920346"); print(res)
 osmapi_get_objet <- function(ref, type = "relation", force = FALSE) {
   library(rjson)
-  dsn <- sprintf("%s/%s_%s.json", transportDir, type, ref)
-  carp("dsn: %s", dsn)
+  dsn <- sprintf("%s/%s_%s.json", osmDir, type, ref)
+#  carp("dsn: %s force: %s", dsn, force)
   if (! file.exists(dsn) || force == TRUE) {
     query <- sprintf("https://www.openstreetmap.org/api/0.6/%s/%s.json", type, ref)
-    res <- httr::GET(url = query, encoding = "UTF-8", type = "application/json", verbose(), httr::write_disk(dsn, overwrite = TRUE))
+    res <- httr::GET(url = query, encoding = "UTF-8", type = "application/json", httr::write_disk(dsn, overwrite = TRUE))
     stop_for_status(res)
   }
   res <- rjson::fromJSON(file = dsn)
@@ -33,7 +33,7 @@ osmapi_get_objet <- function(ref, type = "relation", force = FALSE) {
 osmapi_get_object_full <- function(ref, type = "relation", force = FALSE) {
   library(readr)
   library(tidyverse)
-  dsn <- sprintf("%s/%s_%s_full.osm", transportDir, type, ref)
+  dsn <- sprintf("%s/%s_%s_full.osm", osmDir, type, ref)
   carp("dsn: %s", dsn)
   if (! file.exists(dsn) || force == TRUE) {
     url <- sprintf("https://www.openstreetmap.org/api/0.6/%s/%s/full", type, ref)
@@ -67,9 +67,12 @@ osmapi_get_object_v1 <- function(objet, type = "relation", force = FALSE) {
 osmapi_get_members_platform <- function(ref = "11920346", type = "relation", force = FALSE) {
   library(readr)
   library(tidyverse)
-  json1.list <- osmapi_get_objet(ref = ref, type = type, force) %>%
-    glimpse()
+  carp()
+  json1.list <<- osmapi_get_objet(ref = ref, type = type, force)
   members.list <- json1.list$elements[[1]]$members
+  if (length(members.list) == 0 ) {
+    confess("**** pas de membres")
+  }
   df1 <- do.call(rbind, lapply(members.list, data.frame))
   df2 <- df1 %>%
     filter(type == "node")

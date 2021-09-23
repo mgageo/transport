@@ -117,7 +117,7 @@ departementLire <- function(les_departements= c("22","29","35","56"), force=FALS
   carp()
   require(sp)
   require(rgdal)
-  dsn <-  sprintf('%s/web.var/geo/COUCHES/DEPARTEMENT.SHP', Drive)
+  dsn <-  sprintf('%s/bvi35/CouchesIGN/ADE_1-1_SHP_LAMB93_FR/DEPARTEMENT.SHP', Drive)
   layer <- ogrListLayers(dsn)
   spdf <- readOGR(dsn, layer=layer, stringsAsFactors=FALSE)
   spdf <- spdf[spdf@data$CODE_DEPT %in% les_departements, ]
@@ -130,7 +130,7 @@ departementLire <- function(les_departements= c("22","29","35","56"), force=FALS
 ign_departement_lire <- function(les_departements) {
   require(sp)
   require(rgdal)
-  dsn <-  sprintf('%s/web.var/geo/GEOFLA/DEPARTEMENT.SHP', Drive)
+  dsn <-  sprintf('%s/bvi35/CouchesIGN/ADE_1-1_SHP_LAMB93_FR/DEPARTEMENT.SHP', Drive)
   layer <- ogrListLayers(dsn)
   dfSP <- readOGR(dsn, layer=layer, stringsAsFactors=FALSE)
   dfSP <- dfSP[dfSP@data$CODE_DEPT %in% les_departements, ]
@@ -141,7 +141,7 @@ ign_departement_lire <- function(les_departements) {
 # limite des départements
 ign_departement_lire_sf_v1 <- function(les_departements) {
   require(sf)
-  dsn <-  sprintf('%s/web.var/geo/GEOFLA/DEPARTEMENT.SHP', Drive)
+  dsn <-  sprintf('%s/bvi35/CouchesIGN/ADE_1-1_SHP_LAMB93_FR/DEPARTEMENT.SHP', Drive)
   nc <- st_read(dsn, layer=layer, stringsAsFactors=FALSE) %>%
     glimpse()
   nc <- nc[nc$CODE_DEPT %in% les_departements, ]

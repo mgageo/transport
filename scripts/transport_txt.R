@@ -24,7 +24,7 @@ txt_gtfs_stops_sf <- function(force = FALSE) {
     nc <- readRDS(dsn)
     return(invisible(nc))
   }
-  dsn1 <- sprintf("%s/%s/%s/stops.txt", cfgDir, toupper(config[1, "reseau"]), config[1, "gtfs_dir"])
+  dsn1 <- sprintf("%s/stops.txt", gtfsDir)
   carp("dsn1: %s", dsn1)
   df <- rio::import(dsn1, encoding = "UTF-8")
   stops.df <- df %>%
@@ -47,6 +47,7 @@ txt_gtfs_stops_sf <- function(force = FALSE) {
 
 # conversion des shapes d'un gtfs
 # source("geo/scripts/transport.R");config_xls('tub');txt_gtfs_shapes_sf()
+# source("geo/scripts/transport.R");config_xls('bibus');txt_gtfs_shapes_sf()
 txt_gtfs_shapes_sf <- function() {
   library(tidyverse)
   library(janitor)
@@ -54,12 +55,8 @@ txt_gtfs_shapes_sf <- function() {
   library(sp)
   library(rgdal)
   library(rgeos)
-  glimpse(config)
-  dsn <- sprintf("%s/%s/%s/shapes.txt", cfgDir, toupper(config[1, "reseau"]), config[1, "gtfs_dir"])
-  carp("dsn: %s", dsn)
-  df <- rio::import(dsn) %>%
-    glimpse()
-  df <- df %>%
+  shapes.df <- txt_gtfs_fichier_lire("shapes")
+  df <- shapes.df %>%
     mutate(lat = as.numeric(shape_pt_lat)) %>%
     mutate(lon = as.numeric(shape_pt_lon)) %>%
     glimpse()
@@ -82,12 +79,47 @@ txt_gtfs_shape_sf <- function(shape, df) {
   shape <- gsub("[$:]", "_", shape)
   dsn <- sprintf("%s/shape_%s.geojson", josmDir, shape)
   carp("dsn: %s", dsn)
-#  st_write(nc, dsn, delete_dsn = TRUE)
+  st_write(nc, dsn, delete_dsn = TRUE)
   dsn <- sprintf("%s/shape_%s.gpx", josmDir, shape)
   carp("dsn: %s", dsn)
   spdf <- as_Spatial(nc)
 #  writeOGR(spdf, dsn, layer="routes", driver="GPX", dataset_options="GPX_USE_EXTENSIONS=yes", overwrite_layer=TRUE, delete_dsn = TRUE)
 #  writeOGR(spdf, dsn, layer="tracks", driver="GPX", dataset_options="GPX_USE_EXTENSIONS=yes", overwrite_layer=TRUE, delete_dsn = TRUE)
   writeOGR(spdf, dsn, layer="tracks", driver="GPX", dataset_options="GPX_USE_EXTENSIONS=yes", "FORCE_GPX_TRACK=true", overwrite_layer=TRUE, delete_dsn = TRUE)
-
+}
+txt_gtfs_shapes_wiki <- function() {
+  library(tidyverse)
+  library(janitor)
+  library(sf)
+  library(sp)
+  library(rgdal)
+  library(rgeos)
+  routes.df <- txt_gtfs_fichier_lire("routes")
+  trips.df <- txt_gtfs_fichier_lire("trips")
+  shapes.df <- txt_gtfs_fichier_lire("shapes")
+  df1 <- trips.df %>%
+    left_join(routes.df, by = c("route_id")) %>%
+    group_by(route_id, route_short_name, route_long_name, direction_id, shape_id) %>%
+    summarize(nb_trips = n()) %>%
+    arrange(route_short_name) %>%
+    glimpse()
+  Encoding(df1$route_long_name) <- 'UTF-8'
+  lignes <- knitr::kable(df1, format = "pipe")
+  txt <- paste(lignes,  collapse = "\n")
+  carp("txt: %s", txt)
+  txt <- sprintf('==les shapes des routes==
+<pre>
+%s
+</pre>', txt)
+  wiki_connect()
+  page <- sprintf("User:Mga_geo/Transports_publics/%s/gtfs_shapes", Config["wiki"])
+  wiki_page_init(page, txt)
+}
+txt_gtfs_fichier_lire <- function(fichier = "routes") {
+  library(tidyverse)
+  dsn <- sprintf("%s/%s.txt", gtfsDir, fichier )
+  carp("dsn: %s", dsn)
+  df <- rio::import(dsn) %>%
+    glimpse()
+  return(invisible(df))
 }

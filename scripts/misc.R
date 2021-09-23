@@ -8,6 +8,10 @@
 #
 ## quelques options générales ------------------------------------
 #
+library(tidyverse)
+library(janitor)
+library(knitr)
+library(kableExtra)
 options("encoding" = "UTF-8")
 par(mar = c(0, 0, 0, 0), oma = c(0, 0, 0, 0), mai = c(0, 0, 0, 0))
 options(stringsAsFactors = FALSE)
@@ -17,7 +21,17 @@ options(scipen=999) # pour désactiver l'écriture scientifique des nombres
 #options(OutDec= ",")
 # https://stackoverflow.com/questions/62140483/how-to-interpret-dplyr-message-summarise-regrouping-output-by-x-override
 options(dplyr.summarise.inform = F)
-
+# mes opérateurs
+'%!in%' <- function(x,y)!('%in%'(x,y))
+'%notin%' <- Negate('%in%')
+switch(Sys.info()[['sysname']],
+  Windows= {baseDir <-"d:/web"},
+  Linux  = {baseDir <- "/mnt/d/web"}
+)
+copyright <- "@ Marc Gauthier CC-BY-NC-ND"
+# ne marche plus en 4.1.0
+# assign("last.warning", NULL, envir = baseenv())
+assign("last.warning", NULL)
 Log <- function(msg) {
   print(msg)
   flush.console()
@@ -34,7 +48,11 @@ misc_free <- function() {
   memory.size(max=T)
   memory.size(max=F)
 }
-
+#
+# pour impression
+misc_print <- function(df) {
+  print(knitr::kable(df, format = "pipe"))
+}
 #
 # https://stackoverflow.com/questions/6979917/how-to-unload-a-package-without-restarting-r
 detach_package <- function(pkg, character.only = FALSE) {
@@ -51,6 +69,11 @@ detach_package <- function(pkg, character.only = FALSE) {
 #
 # message à la console avec indication de l'origine
 carp <- function(...) {
+  if (exists ("MD")) {
+    if(MD == TRUE) {
+      return()
+    }
+  }
   curcall <- as.character(deparse(sys.call(-1)))
   carp_call <<- gsub('\\(.*$', '', curcall)
   arguments <- as.list(match.call(expand.dots=FALSE))[-1]
@@ -59,7 +82,7 @@ carp <- function(...) {
   msg <- sprintf('%s %s', format(Sys.time(), "%X"), curcall)
   if (length(arguments) >= 1 ) {
     msg <- sprintf(...)
-    msg <- sprintf("%s %s", curcall, msg)
+    msg <- sprintf("%s %s %s", format(Sys.time(), "%X"), curcall, msg)
   }
   print(msg)
   flush.console()
@@ -67,7 +90,11 @@ carp <- function(...) {
 #
 # message à la console
 Carp <- function(...) {
+  curcall <- as.character(deparse(sys.call(-1)))
+  carp_call <<- gsub('\\(.*$', '', curcall)
+  msg_call <- sprintf('%s %s', format(Sys.time(), "%X"), carp_call)
   msg <- sprintf(...)
+#  msg <- sprintf("%s %s", msg_call, msg)
   print(msg)
   flush.console()
 }
@@ -154,6 +181,11 @@ un7z <- function(target_file, exdir, overwrite=TRUE) {
 # fonction pour dataframe
 # ========================
 #
+#
+
+misc_df_utf8 <- function(df) {
+  df <- dplyr::mutate_if(df, is.character, .funs = function(x){return(`Encoding<-`(x, "UTF-8"))})
+}
 # sauvegarde d'un dataframe en csv
 df_ecrire <- function(df,f) {
   Log(sprintf("df_ecrire() f:%s",f))
@@ -307,6 +339,37 @@ camel5 <- function(x) {
   x <- gsub("\\s$", "", x, perl = TRUE)
   gsub("(^|[^[:alnum:]])([[:alnum:]])", "\\U\\2", x, perl = TRUE)
 }
+# conversion en nom de fichier
+misc_fichier <- function(x) {
+  x <- iconv(x, from='UTF-8', to='ASCII//TRANSLIT')
+  x <- tolower(x)
+  x <- gsub('[\\\\/\\:\\*\\?\\"\\<\\>\\|\\s\\.\\-]', "_", x, perl = TRUE)
+  return(invisible(x))
+}
+misc_tex <- function(x) {
+#  x <- gsub("\\", "$\\backslash$", x, fixed = T)
+  x <- gsub("#", "\\\\#", x)
+#  x <- gsub("$", "\\\\$", x)
+  x <- gsub("%", "\\\\%", x)
+#  x <- gsub("&", "***", x)
+  x <- gsub("&", "\\\\&", x)
+  x <- gsub("~", "\\\\~", x)
+  x <- gsub("_", "\\\\_", x)
+#  x <- gsub("_", "\\\\\\\\_", x)
+  x <- gsub("%", "\\\\%", x)
+#  x <- gsub("^", "\\\\^", x)
+#  x <- gsub("\\{", "\\\\{", x)
+#  x <- gsub("\\}", "\\\\}", x)
+  x <- gsub(">", "$>$", x)
+  x <- gsub("<", "$<$", x)
+  return(x)
+}
+# conversion en url
+misc_url <- function(x) {
+  x <- gsub('\\s', "+", x, perl = TRUE)
+  return(invisible(x))
+}
+
 # https://stackoverflow.com/questions/952275/regex-group-capture-in-r-with-multiple-capture-groups
 regexpr_perl <- function(expr, str) {
   match <- regexpr(expr, str, perl=T)
@@ -326,9 +389,9 @@ regexpr_perl <- function(expr, str) {
   matches
 }
 # http://www.dataanalytics.org.uk/Data%20Analysis/TipsAndTricks/TTR-20150531.htm
-## Transparent colors
-## Mark Gardener 2015
-## www.dataanalytics.org.uk
+# Transparent colors
+# Mark Gardener 2015
+# www.dataanalytics.org.uk
 misc_col <- function(color, percent = 100, name = NULL) {
 #	  color = color name
 #	percent = % transparency
@@ -370,8 +433,8 @@ t_col <- function(color, percent = 50, name = NULL) {
 #  t.col = rgb(255,0,0, max=255, alpha = 100)
   return(t.col)
 }
-add.alpha <- function(col, alpha=0.2){
-  apply(sapply(col, col2rgb)/255, 2, function(x) rgb(x[1], x[2], x[3], alpha=alpha))
+add.alpha <- function(col, alpha = 0.2){
+  apply(sapply(col, col2rgb)/255, 2, function(x) rgb(x[1], x[2], x[3], alpha = alpha))
 }
 #
 # https://www.earthdatascience.org/courses/earth-analytics/multispectral-remote-sensing-modis/refine-plots-report/
@@ -380,32 +443,32 @@ add.alpha <- function(col, alpha=0.2){
 plotImg <- function(img, alpha = 255, maxpixels = 50000000, new = TRUE, png = FALSE) {
   ncols <<- img@ncols
   nrows <<- img@nrows
-  carp('ncols: %s nrows:%s', img@ncols, img@nrows )
-  if( new==TRUE & png==FALSE) {
+#  carp('ncols: %s nrows:%s', img@ncols, img@nrows )
+  if( new == TRUE & png == FALSE) {
     dev.new( width = img@ncols, height = img@nrows, units = "px", pointsize = 12)
   }
-  if(png!=FALSE) {
-    png(png, width=img@ncols, height=img@nrows)
+  if(png != FALSE) {
+    png(png, width = img@ncols, height = img@nrows)
   }
   par(mar = c(0, 0, 0, 0), oma = c(0, 0, 0, 0), mai = c(0, 0, 0, 0))
 #  show(img)
   if ( is(img, 'RasterBrick') ) {
-    carp('rasterbrick nlayers:%s', nlayers(img) )
+#    carp('rasterbrick nlayers:%s', nlayers(img) )
     if(nlayers(img) < 3 ) {
-      plotImgGray(img, alpha=alpha, maxpixels=maxpixels, new=FALSE)
+      plotImgGray(img, alpha = alpha, maxpixels = maxpixels, new = FALSE)
     } else {
-      plotRGB(img, axes=FALSE, add=FALSE, maxpixels=maxpixels, alpha=alpha)
+      plotRGB(img, axes = FALSE, add = FALSE, maxpixels = maxpixels, alpha = alpha)
     }
   }
   if ( is(img, 'RasterLayer') ) {
-    carp('rasterlayer nlayers:%s', nlayers(img) )
+#    carp('rasterlayer nlayers:%s', nlayers(img) )
 #    plot(img, axes=FALSE, add=FALSE, maxpixels=maxpixels, alpha=alpha, legend=FALSE)
     if(nlayers(img) == 1 ) {
 #      plotImgGray(img, alpha=alpha, maxpixels=maxpixels, new=FALSE)
 #      par(xpd = TRUE)
-      plot(img, axes=FALSE, add=FALSE, maxpixels=maxpixels, alpha=alpha, legend=FALSE, box = FALSE)
+      plot(img, axes = FALSE, add = FALSE, maxpixels = maxpixels, alpha = alpha, legend = FALSE, box = FALSE)
     } else {
-      plot(img, axes=FALSE, add=FALSE, maxpixels=maxpixels, alpha=alpha, legend=FALSE)
+      plot(img, axes = FALSE, add = FALSE, maxpixels = maxpixels, alpha = alpha, legend = FALSE)
     }
   }
   setSizes()
@@ -414,7 +477,7 @@ plotImg <- function(img, alpha = 255, maxpixels = 50000000, new = TRUE, png = FA
 #
 # image en gris
 # en direct de https://www.neonscience.org/dc-multiband-rasters-r
-plotImgGray <- function(img, alpha=120, maxpixels=5000000, new=TRUE, png=FALSE) {
+plotImgGray <- function(img, alpha = 120, maxpixels = 5000000, new = TRUE, png = FALSE) {
   carp('png: %s', png)
   alpha <- alpha / 255
   if( new==TRUE & png==FALSE) {
@@ -432,14 +495,14 @@ plotImgGray <- function(img, alpha=120, maxpixels=5000000, new=TRUE, png=FALSE) 
                                   gamma = 2.2,    # correction between how a digital
                                   # camera sees the world and how human eyes see it
                                   alpha = alpha)   #Null=colors are not transparent
-  image(img, col=grayscale_colors, axes=FALSE, add=FALSE, xlab = NA, ylab = NA, maxpixels=maxpixels)
+  image(img, col=grayscale_colors, axes = FALSE, add = FALSE, xlab = NA, ylab = NA, maxpixels = maxpixels)
 #  stop('***')
   return()
   if ( is(img, 'RasterBrick') ) {
-    plotRGB(img, axes=FALSE, add=FALSE, maxpixels=maxpixels, alpha=alpha)
+    plotRGB(img, axes = FALSE, add = FALSE, maxpixels = maxpixels, alpha = alpha)
   }
   if ( is(img, 'RasterLayer') ) {
-    plot(img, col=grayscale_colors, axes=FALSE, add=FALSE, maxpixels=maxpixels, alpha=alpha)
+    plot(img, col = grayscale_colors, axes = FALSE, add = FALSE, maxpixels = maxpixels, alpha = alpha)
   }
 }
 # autre version https://www.johndcook.com/blog/2009/08/24/algorithms-convert-color-grayscale/
@@ -457,7 +520,7 @@ plotImgGray3 <- function(img, alpha=255, maxpixels=500000) {
   dev.new( width = img@ncols, height = img@nrows, units = "px", pointsize = 12)
   par(mar = c(0, 0, 0, 0), oma = c(0, 0, 0, 0), mai = c(0, 0, 0, 0))
   img <- grayscale(img, method = "Luma", drop = TRUE)
-  plot(img, col=grayscale_colors, axes=FALSE, add=FALSE, maxpixels=maxpixels, alpha=alpha)
+  plot(img, col = grayscale_colors, axes = FALSE, add = FALSE, maxpixels = maxpixels, alpha = alpha)
 }
 # source("geo/scripts/onc35.R");test_gray();
 test_gray <- function() {
@@ -470,11 +533,11 @@ test_gray <- function() {
 makeTransparent = function(..., alpha=0.5) {
   if(alpha<0 | alpha>1) stop("alpha must be between 0 and 1")
   alpha = floor(255*alpha)
-  newColor = col2rgb(col=unlist(list(...)), alpha=FALSE)
-  .makeTransparent = function(col, alpha) {
-    rgb(red=col[1], green=col[2], blue=col[3], alpha=alpha, maxColorValue=255)
+  newColor  =  col2rgb(col = unlist(list(...)), alpha = FALSE)
+  .makeTransparent  =  function(col, alpha) {
+    rgb(red = col[1], green = col[2], blue = col[3], alpha = alpha, maxColorValue = 255)
   }
-  newColor = apply(newColor, 2, .makeTransparent, alpha=alpha)
+  newColor  =  apply(newColor, 2, .makeTransparent, alpha = alpha)
   return(newColor)
 }
 couleurs_palette <- function(couleurs) {
@@ -487,7 +550,7 @@ couleurs_palette <- function(couleurs) {
   nb <- length(couleurs)
   hauteur <- (height + delta)* (nb)
   carp('hauteur: %d', hauteur)
-  plot(c(0, 40), c(0, hauteur), type = "n", xlab = "", ylab = "", axes=FALSE, frame.plot=TRUE)
+  plot(c(0, 40), c(0, hauteur), type = "n", xlab = "", ylab = "", axes = FALSE, frame.plot = TRUE)
   for (i in 1:nb){
     rect(xref, yref, xref + width, yref + height, col = couleurs[i])
     text(xref + width + delta , yref + height / 2, labels=couleurs[i], adj = c(0,0.5))
@@ -507,11 +570,11 @@ setSizes <- function() {
 # Add legend in the lower right corner:
 #  legend(x = xmax - lgd$rect$w, y =  ymin + lgd$rect$h, c("Your data name"), pch = c(20), col = c("black"), plot = T)
   cexH1 <<- round(xextent / 300, 1)
-  print(sprintf("setSizes() xextent:%s yextent:%s cexH1:%s", xextent, yextent, cexH1))
+#  print(sprintf("setSizes() xextent:%s yextent:%s cexH1:%s", xextent, yextent, cexH1))
 }
 #
 # sauvegarde en fichier pdf du graphique ggplot
-ggpdf <- function(plot = last_plot(), suffixe='', dossier='',  width=0, height=0) {
+ggpdf <- function(plot  =  last_plot(), suffixe = '', dossier = '',  width = 0, height = 0) {
   if ( width == 0 ) {
     width <- par("din")[1]
     height <- par("din")[2]
@@ -530,23 +593,23 @@ ggpdf <- function(plot = last_plot(), suffixe='', dossier='',  width=0, height=0
   ggsave(dsn, width=width, height=height)
 #  ggsave(dsn, plot=plot)
 }
-ggpdf2 <- function(p, suffixe="", dossier='', width=7, height=7) {
+ggpdf2 <- function(p, suffixe = "", dossier = '', width = 7, height = 7) {
 #  library(cowplot)
   curcall <- as.character(deparse(sys.call(-1)))
   curcall <- gsub('\\(.*$', '', curcall)
-  if ( suffixe != "" ) {
+  if ( suffixe !=  "" ) {
     suffixe <- sprintf("_%s", suffixe)
   }
-  if ( dossier != "" ) {
+  if ( dossier !=  "" ) {
     dossier <- sprintf("/%s", dossier)
   }
   dsn <- sprintf("%s%s/%s%s.pdf", texDir, dossier, curcall, suffixe)
   print(sprintf("%s() dsn : %s", curcall, dsn))
-  ggsave(dsn, p, width=width, height=height)
+  ggsave(dsn, p, width = width, height = height)
 }
 #
 # sauvegarde en fichier pdf d'un graphique
-dev2pdf <- function(dsn='', suffixe='', dossier='', w=0, h=0) {
+dev2pdf <- function(dsn = '', suffixe = '', dossier = '', w = 0, h = 0) {
   carp()
   if ( w == 0 ) {
     w <- par("din")[1]
@@ -563,14 +626,14 @@ dev2pdf <- function(dsn='', suffixe='', dossier='', w=0, h=0) {
   if ( dsn == '' ) {
     dsn <- sprintf("%s%s/%s%s.pdf", texDir, dossier, curcall, suffixe)
   }
-  dev.copy(pdf, dsn, width=w, height=h)
+  dev.copy(pdf, dsn, width = w, height = h)
   invisible(dev.off())
   carp(" dsn: %s", dsn)
 }
 #
 # sauvegarde en fichier png d'un graphique
-dev2png <- function(dsn='', suffixe="", arbo="", w=0, h=0) {
-  if ( w==0 ) {
+dev2png <- function(dsn = '', suffixe = "", arbo = "", w = 0, h = 0) {
+  if ( w == 0 ) {
     w <- par("din")[1]
     h <- par("din")[2]
   }
@@ -582,13 +645,13 @@ dev2png <- function(dsn='', suffixe="", arbo="", w=0, h=0) {
   if ( dsn == '' ) {
     dsn <- sprintf("%s%s/%s%s.png", texDir, arbo, curcall, suffixe)
   }
-  dev.copy(png, dsn, width=w, height=h)
+  dev.copy(png, dsn, width = w, height = h)
   invisible(dev.off())
   carp(" dsn: %s", dsn)
 }
 #
 # sauvegarde en format pdf
-txt2pdf <- function(txt, dsn=FALSE, suffixe="", dossier="") {
+txt2pdf <- function(txt, dsn = FALSE, suffixe = "", dossier = "") {
   if ( dsn == FALSE ) {
     curcall <- as.character(deparse(sys.call(-1)))
     curcall <- gsub('\\(.*$', '', curcall)
@@ -608,16 +671,16 @@ txt2pdf <- function(txt, dsn=FALSE, suffixe="", dossier="") {
     }
     dsn <- sprintf("%s/%s%s%s.pdf", texDir, dossier, dsn, suffixe)
   }
-  pdf(dsn, width=6, height=3)
+  pdf(dsn, width = 6, height = 3)
   plot.new()
-  par(mar=c(0,0,0,0), oma=c(0,0,0,0))
-  text(.1, .5, txt, font=4, cex=1, col="#F48024")
+  par(mar = c(0,0,0,0), oma = c(0,0,0,0))
+  text(.1, .5, txt, font = 4, cex = 1, col = "#F48024")
   dev.off()
   carp("dsn: %s", dsn)
 }
 #
 # sauvegarde en format tex
-txt2tex <- function(txt, dsn=FALSE, suffixe="", dossier="") {
+txt2tex <- function(txt, dsn = FALSE, suffixe = "", dossier = "") {
   if ( dsn == FALSE ) {
     curcall <- as.character(deparse(sys.call(-1)))
     curcall <- gsub('\\(.*$', '', curcall)
@@ -642,57 +705,57 @@ txt2tex <- function(txt, dsn=FALSE, suffixe="", dossier="") {
 }
 #
 # sauvegarde en fichier pdf d'un graphique
-tex2fic_v1 <- function(tex, suffixe="") {
+tex2fic_v1 <- function(tex, suffixe = "") {
   curcall <- as.character(deparse(sys.call(-1)))
   curcall <- gsub('\\(.*$', '', curcall)
-  if ( suffixe != "" ) {
+  if ( suffixe !=  "" ) {
     suffixe <- sprintf("_%s", suffixe)
   }
   dsn <- sprintf("%s\\%s%s.tex", texDir, curcall, suffixe)
 #  Encoding(tex) <- "UTF-8"
-  tex <- paste(tex, collapse="\n")
-  tex <- iconv(tex, to='UTF-8')
+  tex <- paste(tex, collapse = "\n")
+  tex <- iconv(tex, to = 'UTF-8')
   writeBin(tex, dsn)
   carp(" dsn: %s", dsn)
 }
 #
 # sauvegarde d'un texte pour utilsation en latex
-tex2fic <- function(tex, dsn=FALSE, suffixe="", dossier="") {
-  if ( dsn == FALSE ) {
+tex2fic <- function(tex, dsn = FALSE, suffixe = "", dossier = "") {
+  if ( dsn  ==  FALSE ) {
     curcall <- as.character(deparse(sys.call(-1)))
     curcall <- gsub('\\(.*$', '', curcall)
-    if ( suffixe != "" ) {
+    if ( suffixe !=  "" ) {
       suffixe <- sprintf("_%s", suffixe)
     }
-    if ( dossier != "" ) {
+    if ( dossier !=  "" ) {
       dossier <- sprintf("%s/", dossier)
     }
     dsn <- sprintf("%s/%s%s%s.tex", texDir, dossier, curcall, suffixe)
   }
 #  Encoding(tex) <- "UTF-8"
-#  tex <- iconv(tex, to='UTF-8')
+#  tex <- iconv(tex, to = 'UTF-8')
   write(tex, dsn)
   carp(" dsn: %s", dsn)
 }
 #
 # l'export avec version java
-export_df2xlsx_java <- function(df, dsn=FALSE, suffixe="", dossier="", onglet='export') {
+export_df2xlsx_java <- function(df, dsn = FALSE, suffixe = "", dossier = "", onglet = 'export') {
   library(xlsx)
-  if ( dsn == FALSE ) {
+  if ( dsn  ==  FALSE ) {
     curcall <- as.character(deparse(sys.call(-1)))
     curcall <- gsub('\\(.*$', '', curcall)
-    if ( suffixe != "" ) {
+    if ( suffixe !=  "" ) {
       suffixe <- sprintf("_%s", suffixe)
     }
-    if ( dossier != "" ) {
+    if ( dossier !=  "" ) {
       dossier <- sprintf("%s/", dossier)
     }
     dsn <- sprintf("%s/%s%s%s.xlsx", texDir, dossier, curcall, suffixe)
   }
-  write.xlsx(df, file=dsn, append=FALSE, sheetName=onglet, showNA=FALSE)
+  write.xlsx(df, file = dsn, append = FALSE, sheetName = onglet, showNA = FALSE)
   carp("dsn: %s", dsn)
 }
-export_df2xlsx <- function(df, dsn=FALSE, suffixe="", dossier="", onglet='export') {
+export_df2xlsx <- function(df, dsn = FALSE, suffixe = "", dossier = "", onglet = 'export') {
   library(writexl)
 #  stop('****')
   if ( dsn == FALSE ) {
@@ -710,56 +773,56 @@ export_df2xlsx <- function(df, dsn=FALSE, suffixe="", dossier="", onglet='export
   carp("dsn: %s", dsn)
 }
 export_df2xlsx <- function(df, dsn=FALSE, suffixe="", dossier="", onglet='export') {
-  library(rio)
-#  stop('****')
-  if ( dsn == FALSE ) {
+   if ( dsn  ==  FALSE ) {
     curcall <- as.character(deparse(sys.call(-1)))
     curcall <- gsub('\\(.*$', '', curcall)
-    if ( suffixe != "" ) {
+    if ( suffixe !=  "" ) {
       suffixe <- sprintf("_%s", suffixe)
     }
-    if ( dossier != "" ) {
+    if ( dossier !=  "" ) {
       dossier <- sprintf("%s/", dossier)
     }
     dsn <- sprintf("%s/%s%s%s.xlsx", texDir, dossier, curcall, suffixe)
   }
-  rio::export(df, file=dsn)
+  rio::export(df, file = dsn)
   carp("dsn: %s", dsn)
 }
 #
 # sauvegarde en format rds
-sauve_rds <- function(objet, dsn=FALSE, suffixe="", dossier="") {
-  if ( dsn == FALSE ) {
+sauve_rds <- function(objet, dsn = FALSE, suffixe = "", dossier = "") {
+  if ( dsn  ==  FALSE ) {
     curcall <- as.character(deparse(sys.call(-1)))
     curcall <- gsub('\\(.*$', '', curcall)
-    if ( suffixe != "" ) {
+    if ( suffixe !=  "" ) {
       suffixe <- sprintf("_%s", suffixe)
     }
-    if ( dossier != "" ) {
+    if ( dossier !=  "" ) {
       dossier <- sprintf("%s/", dossier)
     }
     dsn <- sprintf("%s/%s%s%s.Rds", cfgDir, dossier, curcall, suffixe)
   } else {
-    if ( suffixe != "" ) {
+    if ( suffixe !=  "" ) {
       suffixe <- sprintf("_%s", suffixe)
     }
-    if ( dossier != "" ) {
+    if ( dossier !=  "" ) {
       dossier <- sprintf("%s/", dossier)
     }
     dsn <- sprintf("%s/%s%s%s.Rds", cfgDir, dossier, dsn, suffixe)
   }
-  saveRDS(objet, file=dsn)
+  saveRDS(objet, file = dsn)
   carp("dsn: %s", dsn)
 }
 # lecture en format rds
-lire_rds <- function(dsn=FALSE, suffixe="", dossier="") {
-  if ( dossier != "" ) {
+lire_rds <- function(dsn = FALSE, suffixe = "", dossier = "") {
+  if ( dossier !=  "" ) {
     dossier <- sprintf("%s/", dossier)
   }
   dsn <- sprintf("%s/%s%s%s.Rds", cfgDir, dossier, dsn, suffixe)
   carp("dsn: %s", dsn)
   object <- readRDS(dsn)
   return(invisible(object))
+#  stop('****')
+
 }
 #
 # template du pauvre
@@ -767,9 +830,10 @@ misc_list2tpl <- function(foo, tpl) {
   for(i in seq_along(foo)) {
     val <- foo[[i]]
     v <- names(foo)[i]
-    carp("v: %s=>%s", v, val)
+#    carp("v: %s=>%s", v, val)
     re <- paste0("\\{\\{", v, "\\}\\}")
     tpl <- gsub(re, val, tpl, perl = TRUE)
+#    print(tpl); stop("*****")
   }
   return(invisible(tpl))
 }
@@ -798,4 +862,14 @@ misc_df2tpl <- function(df, tpl) {
 #    print(tpli); stop("****")
   }
   return(invisible(t))
+}
+#
+# les classes des colonnes d'un dataframe
+# https://github.com/cran/rgdal/blob/master/R/ogr_write.R
+misc_dfclass <- function(obj) {
+  dfcls <- sapply(slot(obj, "data"), function(x) class(x)[1])
+  dfcls <- gsub("POSIXct", "POSIXt", dfcls)
+  dfcls <- gsub("POSIXlt", "POSIXt", dfcls)
+  dfcls <- gsub("Date", "POSIXt", dfcls)
+  dftof <- sapply(slot(obj, "data"), typeof)
 }

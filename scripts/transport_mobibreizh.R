@@ -2,18 +2,20 @@
 # les réseaux de bus de la région Bretagne
 # utilisation des données opendata
 # auteur : Marc Gauthier
+# licence: Creative Commons Paternité - Pas d'Utilisation Commerciale - Partage des Conditions Initiales à l'Identique 2.0 France
 #
 #
+## validation des fichiers gtfs de la région
 #
-# validation des fichiers gtfs
+# https://transport.data.gouv.fr/datasets/base-de-donnees-multimodale-transports-publics-en-bretagne-mobibreizh/
+# le fichier doit avoir été téléchargé dans D:\web.var\TRANSPORT\MOBIBREIZH\
+# puis éclaté dans ce dossier
 # source("geo/scripts/transport.R");mobibreizh_jour()
-mobibreizh_jour <- function(reseau = "rmat") {
+mobibreizh_jour <- function() {
   library(tidyverse)
   library(rio)
   carp()
-  gtfsDir <<- sprintf("%s/%s", odDir, reseau)
-  reseau_dir <<- sprintf("%s/%s", odDir, reseau)
-  gtfs_trips_stops()
+  mobibreizh_gtfs_reseaux()
 }
 # source("geo/scripts/transport.R");mobibreizh_gtfs_reseau_shapes2ogr()
 mobibreizh_gtfs_reseau_shapes2ogr <- function(reseau = "rmat") {
@@ -35,9 +37,11 @@ mobibreizh_gtfs_reseaux <- function() {
   carp()
   df <- mobibreizh_agency_lire() %>%
     filter(reseau != "") %>%
+#    filter(reseau == "breizhgo") %>%
     filter(agency_id != "") %>%
+#    filter(agency_id == "TUDBUS") %>%
     filter(gtfs_dir != "") %>%
-    filter(grepl("Conseil", gestionnaire)) %>%
+#    filter(grepl("Conseil", gestionnaire)) %>%
     glimpse()
 #  return()
   for (i in 1:nrow(df)) {
@@ -46,29 +50,37 @@ mobibreizh_gtfs_reseaux <- function() {
     mobibreizh_gtfs_reseau(reseau, agency_id)
   }
 }
+# source("geo/scripts/transport.R");mobibreizh_gtfs_reseau("auray", "AURAYBUS")
 mobibreizh_gtfs_reseau <- function(reseau, agency_id) {
   library(tidyverse)
   library(rio)
+  library(stringr)
   carp("reseau: %s agency_id: %s", reseau, agency_id)
   reseau_dir <- sprintf("%s/%s", odDir, reseau)
   dir.create(reseau_dir, showWarnings = FALSE, recursive = TRUE)
-  regex <- sprintf("^%s:", agency_id)
+#  regex <- sprintf("^%s:", agency_id)
+  regex <- sprintf("^(%s):", agency_id)
+  agencies <<- str_split(agency_id, "\\|")[[1]]
+
   fic <- "agency"
   dsn <- sprintf("%s/%s.txt", odDir, fic)
+  carp("dsn: %s", dsn)
   df <- rio::import(dsn, encoding = "UTF-8") %>%
-    filter(agency_id == !!agency_id) %>%
+    filter(agency_id %in% agencies) %>%
     glimpse()
   dsn <- sprintf("%s/%s.txt", reseau_dir, fic)
   rio::export(df, dsn, format = "csv")
   fic <- "routes"
   dsn <- sprintf("%s/%s.txt", odDir, fic)
+  carp("dsn: %s", dsn)
   df <- rio::import(dsn, encoding = "UTF-8") %>%
-    filter(agency_id == !!agency_id) %>%
+    filter(agency_id %in% agencies) %>%
     glimpse()
   dsn <- sprintf("%s/%s.txt", reseau_dir, fic)
   rio::export(df, dsn, format = "csv")
   fic <- "trips"
   dsn <- sprintf("%s/%s.txt", odDir, fic)
+  carp("dsn: %s", dsn)
   df <- rio::import(dsn, encoding = "UTF-8") %>%
     filter(grepl(regex, route_id)) %>%
     glimpse()
@@ -76,6 +88,7 @@ mobibreizh_gtfs_reseau <- function(reseau, agency_id) {
   rio::export(df, dsn, format = "csv")
   fic <- "shapes"
   dsn <- sprintf("%s/%s.txt", odDir, fic)
+  carp("dsn: %s", dsn)
   df <- rio::import(dsn, encoding = "UTF-8") %>%
     filter(grepl(regex, shape_id)) %>%
     glimpse()
@@ -83,6 +96,7 @@ mobibreizh_gtfs_reseau <- function(reseau, agency_id) {
   rio::export(df, dsn, format = "csv")
   fic <- "stops"
   dsn <- sprintf("%s/%s.txt", odDir, fic)
+  carp("dsn: %s", dsn)
   df <- rio::import(dsn, encoding = "UTF-8") %>%
     filter(grepl(regex, stop_id)) %>%
     glimpse()
@@ -90,6 +104,7 @@ mobibreizh_gtfs_reseau <- function(reseau, agency_id) {
   rio::export(df, dsn, format = "csv")
   fic <- "stop_times"
   dsn <- sprintf("%s/%s.txt", odDir, fic)
+  carp("dsn: %s", dsn)
   df <- rio::import(dsn, encoding = "UTF-8") %>%
     filter(grepl(regex, trip_id)) %>%
     glimpse()
@@ -109,7 +124,7 @@ mobibreizh_gtfs <- function() {
   library(tidyverse)
   library(rio)
   carp()
-  dsn <- 'D:/web/geo/TRANSPORT/MOBIBREIZH/20191007/mobibreizh-bd-gtfs.zip'
+  dsn <- 'D:/web.var/TRANSPORT/MOBIBREIZH/20191007/mobibreizh-bd-gtfs.zip'
   tt <- gtfs_zip_lire(dsn) %>%
     glimpse()
 }
@@ -128,7 +143,7 @@ mobibreizh_gtfs_trips <- function() {
 mobibreizh_agency_lire <- function() {
   library(tidyverse)
   library(rio)
-  dsn <- sprintf("%s/agency.xls", transportDir)
+  dsn <- sprintf("%s/agency.xls", cfgDir)
   carp("dsn: %s", dsn)
   df <- rio::import(dsn, col_names = TRUE, na = "") %>%
     replace(is.na(.), '')
@@ -289,7 +304,6 @@ mobibreizh_star_stops <- function() {
 mobibreizh_stops <- function() {
   library(tidyverse)
   library(stringr)
-  odDir <<- sprintf("%s/web/geo/TRANSPORT/MOBIBREIZH", Drive)
   stops.df <- gtfs_stops_verif()
   if ( ! exists("communes.sf") ) {
     communes.sf <<- ign_ade_lire_sf()
@@ -313,7 +327,6 @@ mobibreizh_stops <- function() {
 # lecture du fichier
 # source("geo/scripts/transport.R");mobibreizh_stops_lire()
 mobibreizh_stops_lire <- function() {
-  odDir <<- sprintf("%s/web/geo/TRANSPORT/MOBIBREIZH", Drive)
   dsn <- sprintf("%s/mobibreizh_stops.Rds", odDir)
   carp("dsn: %s", dsn)
   nc <- readRDS(dsn)
@@ -353,4 +366,46 @@ mobibreizh_stops_valid <- function() {
     arrange(desc(distance)) %>%
     print(n=100)
 #  return(invisible(nc))
+}
+#
+# le fichier geojson des lignes
+# source("geo/scripts/transport.R");mobibreizh_lignes()
+mobibreizh_lignes <- function() {
+  library(sf)
+  nc <- mobibreizh_lignes_lire() %>%
+#    dplyr::select(-geo_point_2d) %>%
+    st_transform(4326) %>%
+    glimpse()
+  dsn <- sprintf("%s/lignes-routieres.shp", odDir)
+  st_write(nc, dsn, append = FALSE)
+  carp("dsn: %s", dsn)
+  for (i in 1:nrow(nc)) {
+    mobibreizh_ligne(nc[i, ])
+  }
+}
+mobibreizh_ligne <- function(nc) {
+  library(sp)
+  library(rgdal)
+  spdf <- as(nc, 'Spatial') %>%
+    glimpse()
+  id <- nc[[1, "id"]]
+  dsn <- sprintf("%s/lignes-routieres-%s.gpx", odDir, id)
+  writeOGR(spdf, dsn, layer="shape", driver="GPX", dataset_options="GPX_USE_EXTENSIONS=yes", overwrite_layer=TRUE, delete_dsn = TRUE)
+  carp("dsn: %s", dsn)
+}
+mobibreizh_ligne <- function(nc) {
+  library(sp)
+  library(rgdal)
+  dsn <- sprintf("%s/lignes-routieres-%s.shp", odDir, nc[[1, "id"]])
+  glimpse(nc)
+  st_write(nc, dsn, append = FALSE)
+  carp("dsn: %s", dsn)
+}
+mobibreizh_lignes_lire <- function() {
+  library(sf)
+  dsn <- sprintf("%s/lignes-routieres-departementales-gerees-par-la-region-bretagne.geojson", odDir)
+  nc <- st_read(dsn) %>%
+    dplyr::select(-geo_point_2d) %>%
+    glimpse()
+  return(invisible(nc))
 }

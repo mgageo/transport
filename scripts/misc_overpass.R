@@ -39,13 +39,16 @@ overpass_status <- function(quiet=FALSE) {
 overpass_query <- function(query, fic = "test", force = FALSE) {
   library(httr)
   library(tidyverse)
-  dsn <- sprintf("%s/%s.osm", transportDir, fic)
+  dsn <- sprintf("%s/%s.osm", osmDir, fic)
   carp("dsn: %s", dsn)
   if (! file.exists(dsn) || force == TRUE) {
     query <- sprintf("data=[timeout:600][maxsize:1073741824];%s", query)
     carp("query: %s", query)
     res <- httr::POST(overpass_base_url, body=query, httr::write_disk(dsn, overwrite = TRUE))
-    stop_for_status(res)
+    if (status_code(res) != 200) {
+      print(httr::content(res, as="text", encoding="UTF-8"));
+      stop_for_status(res)
+    }
   }
   return(invisible(dsn))
 }
@@ -64,12 +67,27 @@ overpass_query_json <- function(query, fic = "test", force = FALSE) {
   library(httr)
   library(tidyverse)
   library(rjson)
-  dsn <- sprintf("%s/%s.json", transportDir, fic)
+  dsn <- sprintf("%s/%s.json", osmDir, fic)
   carp("dsn: %s", dsn)
   if (! file.exists(dsn) || force == TRUE) {
     query <- sprintf("data=[timeout:600][maxsize:1073741824][out:json];%s", query)
     res <- httr::POST(overpass_base_url, body=query, httr::write_disk(dsn, overwrite = TRUE))
     stop_for_status(res)
+  }
+  return(invisible(dsn))
+}
+overpass_query_csv <- function(query, fic = "test", force = TRUE) {
+  library(httr)
+  library(tidyverse)
+  dsn <- sprintf("%s/%s.csv", osmDir, fic)
+  carp("dsn: %s", dsn)
+  if (! file.exists(dsn) || force == TRUE) {
+    carp("query: %s", query)
+    res <- httr::POST(overpass_base_url, body=query, httr::write_disk(dsn, overwrite = TRUE))
+    if (status_code(res) != 200) {
+      print(httr::content(res, as="text", encoding="UTF-8"));
+      stop_for_status(res)
+    }
   }
   return(invisible(dsn))
 }

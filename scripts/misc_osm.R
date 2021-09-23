@@ -401,7 +401,7 @@ osm_area_busstop_get <- function(force = FALSE) {
     nc <- readRDS(dsn)
     return(invisible(nc))
   }
-  requete <- sprintf('area[name="%s"]->.a;(node(area.a)[highway=bus_stop];node(area.a)[public_transport!=stop_position][bus];);out meta;', config[1, 'zone'])
+  requete <- sprintf('area[name="%s"]->.a;(node(area.a)[highway=bus_stop];node(area.a)[public_transport!=stop_position][bus];);out meta;', Config[1, 'zone'])
   dsn1 <- overpass_query(requete, "nodes_busstop", force = force)
 # https://github.com/r-spatial/sf/issues/1157
   ini_new <- "#configurartion osm import
@@ -525,7 +525,7 @@ osm_relations_route_parcours <- function(force = FALSE) {
     df <- readRDS(dsn)
     return(invisible(df))
   }
-  requete <- sprintf("area[name='Bretagne'];(relation[network='%s'][type=route][route=bus](area);>>;);out meta;", config[1, 'network'])
+  requete <- sprintf("area[name='Bretagne'];(relation[network='%s'][type=route][route=bus](area);>>;);out meta;", Config[1, 'network'])
   res <- osmdata_query(requete, "relations_route_parcours", force = force)
   nc <- res$osm_multilines
 #  nc <- cbind(nc, st_coordinates(st_centroid(nc)))
@@ -542,7 +542,7 @@ osm_relations_routes <- function(force = FALSE) {
     df <- readRDS(dsn)
     return(invisible(df))
   }
-  requete <- sprintf("(relation[network='%s'][type=route][route=bus];);out meta;", config[1, 'network'])
+  requete <- sprintf("(relation[network='%s'][type=route][route=bus];);out meta;", Config[1, 'network'])
   dsn1 <- overpass_query_json(requete, "relations_route", force = force)
   json1.list <- jsonlite::fromJSON(dsn1, simplifyVector = FALSE, simplifyDataFrame = FALSE)
   elements.list <- json1.list$elements
@@ -581,4 +581,10 @@ osm_relations_routes <- function(force = FALSE) {
   }
   saveRDS(routes.df, file = dsn)
   return(invisible(routes.df))
+}
+# test if a given xpath exists in doc
+osm_has_xpath <- function(doc, xpath) {
+  tryCatch(length(xml2::xml_find_all(doc, xpath)) > 0,
+           error=function(err) { return(FALSE) },
+           warning=function(wrn) { message(wrn$message) ; return(TRUE); })
 }

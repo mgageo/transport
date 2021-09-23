@@ -102,8 +102,8 @@ gtfs2osm_stops <- function(gtfs.sf, osm.sf) {
   df11 <- nc11 %>%
     st_join(nc12, join = st_nearest_feature) %>%
     mutate(distance = round(sqrt((X.x - X.y)^2 + (Y.x - Y.y)^2), 0)) %>%
-    mutate(k_ref = config[1, "k_ref"]) %>%
-    mutate(v_ref = sprintf("%s:%s", config[1, "v_ref"], stop_id.x)) %>%
+    mutate(k_ref = Config[1, "k_ref"]) %>%
+    mutate(v_ref = sprintf("%s:%s", Config[1, "v_ref"], stop_id.x)) %>%
     st_drop_geometry()
   df12 <- df11 %>%
     filter(distance < 50) %>%
@@ -135,7 +135,7 @@ gtfs2osm_stops_create <- function(gtfs.sf) {
   library(kableExtra)
   df1 <- gtfs.sf %>%
     st_drop_geometry() %>%
-    mutate(k_ref = config[1, "k_ref"]) %>%
+    mutate(k_ref = Config[1, "k_ref"]) %>%
     mutate(v_ref = sprintf("%s", stop_id))
 # le template level0
   dsn <- sprintf("%s/transport_level0_node.txt", cfgDir)

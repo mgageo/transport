@@ -1,32 +1,32 @@
 # <!-- coding: utf-8 -->
-# le réseau de bus de Guingamp-Paimpol agglomération
+# le réseau de bus de Lamballe
 # utilisation des données opendata
 # auteur : Marc Gauthier
 #
-# source("geo/scripts/transport.R");qub_jour()
-qub_jour <- function() {
+# source("geo/scripts/transport.R");distribus_jour()
+distribus_jour <- function() {
   carp()
-  config_xls('qub');
+  config_xls("distribus");
   mobibreizh_gtfs_reseau(config[1, "reseau"], config[1, "agency_id"])
 }
-# source("geo/scripts/transport.R");qub_stops_diff()
-qub_stops_diff <- function() {
+# source("geo/scripts/transport.R");distribus_stops_diff()
+distribus_stops_diff <- function() {
   library(tidyverse)
   library(rio)
   carp()
-  config_xls('qub');
-#  agency.df <- mobibreizh_agency_lire('qub')
+  config_xls("distribus");
+#  agency.df <- mobibreizh_agency_lire("distribus")
   mobi.df <- gtfs_stops_verif() %>%
 #    filter(grepl('^axeo', stop_id)) %>%
     glimpse()
   mobi.sf <- st_as_sf(mobi.df, coords=c("lon", "lat"), crs = 4326) %>%
     dplyr::select(stop_name) %>%
     st_transform(2154)
-  osm.sf <- qub_osm_busstop_sf() %>%
+  osm.sf <- distribus_osm_busstop_sf() %>%
 #    filter(is.na(name)) %>%
     dplyr::select(name, osm_id) %>%
     st_transform(2154)
-  df <- qub_proches(osm.sf, mobi.sf) %>%
+  df <- distribus_proches(osm.sf, mobi.sf) %>%
     dplyr::select(-geometry.x, -geometry.y) %>%
     dplyr::select(osm_id, stop_name) %>%
     glimpse()
@@ -34,14 +34,14 @@ qub_stops_diff <- function() {
   export(df, dsn);
   carp('dsn: %s', dsn)
   carp('distance des arrêts mobi')
-  df <- qub_proches(mobi.sf, osm.sf) %>%
+  df <- distribus_proches(mobi.sf, osm.sf) %>%
     dplyr::select(-geometry.x, -geometry.y) %>%
     glimpse()
   View(df)
 }
 #
-# qub_proche
-qub_proches <- function(nc1, nc2) {
+# distribus_proche
+distribus_proches <- function(nc1, nc2) {
   library(sf)
   library(tidyverse)
   carp('nc1: %d', nrow(nc1))
@@ -54,8 +54,8 @@ qub_proches <- function(nc1, nc2) {
   units(df$d) <- 'm'
   return(invisible(df))
 }
-# source("geo/scripts/transport.R");qub_osm_busstop_sf()
-qub_osm_busstop_sf <- function(force = FALSE) {
+# source("geo/scripts/transport.R");distribus_osm_busstop_sf()
+distribus_osm_busstop_sf <- function(force = FALSE) {
   carp()
   dsn <- 'network_busstop'
   requete <- sprintf("relation[network='%s']->.a;node(r.a);out meta;", config[1, "network"])
@@ -63,20 +63,20 @@ qub_osm_busstop_sf <- function(force = FALSE) {
   nc <- oapi_sf_lire(fic = dsn)
   return(invisible(nc))
 }
-qub_osm_get_xml <- function(force = FALSE) {
+distribus_osm_get_xml <- function(force = FALSE) {
   carp()
-  dsn <- 'qub_busstop.osm'
-  requete <- "relation[network='qub']->.a;node(r.a);out meta;"
+  dsn <- 'distribus_busstop.osm'
+  requete <- "relation[network='distribus']->.a;node(r.a);out meta;"
   oapi_requete_get(requete=requete, fic=dsn, force = force)
   od <- oapi_osmdata_lire_xml(fic=dsn) %>%
     glimpse()
 }
-# source("geo/scripts/transport.R");qub_nodes_busstop_valid()
-qub_nodes_busstop_valid <- function(force = TRUE) {
+# source("geo/scripts/transport.R");distribus_nodes_busstop_valid()
+distribus_nodes_busstop_valid <- function(force = TRUE) {
   library(tidyverse)
   library(rio)
   carp()
-  config_xls('qub');
+  config_xls("distribus");
   dsn <- 'network_nodes_busstop_valid'
   requete <- sprintf("relation[network='%s']->.a;node[!'public_transport'](r.a)->.b;(.b;way(bn.b););out meta;", config[1, "network"])
   dsn <- overpass_query(query = requete, fic = dsn, force = force)
@@ -84,8 +84,8 @@ qub_nodes_busstop_valid <- function(force = TRUE) {
   return(invisible(nc))
 }
 #
-# source("geo/scripts/transport.R");config_xls('qub');qub_stops_diff()
-qub_stops_diff <- function(force = FALSE) {
+# source("geo/scripts/transport.R");config_xls("distribus");distribus_stops_diff()
+distribus_stops_diff <- function(force = FALSE) {
   library(tidyverse)
   library(janitor)
   gtfs.sf <- txt_gtfs_stops_sf(force = force) %>%
@@ -123,16 +123,16 @@ qub_stops_diff <- function(force = FALSE) {
     glimpse()
 }
 #
-## la partie routage avec osrm
+## la partie routage avec osrm sur hyper_v/ubuntu10804
 #
-# source("geo/scripts/transport.R");dsn <- qub_relations_route_get()
+# source("geo/scripts/transport.R");dsn <- distribus_relations_route_get()
 #
-qub_relations_route_get <- function(force = FALSE) {
+distribus_relations_route_get <- function(force = FALSE) {
   library(tidyverse)
   library(rio)
   library(xml2)
   carp()
-  config_xls('qub');
+  config_xls("distribus");
   fic <- 'relations_route'
   requete <- sprintf("relation[network='%s'][type=route];
 out meta;", Config[1, "network"])
@@ -147,7 +147,7 @@ out meta;", Config[1, "network"])
   html_entete <- '<html>
 <head>
   <meta charset="UTF-8">
-  <title>transport QUB</title>
+  <title>transport Distribus</title>
 </head>
 <body>'
   html_pied <- '
@@ -162,17 +162,12 @@ out meta;", Config[1, "network"])
     carp("id: %s", id)
     href <- sprintf("<br/><b>%s</b>", id)
     html <- append(html, href)
-    tag_ref <<-  xml2::xml_attr(xml2::xml_find_first(relation, './/tag[@k="ref"]'), "v")
-    tag_ref_network <<-  xml2::xml_attr(xml2::xml_find_first(relation, './/tag[@k="ref:network"]'), "v")
-    tags <- sprintf(" %s %s", tag_ref, tag_ref_network)
-    html <- append(html, tags)
     members_way <<-  xml2::xml_find_all(relation, './/member[@type="way"]')
     members_node <<-  xml2::xml_find_all(relation, './/member[@type="node"]')
     href <- sprintf("members_way: %s", length(members_way))
     html <- append(html, href)
     href <- sprintf(" members_node: %s", length(members_node))
     html <- append(html, href)
-#    stop("****")
 #    id <- xml_attr(relation, "id")
     carp("id : %s ways: %s nodes: %s", id, length(members_way), length(members_node))
     if (length(members_way) != 0) {
@@ -184,31 +179,31 @@ out meta;", Config[1, "network"])
       next;
     }
     type <- "relation"
-    dsn <- qub_osrm(id, force = force)
+    dsn <- distribus_osrm(id, force = force)
     if ( ! file.exists(dsn) || force == TRUE) {
-#      next
+      next
     }
 #    stop("****")
     href <- sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/relation/%s/full'>josm</a>", id)
     html <- append(html, href)
     href <- sprintf("<a href='http://level0.osmz.ru/?url=relation/%s'>level0</a>", id)
     html <- append(html, href)
-    href <- sprintf("<a href='file:///D:/web/geo/TRANSPORT/QUB/LEVEL0/relation_%s_level0.txt'>osrm</a>", id)
+    href <- sprintf("<a href='file:///D:/web/geo/TRANSPORT/DISTRIBUS/LEVEL0/relation_%s_level0.txt'>osrm</a>", id)
     html <- append(html, href)
   }
   html <- append(html, html_pied)
-  dest <- "qub.html"
+  dest <- "distribus.html"
   dsn <- sprintf("%s/%s", webDir, dest)
   write(html, dsn)
   carp("dsn: %s", dsn)
   return()
 }
 #
-# source("geo/scripts/transport.R");qub_osrm()
-qub_osrm <- function(ref, force = TRUE) {
+# source("geo/scripts/transport.R");distribus_osrm()
+distribus_osrm <- function(ref, force = TRUE) {
   library(clipr)
   carp()
-  config_xls('qub');
+  config_xls("distribus");
   carp("josmDir: %s", josmDir)
 #  osrm_relation_stops(12307545, force = force)
 #  ref <- 12307555

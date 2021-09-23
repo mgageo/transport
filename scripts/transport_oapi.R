@@ -78,6 +78,14 @@ oapi_relation_route_get <- function() {
   carp("f_osm: %s", f_osm)
   osm_oapi(data, f_osm)
 }
+# source("geo/scripts/transport.R");oapi_relation_routemaster_get()
+oapi_relation_routemaster_get <- function() {
+  carp()
+  data <- sprintf("(relation[network='BreizhGo'][type=route_master][route_master=bus];>>;);out meta;")
+  f_osm <- sprintf("%s/relation_routemaster.osm", cfgDir);
+  carp("f_osm: %s", f_osm)
+  osm_oapi(data, f_osm)
+}
 #
 # lecture avec sf
 # https://github.com/r-spatial/sf/blob/master/tests/read.Rout.save
