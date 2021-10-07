@@ -1,5 +1,5 @@
 # <!-- coding: utf-8 -->
-# le réseau de bus de Guingamp-Paimpol agglomération
+# le réseau de bus de Quimper
 # utilisation des données opendata
 # auteur : Marc Gauthier
 #
@@ -127,12 +127,12 @@ qub_stops_diff <- function(force = FALSE) {
 #
 # source("geo/scripts/transport.R");dsn <- qub_relations_route_get()
 #
-qub_relations_route_get <- function(force = FALSE) {
+qub_relations_route_get <- function(force = TRUE) {
   library(tidyverse)
   library(rio)
   library(xml2)
   carp()
-  config_xls('qub');
+  config_xls('qub')
   fic <- 'relations_route'
   requete <- sprintf("relation[network='%s'][type=route];
 out meta;", Config[1, "network"])
@@ -193,7 +193,7 @@ out meta;", Config[1, "network"])
     html <- append(html, href)
     href <- sprintf("<a href='http://level0.osmz.ru/?url=relation/%s'>level0</a>", id)
     html <- append(html, href)
-    href <- sprintf("<a href='file:///D:/web/geo/TRANSPORT/QUB/LEVEL0/relation_%s_level0.txt'>osrm</a>", id)
+    href <- sprintf("<a href='http://bv/transport/qub/level0/relation_%s_level0.txt'>osrm</a>", id)
     html <- append(html, href)
   }
   html <- append(html, html_pied)
@@ -204,12 +204,13 @@ out meta;", Config[1, "network"])
   return()
 }
 #
-# source("geo/scripts/transport.R");qub_osrm()
+# pour une ref
 qub_osrm <- function(ref, force = TRUE) {
   library(clipr)
   carp()
   config_xls('qub');
   carp("josmDir: %s", josmDir)
+  carp("level0Dir: %s", level0Dir)
 #  osrm_relation_stops(12307545, force = force)
 #  ref <- 12307555
 #  ref <- 12307567 ; # 13-B

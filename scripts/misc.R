@@ -89,7 +89,11 @@ carp <- function(...) {
 }
 #
 # message à la console
+DEBUG <- FALSE
 Carp <- function(...) {
+  if (DEBUG == FALSE) {
+    return()
+  }
   curcall <- as.character(deparse(sys.call(-1)))
   carp_call <<- gsub('\\(.*$', '', curcall)
   msg_call <- sprintf('%s %s', format(Sys.time(), "%X"), carp_call)

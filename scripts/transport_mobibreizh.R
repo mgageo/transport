@@ -389,14 +389,14 @@ mobibreizh_ligne <- function(nc) {
   spdf <- as(nc, 'Spatial') %>%
     glimpse()
   id <- nc[[1, "id"]]
-  dsn <- sprintf("%s/lignes-routieres-%s.gpx", odDir, id)
+  dsn <- sprintf("%s/lignes-routieres/lignes-routieres-%s.gpx", odDir, id)
   writeOGR(spdf, dsn, layer="shape", driver="GPX", dataset_options="GPX_USE_EXTENSIONS=yes", overwrite_layer=TRUE, delete_dsn = TRUE)
   carp("dsn: %s", dsn)
 }
 mobibreizh_ligne <- function(nc) {
   library(sp)
   library(rgdal)
-  dsn <- sprintf("%s/lignes-routieres-%s.shp", odDir, nc[[1, "id"]])
+  dsn <- sprintf("%s/lignes-routieres/lignes-routieres-%s.shp", odDir, nc[[1, "id"]])
   glimpse(nc)
   st_write(nc, dsn, append = FALSE)
   carp("dsn: %s", dsn)
@@ -408,4 +408,35 @@ mobibreizh_lignes_lire <- function() {
     dplyr::select(-geo_point_2d) %>%
     glimpse()
   return(invisible(nc))
+}
+#
+# Base de données multimodale transports publics en Bretagne - MobiBreizh
+# https://data.bretagne.bzh/explore/dataset/base-de-donnees-multimodale-transports-publics-en-bretagne-mobibreizh/api/
+# ce fichier ne contient que les stops
+# source("geo/scripts/transport.R");mobibreizh_multi_lire()
+mobibreizh_multi_lire <- function() {
+  library(rio)
+  dsn <- sprintf("%s/base-de-donnees-multimodale-transports-publics-en-bretagne-mobibreizh.csv", odDir)
+  df <- rio::import(dsn, encoding = "UTF-8") %>%
+    glimpse()
+  return(invisible(df))
+}
+mobibreizh_gtfs_stops_lire <- function() {
+  library(rio)
+  fic <- "stops"
+  dsn <- sprintf("%s/%s.txt", odDir, fic)
+  carp("dsn: %s", dsn)
+  df <- rio::import(dsn, encoding = "UTF-8") %>%
+    glimpse()
+  return(invisible(df))
+}
+# source("geo/scripts/transport.R");mobibreizh_stops_diff()
+mobibreizh_stops_diff <- function() {
+  library(rio)
+  gtfs.df <- mobibreizh_gtfs_stops_lire()
+  multi.df <- mobibreizh_multi_lire()
+  df <- gtfs.df %>%
+    full_join(multi.df, by = c("stop_id" = "ID")) %>%
+    filter(stop_name != Name) %>%
+    glimpse()
 }

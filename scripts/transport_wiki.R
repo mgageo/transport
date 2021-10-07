@@ -16,9 +16,10 @@
 # source("geo/scripts/transport.R");config_xls('tudbus');wiki_connect()
 wiki_session <- FALSE
 wiki_host <- 'https://wiki.openstreetmap.org';
-wiki_connect <- function(force = FALSE) {
+wiki_connect <- function(force = TRUE) {
   library(tidyverse)
   library(rvest)
+  carp()
   if ( wiki_session != FALSE & force == FALSE) {
     return(invisible(wiki_session))
   }
@@ -36,7 +37,7 @@ wiki_connect <- function(force = FALSE) {
 wiki_page_init <- function(page = "User:Mga_geo/Transports_publics/toto", article = 'titi', force = FALSE) {
   library(tidyverse)
   library(rvest)
-  url <- sprintf("%s/w/index.php?title=%s&action=edit", wiki_host, page);
+  url <- sprintf("%s/w/index.php?title=%s&action=edit", wiki_host, URLencode(page));
   carp("url: %s", url)
 #  return()
   edit <- wiki_session %>%
@@ -113,15 +114,20 @@ out meta;
 {{User:Mga_geo/Transports_publics/((wiki))/route_master}}
 {{User:Mga_geo/Transports_publics/((wiki))/route}}
 =GTFS=
+{{User:Mga_geo/Transports_publics/((wiki))/gtfs_routes_shapes}}
+
+
 {{User:Mga_geo/Transports_publics/((wiki))/routes}}
 
 {{User:Mga_geo/Transports_publics/((wiki))/routes_stops}}
+
+{{User:Mga_geo/Transports_publics/((wiki))/gtfs_shapes}}
 '
   wiki_connect()
   article <- wiki_dfi2tpl(Config, 1, article)
   page <- sprintf("User:Mga_geo/Transports_publics/%s", Config["wiki"])
   wiki_page_init(page, article)
-  for (p in c("network", "route_master", "route", "routes", "routes_stops")) {
+  for (p in c("network", "route_master", "route", "routes", "routes_stops", "gtfs_shapes", "gtfs_routes_shapes")) {
     page <- sprintf("User:Mga_geo/Transports_publics/%s/%s", Config["wiki"], p) %>%
       glimpse()
     wiki_page_init(page = page, article = "roro", force = FALSE)
