@@ -389,3 +389,30 @@ gtfs_template <- function(tpl, df) {
 #  carp("tpl :%s", tpl)
   return(tpl)
 }
+#
+# conversion en format gpx compatble osm
+gtfs_gpx <- function(mtx, name) {
+  library(lubridate)
+  carp("début name: %s", name)
+  df <- as.data.frame(mtx)
+  glimpse(df)
+  gpx <- '<?xml version="1.0"?>
+<gpx version="1.1" creator="GDAL 3.4.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ogr="http://osgeo.org/gdal" xmlns="http://www.topografix.com/GPX/1/1" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+'
+  gpx <- append(gpx, '<trk>')
+  name <- sprintf('<name>%s</name>', name)
+  gpx <- append(gpx, name)
+
+  gpx <- append(gpx, '<trkseg>')
+  datetime <- ymd("2021/11/01")
+  for(i in 1:nrow(df)) {
+    x <- datetime + minutes(i)
+    trkpt <- sprintf('  <trkpt lat="%s" lon="%s">
+  </trkpt>', df[i, "lat"], df[i, "lon"], x)
+    gpx <- append(gpx, trkpt)
+  }
+  gpx <- append(gpx, '</trkseg>')
+  gpx <- append(gpx, '</trk>')
+  gpx <- append(gpx, '</gpx>')
+  return(invisible(gpx))
+}

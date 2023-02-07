@@ -301,12 +301,15 @@ oapi_requete <- function(zone, type) {
   return(body)
 }
 # requête en get
-osm_oapi <- function(data, f_osm) {
+osm_oapi <- function(data, f_osm, force = TRUE) {
   library(httr)
   library(rvest)
   library(tidyverse)
   library(RCurl)
-  carp("début data:%s", data)
+  carp("début data: %s", data)
+  if (file.exists(f_osm) && force == FALSE) {
+    return(f_osm)
+  }
   url <- 'https://overpass-api.de/api/interpreter'
 #  url <- 'http://api.openstreetmap.fr/oapi/interpreter'
 #  url <- 'https://overpass-turbo.eu/'
@@ -320,6 +323,7 @@ osm_oapi <- function(data, f_osm) {
     glimpse()
   write(doc, f_osm)
   carp("f_osm: %s", f_osm)
+  return(f_osm)
 }
 # requête en get
 osm_oapi_rcurl <- function(data, f_osm) {

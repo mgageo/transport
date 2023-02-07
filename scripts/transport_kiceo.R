@@ -108,5 +108,23 @@ kiceo_osrm <- function(ref = "12255740", force = TRUE) {
   sfc4 <- osrm_polyline_sfc(polyline4)
   plot(sfc4, add = TRUE, col = "red", lwd = 2)
   ways.df <- osrm_polyline_ways(ref = ref, type = "relation", polyline = polyline1, force = force)
-
+}
+#
+# controle de la référence des shapes
+# source("geo/scripts/transport.R");kiceo_shapes()
+kiceo_shapes <- function(force = TRUE) {
+  dsn <- osm_relations_route_bus_csv(force = force) %>%
+    glimpse()
+  df <- fread(dsn) %>%
+    clean_names() %>%
+    dplyr::select(ref_network, gtfs_shape_id) %>%
+    separate(ref_network, c("ref", "ab"), remove = FALSE) %>%
+    mutate(ab = dplyr::recode(ab,
+      "A" = 0,
+      "B" = 1,
+      )) %>%
+    separate(gtfs_shape_id, c("REF", "AB"), remove = FALSE) %>%
+    filter(AB != ab) %>%
+    glimpse()
+  misc_print(df)
 }

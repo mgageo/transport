@@ -1,0 +1,339 @@
+# <!-- coding: utf-8 -->
+# les réseaux de bus de la région Bretagne
+# utilisation des données opendata
+# auteur : Marc Gauthier
+#
+# source("geo/scripts/transport.R");bretagne_jour()
+bretagne_jour <- function(force = FALSE) {
+  library(tidyverse)
+  library(data.table)
+  library(janitor)
+  library(rio)
+  library(tidyverse)
+  bretagne_jour_osmose()
+}
+#
+# vérification de l'appartenance à un network connu
+# source("geo/scripts/transport.R");bretagne_relations_bus_network()
+bretagne_relations_bus_network <- function(force = FALSE) {
+  library(tidyverse)
+  library(data.table)
+  library(janitor)
+  library(rio)
+  library(tidyverse)
+  dsn <- sprintf("%s/agency.xls", cfgDir)
+  carp("dsn: %s", dsn)
+  xls.df <- rio::import(dsn) %>%
+    glimpse()
+
+  carp("osm")
+  dsn <- osm_bretagne_relations_bus_csv(force = force) %>%
+    glimpse()
+  df <- fread(dsn, encoding = "UTF-8") %>%
+    clean_names() %>%
+    glimpse()
+  df1 <- df %>%
+    group_by(network) %>%
+    summarize(nb = n()) %>%
+    glimpse()
+  df2 <- df1 %>%
+    filter(network %notin% xls.df$network)
+  misc_print(df2)
+  df3 <- df %>%
+    filter(network %in% df2$network)
+  misc_print(df3)
+}
+#
+# source("geo/scripts/transport.R");bretagne_nodes_bus()
+bretagne_nodes_bus <- function(fic = "bretagne_nodes_bus", force = FALSE, force_osm = FALSE) {
+  dsn_rds <- sprintf("%s/%s.rds", osmDir, fic)
+  if (file.exists(dsn_rds) && force == FALSE) {
+    rc <- readRDS(dsn_rds)
+    return(invisible(rc))
+  }
+  requete <- '
+area[name="Bretagne"]->.a;
+(
+node(area.a)[highway=bus_stop];
+node(area.a)[public_transport];
+);
+out meta;'
+  fic <- sprintf("%s.osm", fic)
+  dsn <- oapi_requete_get(requete, fic, force = force_osm)
+  df <- osmapi_objects_get_tags(dsn) %>%
+    glimpse()
+  saveRDS(df, dsn_rds)
+}
+#
+# source("geo/scripts/transport.R");bretagne_nodes_bus()
+bretagne_nodes_bus_valid <- function(fic = "bretagne_nodes_bus", force = FALSE, force_osm = FALSE) {
+  dsn_rds <- sprintf("%s/%s.rds", osmDir, fic)
+  df <- readRDS(dsn_rds)
+  df1 <- df %>%
+    filter(! is.na(`train`)) %>%
+    filter(! is.na(`public_transport`)) %>%
+    glimpse()
+}
+#
+# source("geo/scripts/transport.R");bretagne_relations_route_bus()
+bretagne_relations_route_bus <- function(fic = "bretagne_relations_route_bus", force = FALSE) {
+  dsn_rds <- sprintf("%s/%s.rds", osmDir, fic)
+  if (file.exists(dsn_rds) && force == FALSE) {
+    rc <- readRDS(dsn_rds)
+    return(invisible(rc))
+  }
+  requete <- '
+area[name="Bretagne"]->.a;
+relation(area.a)[route=bus];
+out meta;'
+  fic <- sprintf("%s.osm", fic)
+  dsn <- oapi_requete_get(requete, fic, force = force)
+  df <- osmapi_objects_get_tags(dsn) %>%
+    glimpse()
+  saveRDS(df, dsn_rds)
+}
+#
+# source("geo/scripts/transport.R");bretagne_relations_route_bus_valid()
+bretagne_relations_route_bus_valid <- function(fic = "bretagne_relations_route_bus", force = FALSE) {
+  dsn_rds <- sprintf("%s/%s.rds", osmDir, fic)
+  df <- readRDS(dsn_rds)
+  df1 <- df %>%
+    filter(! is.na(`review_requested`)) %>%
+    glimpse()
+}
+#
+# source("geo/scripts/transport.R");bretagne_relations_route_master_bus()
+bretagne_relations_route_master_bus <- function(fic = "bretagne_relations_route_master_bus", force = FALSE) {
+  dsn_rds <- sprintf("%s/%s.rds", osmDir, fic)
+  if (file.exists(dsn_rds) && force == FALSE) {
+    rc <- readRDS(dsn_rds)
+    return(invisible(rc))
+  }
+  requete <- '
+area[name="Bretagne"]->.a;
+relation(area.a)[route=bus];
+rel(br);
+out meta;'
+  fic <- sprintf("%s.osm", fic)
+  dsn <- oapi_requete_get(requete, fic, force = force)
+  df <- osmapi_objects_get_tags(dsn) %>%
+    glimpse()
+  saveRDS(df, dsn_rds)
+}
+#
+## les erreurs transport détectés par osmose
+#
+# l'api fournit au maximum 500 réponses sur des requêtes géographiques
+# donc découpage de la bretagne
+# - par commune
+# - par département : trop de réponses
+# puis interrogation par issue
+# source("geo/scripts/transport.R");bretagne_jour_osmose()
+bretagne_jour_osmose <- function () {
+  bretagne_communes_osmose()
+  bretagne_communes_osmose_issues()
+  bretagne_communes_osmose_issues_()
+}
+# contours simplifiés des communes
+# https://www.data.gouv.fr/fr/datasets/contours-des-communes-de-france-simplifie-avec-regions-et-departement-doutre-mer-rapproches/
+# https://www.icem7.fr/cartographie/un-fond-de-carte-france-par-commune-optimise-pour-le-web-et-lanalyse-statistique/
+#
+# données ign
+# source("geo/scripts/transport.R");bretagne_communes()
+bretagne_communes <- function() {
+  communes.sf <- ign_adminexpress_lire_sf("COMMUNE") %>%
+    filter(INSEE_REG == "53") %>%
+    st_transform(4326) %>%
+    glimpse()
+  for (i in 1:nrow(communes.sf)) {
+    bbox <- st_bbox(communes.sf[i, ])
+    communes.sf[i, "lon1"] = bbox[1]
+    communes.sf[i, "lon2"] = bbox[3]
+    communes.sf[i, "lat1"] = bbox[2]
+    communes.sf[i, "lat2"] = bbox[4]
+  }
+  glimpse(communes.sf)
+  dsn_rds <- sprintf("%s/%s.rds", varDir, "bretagne_communes")
+  saveRDS(communes.sf, dsn_rds)
+}
+# source("geo/scripts/transport.R");bretagne_communes_osmose()
+bretagne_communes_osmose <- function() {
+  dsn_rds <- sprintf("%s/%s.rds", varDir, "bretagne_communes")
+  communes.sf <- readRDS(dsn_rds)
+  df1 <- data.frame()
+  for (i in 1:nrow(communes.sf)) {
+    carp("i: %s/%s", i, nrow(communes.sf))
+    issues <- osmose_bbox_get(communes.sf[[i, "lon1"]], communes.sf[[i, "lat1"]], communes.sf[[i, "lon2"]], communes.sf[[i, "lat2"]])
+    if (length(issues) == 0) {
+      next;
+    }
+    issues.df <- issues %>%
+      rbindlist()
+    df1 <- rbind(df1, issues.df)
+  }
+  glimpse(df1)
+  dsn_rds <- sprintf("%s/%s.rds", varDir, "bretagne_communes_osmose")
+  saveRDS(df1, dsn_rds)
+}
+# source("geo/scripts/transport.R");bretagne_communes_osmose_issues()
+bretagne_communes_osmose_issues <- function() {
+  dsn_rds <- sprintf("%s/%s.rds", varDir, "bretagne_communes_osmose")
+  df1 <- readRDS(dsn_rds) %>%
+    glimpse() %>%
+    distinct(id) %>%
+    glimpse()
+  df3 <- data.frame()
+  for (i in 1:nrow(df1)) {
+    carp("i: %s/%s", i, nrow(df1))
+    lst1 <- osmose_issue_get(df1[[i, "id"]])
+    lst11 <- lst1[["elems"]]
+    lst1["elems"] <- NULL
+    df11 <- data.frame()
+    for (i11 in 1:length(lst11)) {
+      lst3 <- lst11[[i11]]
+#    glimpse(lst3)
+      lst4 <- list()
+      for (j in 1:length(lst3)) {
+        if (class(lst3[[j]]) == "list") {
+          next
+        }
+#        carp("j: %s %s",j, class(lst3[[j]]))
+        lst4[[names(lst3)[j]]] <- lst3[[j]]
+      }
+#    glimpse(lst4)
+
+      df4 <- unlist(lst4) %>%
+        enframe() %>%
+        pivot_wider(names_from = name, values_from = value) %>%
+        rename_with( ~ paste("elems", i11, .x, sep = "."))
+#      glimpse(df4)
+      if (i11 == 1) {
+        df11 <- df4
+      } else {
+        df11 <- cbind(df11, df4)
+      }
+      lst5 <- lst3[["tags"]]
+#    glimpse(lst5)
+      lst6 <- list()
+      for (j in 1:length(lst5)) {
+        lst6[[lst5[[j]]$k]] <- lst5[[j]]$v
+      }
+#    glimpse(lst6)
+      df6 <- unlist(lst6) %>%
+        enframe() %>%
+        pivot_wider(names_from = name, values_from = value) %>%
+        rename_with( ~ paste("tags", i11, .x, sep = "."))
+#      glimpse(df6)
+      df11 <- cbind(df11, df6)
+    }
+    df2 <- unlist(lst1) %>%
+      enframe() %>%
+      pivot_wider(names_from = name, values_from = value)
+    df2 <- cbind(df2, df11)
+#    glimpse(df2);stop("*****")
+    df3 <- bind_rows(df3, df2)
+#    break
+  }
+  dsn_rds <- sprintf("%s/%s.rds", varDir, "bretagne_communes_osmose_issues")
+  saveRDS(df3, dsn_rds)
+#  glimpse(df3);misc_print(df3)
+}
+# source("geo/scripts/transport.R");df <- bretagne_communes_osmose_issues_()
+bretagne_communes_osmose_issues_ <- function() {
+  library(knitr)
+  library(kableExtra)
+  html <- misc_html_titre("bretagne_communes_osmose")
+  dsn_rds <- sprintf("%s/%s.rds", varDir, "bretagne_communes_osmose_issues")
+  df1 <- readRDS(dsn_rds) %>%
+    glimpse()
+  carp("titre: %s", df1[[1, "title.auto"]])
+  df2 <- df1 %>%
+    group_by(class, title.auto) %>%
+    summarize(nb = n()) %>%
+    glimpse()
+  misc_print(df2)
+  html <- misc_html_append(html, "<h1>Stats</h1>")
+  html <- misc_html_append_df(html, df2)
+  df3 <- df1 %>%
+    filter(class == "5") %>%
+    dplyr::select(uuid, subtitle = subtitle.auto, elems.1.id,  elems.1.type,  elems.2.id,  elems.2.type
+      , tags.1.network, tags.2.network
+    ) %>%
+    glimpse()
+  df4 <- df3 %>%
+    mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
+    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
+    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s, %s%s'>level0</a>"
+      , str_sub(elems.1.type,1, 1),  elems.1.id
+      , str_sub(elems.2.type,1, 1),  elems.2.id
+    )) %>%
+    glimpse()
+# https://sebastien-foulle.github.io/hebdor_mise_forme_tables.html
+  html <- misc_html_append(html, "<h1>Diff route route_master</h1>")
+  html <- misc_html_append_df(html, df4)
+  df3 <- df1 %>%
+    filter(class == "4") %>%
+    dplyr::select(uuid, subtitle = subtitle.auto, elems.1.id,  elems.1.type
+      , tags.1.network
+    ) %>%
+    glimpse()
+  df4 <- df3 %>%
+    mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
+    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
+    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>"
+      , str_sub(elems.1.type,1, 1),  elems.1.id
+    )) %>%
+    glimpse()
+  html <- misc_html_append(html, "<h1>Diff route sans route_master</h1>")
+  html <- misc_html_append_df(html, df4)
+  df3 <- df1 %>%
+    filter(class == "11") %>%
+    dplyr::select(uuid, subtitle = subtitle.auto, elems.1.id,  elems.1.type
+      , tags.1.network
+    ) %>%
+    glimpse()
+  df4 <- df3 %>%
+    mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
+    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
+    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>"
+      , str_sub(elems.1.type,1, 1),  elems.1.id
+    )) %>%
+    glimpse()
+  html <- misc_html_append(html, "<h1>Diff ordre des stops</h1>")
+  html <- misc_html_append_df(html, df4)
+  df3 <- df1 %>%
+    filter(class == "1") %>%
+    dplyr::select(uuid, subtitle = subtitle.auto, elems.1.id,  elems.1.type
+      , tags.1.network, tags.1.route
+    ) %>%
+    glimpse()
+  df4 <- df3 %>%
+    mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
+    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
+    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>"
+      , str_sub(elems.1.type,1, 1),  elems.1.id
+    )) %>%
+    glimpse()
+  html <- misc_html_append(html, "<h1>Diff gap</h1>")
+  html <- misc_html_append_df(html, df4)
+  dsn <- sprintf("%s/bretagne_communes_osmose_issues.html", webDir)
+  write(html, dsn)
+  carp("dsn: %s", dsn)
+  dsn_rds <- sprintf("%s/%s.rds", varDir, "bretagne_communes_osmose_issues_gap")
+  saveRDS(df4, dsn_rds)
+  return(invisible(df4))
+}
+# source("geo/scripts/transport.R");df <- bretagne_communes_osmose_issues_gap()
+bretagne_communes_osmose_issues_gap <- function() {
+  dsn_rds <- sprintf("%s/%s.rds", varDir, "bretagne_communes_osmose_issues_gap")
+  df <- readRDS(dsn_rds) %>%
+    filter(tags.1.route == "bus") %>%
+    filter(tags.1.network != "QUB")
+  for (i in 1:nrow(df)) {
+    osm_relation_route_gap(id = df[i, "elems.1.id"], force = TRUE, force_osm = TRUE)
+  }
+}

@@ -26,10 +26,16 @@ osmapi_get_objet <- function(ref, type = "relation", force = FALSE) {
     res <- httr::GET(url = query, encoding = "UTF-8", type = "application/json", httr::write_disk(dsn, overwrite = TRUE))
     stop_for_status(res)
   }
+  if (2 == 1) {
+    tx  <- readLines(dsn)
+    tx2  <- stringi::stri_enc_toascii(tx)
+    writeLines(tx2, con = dsn)
+  }
   res <- rjson::fromJSON(file = dsn)
+  # res <- jsonlite::fromJSON(dsn)
   return(invisible(res))
 }
-# source("geo/scripts/transport.R"); res <- osmapi_get_full(ref = "11920346"); print(res)
+# source("geo/scripts/transport.R"); res <- osmapi_get_object_full(ref = "4021035"); print(res)
 osmapi_get_object_full <- function(ref, type = "relation", force = FALSE) {
   library(readr)
   library(tidyverse)
@@ -37,52 +43,233 @@ osmapi_get_object_full <- function(ref, type = "relation", force = FALSE) {
   carp("dsn: %s", dsn)
   if (! file.exists(dsn) || force == TRUE) {
     url <- sprintf("https://www.openstreetmap.org/api/0.6/%s/%s/full", type, ref)
-    res <- httr::GET(url = url, encoding = "UTF-8", type = "application/json", verbose(), httr::write_disk(dsn, overwrite = TRUE))
+# , verbose()
+    res <- httr::GET(url = url, encoding = "UTF-8", type = "application/json", httr::write_disk(dsn, overwrite = TRUE))
     stop_for_status(res)
-    txt <- httr::content(res, as = "text")
-  } else {
-    txt <- read_file(dsn)
   }
-  return(invisible(txt))
+  return(invisible(dsn))
 }
-# source("geo/scripts/transport.R"); res <- osmapi_get_objet_v1(objet = "11920346"); print(res)
-osmapi_get_object_v1 <- function(objet, type = "relation", force = FALSE) {
+# source("geo/scripts/transport.R"); res <- osmapi_get_object_relations(ref = "269138982"); print(res)
+osmapi_get_object_relations <- function(ref, type = "node", force = FALSE) {
   library(readr)
   library(tidyverse)
-  dsn <- sprintf("%s/%s_%s.txt", transportDir, type, objet)
+  dsn <- sprintf("%s/%s_%s_relations.osm", osmDir, type, ref)
   carp("dsn: %s", dsn)
   if (! file.exists(dsn) || force == TRUE) {
-    url <- sprintf("https://www.openstreetmap.org/api/0.6/%s/%s.json", type, objet)
-    res <- httr::GET(url = url, encoding = "UTF-8", type = "application/json", verbose(), httr::write_disk(dsn, overwrite = TRUE))
+    url <- sprintf("https://www.openstreetmap.org/api/0.6/%s/%s/relations", type, ref)
+# , verbose()
+    res <- httr::GET(url = url, encoding = "UTF-8", type = "application/json", httr::write_disk(dsn, overwrite = TRUE))
     stop_for_status(res)
-    txt <- httr::content(res, as = "text")
-  } else {
-    txt <- read_file(dsn)
   }
-  return(invisible(txt))
+  return(invisible(dsn))
 }
-#
-# récupération des coordonnées des arrêts d'une relation transport
-# source("geo/scripts/transport.R"); osmapi_get_members_platform(ref = "11920346")
-osmapi_get_members_platform <- function(ref = "11920346", type = "relation", force = FALSE) {
+osmapi_object_full <- function(ref, type = "relation", force = FALSE) {
   library(readr)
   library(tidyverse)
-  carp()
-  json1.list <<- osmapi_get_objet(ref = ref, type = type, force)
+  library(httr)
+  dsn <- sprintf("%s/%s_%s_full.osm", osmDir, type, ref)
+  carp("dsn: %s", dsn)
+  if (! file.exists(dsn) | force == TRUE) {
+    url <- sprintf("https://www.openstreetmap.org/api/0.6/%s/%s/full", type, ref)
+    res <- httr::GET(url = url, encoding = "UTF-8", type = "application/json", httr::write_disk(dsn, overwrite = TRUE))
+    stop_for_status(res)
+  }
+  return(invisible(dsn))
+}
+
+#
+# récupération des coordonnées des arrêts d'une relation transport
+# version json
+# source("geo/scripts/transport.R"); osmapi_get_members_platform(ref = "3184038", force = TRUE)
+osmapi_get_members_platform_json <- function(ref = "11920346", type = "relation", force = FALSE) {
+  library(readr)
+  library(tidyverse)
+  carp("ref: %s", ref)
+  json1.list <- osmapi_get_objet(ref = ref, type = type, force)
   members.list <- json1.list$elements[[1]]$members
   if (length(members.list) == 0 ) {
     confess("**** pas de membres")
   }
+  carp("length(members.list): %s", length(members.list))
   df1 <- do.call(rbind, lapply(members.list, data.frame))
   df2 <- df1 %>%
     filter(type == "node")
+  df4 <- tibble()
   for (i in 1:nrow(df2)) {
     ref <- df2[i, "ref"]
-    res <- osmapi_get_objet(ref = ref, type = "node");
-    df2[i, "lat"] <- res$elements[[1]]$lat
-    df2[i, "lon"] <- res$elements[[1]]$lon
+    res <- osmapi_get_objet(ref = ref, type = "node", force = force);
+    elements <- res$elements[[1]]
+
+#    glimpse(res$elements[[1]]); stop("*****")
+    tags <- elements$tags
+    tags.df <- as_tibble(tags) %>%
+      rename_all(~ paste0("tags.", .x))
+    elements$tags <- NULL
+    elements$type <- NULL
+    elements.df <- as_tibble(elements)
+    df3 <- cbind(df2[i, ], elements.df[1, ], tags.df[1, ])
+    df4 <- bind_rows(df4, df3)
   }
-  return(invisible(df2))
+  return(invisible(df4))
+}
+#
+# récupération des coordonnées des arrêts d'une relation transport
+# version xml
+# source("geo/scripts/transport.R"); rc <- osmapi_get_members_platform(ref = "3184038", force = FALSE)
+osmapi_get_members_platform <- function(ref = "11920346", type = "relation", force = FALSE, force_osm = FALSE) {
+  library(readr)
+  library(tidyverse)
+  library(janitor)
+  library(xml2)
+  carp("ref: %s", ref)
+  dsn_rds <- sprintf("%s/%s_%s_members_platform.rds", osmDir, type, ref)
+  if (file.exists(dsn_rds) && force == FALSE) {
+    rc <- readRDS(dsn_rds)
+    return(invisible(rc))
+  }
+  dsn <- osmapi_get_object_full(ref = ref, type = type, force = force)
+  doc <- read_xml(dsn)
+  relations <- xml2::xml_find_all(doc, "//relation")
+  carp("relations nb: %s", length(relations))
+  nodes <- xml2::xml_find_all(doc, "//node")
+  carp("nodes nb: %s", length(nodes))
+#
+# analyse de la relation
+  relation <- relations[[1]]
+  relation.df <- xml_attrs(relation) %>%
+    as_tibble_row()
+#  print(as.character(relation))
+  members <- xml2::xml_find_all(relation, "//member")
+  carp("members nb: %s", length(members))
+  members.list <- list()
+  for (attr in c("type", "ref", "role")) {
+    members.list[[attr]] <- members %>% xml_attr(attr)
+  }
+  members.df <- as_tibble(members.list)
+#  misc_print(members.df); stop("*****")
+  tags <- xml2::xml_find_all(relation, "./tag")
+#  carp("tags nb: %s", length(tags))
+#  print(as.character(tags[[1]]))
+  tags.list <- list()
+  for (attr in c("k", "v")) {
+    tags.list[[attr]] <- tags %>% xml_attr(attr)
+  }
+  tags.df <- as_tibble(tags.list) %>%
+    pivot_wider(names_from = k, values_from = v)
+  relation.df <- cbind(relation.df, tags.df)
+#
+# analyse des nodes
+# ils doivent avoir des tags, sauf certains cas
+  nodes.df <- tibble()
+  nodes <- xml2::xml_find_all(doc, "//node")
+  carp("nodes nb: %s", length(nodes))
+  for (node in nodes) {
+    node.df <- xml_attrs(node) %>%
+      as_tibble_row()
+    tags <- xml2::xml_find_all(node, "./tag")
+#    carp("tags nb: %s", length(tags))
+    if (length(tags) > 0) {
+      tags.list <- list()
+      for (attr in c("k", "v")) {
+        tags.list[[attr]] <- tags %>% xml_attr(attr)
+      }
+      tags.df <- as_tibble(tags.list) %>%
+        pivot_wider(names_from = k, values_from = v)
+#    glimpse(tags.df)
+      node.df <- cbind(node.df, tags.df)
+    }
+    nodes.df <- bind_rows(nodes.df, node.df)
+  }
+  k_ref <- Config[[1, "k_ref"]]
+#  carp("k_ref: %s", k_ref)
+  nodes.df <- nodes.df %>%
+#    filter(! is.na(`ref:FR:STAR`)) %>%
+    dplyr::select(id, name, k_ref = !!k_ref, lat, lon)
+#
+# on peut enfin s'attaquer au rapprochement
+  df1 <- members.df %>%
+    left_join(nodes.df, by = c("ref" = "id")) %>%
+    clean_names()
+  df2 <- df1 %>%
+    filter(grepl("platform", role))
+  relation.df[1, "stops_id"] <- paste(df2$k_ref, collapse = ";")
+  relation.df[1, "stops_name"] <- paste(df2$name, collapse = ";")
+  saveRDS(relation.df, dsn_rds)
+  carp("les arrêts")
+  df3 <- df1 %>%
+    filter(grepl("(stop|platform)", role)) %>%
+    filter(type == "node") %>%
+    mutate(id = !!ref)
+  rc <- list("relation" = relation.df, "members" = df3)
+  saveRDS(rc, dsn_rds)
+  return(invisible(rc))
+}
+# source("geo/scripts/transport.R"); osmapi_get_tags(ref = "14704778", force = FALSE)
+osmapi_get_tags <- function(ref = "11920346", type = "relation", force = FALSE) {
+  library(readr)
+  library(tidyverse)
+  library(janitor)
+  library(xml2)
+  carp("ref: %s", ref)
+  dsn_rds <- sprintf("%s/%s_%s_full_tags.rds", osmDir, type, ref)
+  if (file.exists(dsn_rds) && force == FALSE) {
+    return(dsn_rds)
+  }
+  dsn <- osmapi_get_object_full(ref = ref, type = type, force = force)
+  doc <- read_xml(dsn)
+  relations <- xml2::xml_find_all(doc, "//relation")
+#  carp("relations nb: %s", length(relations))
+#
+# analyse de la relation
+  relation <- relations[[1]]
+  relation.df <- xml_attrs(relation) %>%
+    as_tibble_row()
+#  print(as.character(relation))
+ tags <- xml2::xml_find_all(relation, "./tag")
+#  carp("tags nb: %s", length(tags))
+#  print(as.character(tags[[1]]))
+  tags.list <- list()
+  for (attr in c("k", "v")) {
+    tags.list[[attr]] <- tags %>% xml_attr(attr)
+  }
+  tags.df <- as_tibble(tags.list) %>%
+    pivot_wider(names_from = k, values_from = v)
+  relation.df <- cbind(relation.df, tags.df) %>%
+    clean_names()
+  saveRDS(relation.df, dsn_rds)
+}
+
+# source("geo/scripts/transport.R"); osmapi_get_ways(ref = "8356872", force = TRUE)
+osmapi_get_ways <- function(ref = "11920346", type = "relation", force = FALSE, force_osm = FALSE) {
+  library(httr)
+  library(readr)
+  library(tidyverse)
+  library(janitor)
+  library(xml2)
+  carp("ref: %s", ref)
+  dsn_rds <- sprintf("%s/%s_%s_full_sf.rds", osmDir, type, ref)
+  if (file.exists(dsn_rds) && force == FALSE) {
+    nc <- readRDS(dsn_rds)
+    return(invisible(nc))
+  }
+  dsn <- osmapi_get_object_full(ref = ref, type = type, force = force_osm)
+# https://portailsig.org/content/recuperer-des-donnees-openstreetmap-gdalogr.html
+  ini_new <- "#configuration osm import
+[multilinestrings]
+osm_id=yes
+osm_version=yes
+osm_timestamp=yes
+osm_uid=yes
+osm_user=yes
+osm_changeset=yes
+other_tags=yes
+attributes=name,ref,ref:network,gtfs:shape_id,from,to,colour,text_colour,description,operator,route,type,network,public_transport:version
+"
+  writeLines(ini_new, "ini_new.ini")
+  nc <- st_read(dsn, "multilinestrings", options = "CONFIG_FILE=ini_new.ini", quiet = TRUE) %>%
+    glimpse()
+  saveRDS(nc, dsn_rds)
+  return(invisible(nc))
 }
 #
 # les ways qui réfèrent un node
@@ -96,36 +283,282 @@ osmapi_get_node_ways <- function(node, force = FALSE) {
   return(invisible(res))
 }
 #
-## la partie en écriture
+# récupération des informations d'une relation transport
+# version xml
+# https://rdrr.io/github/mdlincoln/bigosm/src/R/parse.R
+# source("geo/scripts/transport.R"); rc <- osmapi_get_transport(ref = "8592843", force = TRUE)
+osmapi_get_transport <- function(ref = "11920346", force = FALSE, force_osm = FALSE) {
+  library(readr)
+  library(tidyverse)
+  library(janitor)
+  library(xml2)
+  library(httr)
+  carp("ref: %s", ref)
+  dsn_rds <- sprintf("%s/transport_%s.rds", osmDir, ref)
+  if (file.exists(dsn_rds) && force == FALSE) {
+    rc <- readRDS(dsn_rds)
+    return(invisible(rc))
+  }
+  dsn <- osmapi_get_object_full(ref = ref, type = "relation", force = force_osm)
+  doc <- read_xml(dsn)
+  relations <- xml2::xml_find_all(doc, "./relation")
+  carp("relations nb: %s", length(relations))
+  nodes <- xml2::xml_find_all(doc, "./node")
+  carp("nodes nb: %s", length(nodes))
+  ways <- xml2::xml_find_all(doc, "./way")
+  carp("ways nb: %s", length(ways))
 #
-osmapi_api <- function(path, xml = '') {
-  url <- sprintf("https://www.openstreetmap.org/api/0.6/%s", path)
+# les nodes
+  carp("les nodes")
+  nodes.df <- osmapi_objects_tags(nodes) %>%
+    dplyr::select(id, lat, lon, name, public_transport, matches("^(bus|ref)")) %>%
+    mutate(lat = as.numeric(lat)) %>%
+    mutate(lon = as.numeric(lon)) %>%
+    glimpse()
+#
+# les ways
+  carp("les ways")
+  ways.df <- osmapi_objects_tags(ways) %>%
+    dplyr::select(id, matches("^(name|highway|junction|oneway|oneway\\:busf|ref)")) %>%
+    glimpse()
+#  stop("*****")
+#  print(xml_structure(ways[[1]]))
+  ls.v <- c()
+  for (i in 1:nrow(ways.df)) {
+    nodes <- xml_find_all(ways[[i]], "./nd") %>%
+      xml_attr("ref")
+    df1 <- data.frame(id = nodes) %>%
+      left_join(nodes.df, by = ("id")) %>%
+      mutate(point = sprintf("%s %s", lon, lat)) %>%
+      summarize(points = paste(point, collapse = ",")) %>%
+      mutate(wkt = sprintf("LINESTRING(%s)", points))
+     ways.df[i, "wkt"] <- df1[[1, "wkt"]]
+#    ls1 <- st_linestring(matrix(c(df1$lon, df1$lat), nrow(df1), 2))
+#    ways.df[i, "ls"][[1]] <- list(ls1)
+#    ls.v <- append(ls.v, ls1)
+# https://ryouready.wordpress.com/2016/07/18/populating-data-frame-cells-with-more-than-one-value/
+    ways.df[i, "nb_nodes"] <- length(nodes)
+    ways.df[i, "nodes"][[1]] <- list(nodes)
+    ways.df[i, "node1"] <- nodes[1]
+    ways.df[i, "node9"] <- nodes[length(nodes)]
+#    mga <<- nodes
+#    glimpse(nodes); stop("*****")
+  }
+#  glimpse(ways.df); stop("*****")
+  ways.sf <- st_as_sf(ways.df, geometry = st_as_sfc(ways.df$wkt, crs = 4326)) %>%
+    st_transform(2154) %>%
+    glimpse()
+#
+# la relation
+  relation <- relations[[1]]
+  relation.df <- osmapi_objects_tags(relations) %>%
+    glimpse()
+#  print(as.character(relation))
+  members <- xml2::xml_find_all(relation, "//member")
+  carp("members nb: %s", length(members))
+  members.list <- list()
+  for (attr in c("type", "ref", "role")) {
+    members.list[[attr]] <- members %>% xml_attr(attr)
+  }
+  members.df <- as_tibble(members.list) %>%
+    glimpse()
+#
+# on peut enfin s'attaquer au rapprochement pour les nodes
+  df1 <- members.df %>%
+    filter(type == "node") %>%
+    left_join(nodes.df, by = c("ref" = "id")) %>%
+    clean_names()
+  df2 <- df1 %>%
+    filter(grepl("platform", role))
+  relation.df[1, "stops_name"] <- paste(df2$name, collapse = ";")
+  saveRDS(relation.df, dsn_rds)
+  carp("les arrêts")
+  df3 <- df1 %>%
+    filter(grepl("(stop|platform)", role))
+#
+# on peut enfin s'attaquer au rapprochement pour les ways
+#  misc_print(members.df)
+  df11 <- members.df %>%
+    filter(role == "" & type == "way") %>%
+#    glimpse();stop("*****")
+    left_join(ways.sf, by = c("ref" = "id")) %>%
+    rename(id = ref) %>%
+    clean_names()
+  sf11 <- st_as_sf(df11, geometry = st_as_sfc(df11$wkt, crs = 4326)) %>%
+    mutate(way_no = row_number()) %>%
+    st_transform(2154) %>%
+    glimpse()
+  rc <- list("relation" = relation.df, "members.df" = df3, "ways.sf" = sf11)
+  saveRDS(rc, dsn_rds)
+  return(invisible(rc))
+}
+# source("geo/scripts/transport.R"); osmapi_objects_get_tags(dsn = "d:/web.var/TRANSPORT/STAR/OSM/node_7883832201_relations.osm", force = FALSE)
+# source("geo/scripts/transport.R"); osmapi_objects_get_tags(dsn = "d:/web.var/TRANSPORT/STAR/OSM/node_269138982_relations.osm", force = FALSE)
+osmapi_objects_get_tags <- function(dsn = "d:/web.var/TRANSPORT/STAR/OSM/node_7883832201_relations.osm", force = FALSE) {
+  library(readr)
+  library(tidyverse)
+  library(janitor)
+  library(xml2)
+  osm <- read_file(dsn)
+# les caractères exotiques
+  osm <- str_replace_all(osm, "\\<U\\+[0-9a-fA-F]{4}\\>", "?")
+#  write(osm, "d:osm.txt");
+  doc <- read_xml(osm)
+  objects <- xml2::xml_children(doc)
+  carp("objects nb: %s", length(objects))
+  objects.df <- data.frame()
+  if (length(objects) == 0) {
+    return(invisible(objects.df))
+  }
+  objects.df <- osmapi_objects_tags(objects)
+  return(invisible(objects.df))
+}
+#
+# les attrs et tags
+osmapi_objects_tags <- function(objects) {
+  objects.df <- data.frame()
+  for (object in objects) {
+    object.df <- xml_attrs(object) %>%
+      as_tibble_row()
+    tags <- xml2::xml_find_all(object, "./tag")
+    if (length(tags) > 0) {
+#    carp("tags nb: %s", length(tags))
+      tags.list <- list()
+      for (attr in c("k", "v")) {
+        tags.list[[attr]] <- tags %>% xml_attr(attr)
+      }
+      tags.df <- as_tibble(tags.list) %>%
+        pivot_wider(names_from = k, values_from = v)
+#    glimpse(tags.df)
+      object.df <- cbind(object.df, tags.df) %>%
+      mutate(osm_type = xml_name(object))
+    }
+    objects.df <- bind_rows(objects.df, object.df)
+  }
+  return(invisible(objects.df))
+}
+# Cast the character vector list into a matrix and then convert to a data.frame
+osmapi_attrs_to_df <- function(nodes) {
+  raw_node_attrs <- xml_attrs(nodes)
+  first_node <- raw_node_attrs[[1]]
+  node_matrix <- matrix(unlist(raw_node_attrs), nrow = length(nodes),
+                        ncol = length(first_node), byrow = TRUE,
+                        dimnames = list(NULL, names(raw_node_attrs[[1]])))
+  node_df <- as.data.frame(node_matrix, stringsAsFactors = FALSE)
+  colnames(node_df) <- names(first_node)
+  node_df
+}
+
+#
+## la partie avec authentification (GET, POST et PUT)
+# https://wiki.openstreetmap.org/wiki/API_v0.6
+#
+# pour vérifier la connexion
+# source("geo/scripts/transport.R"); osmapi_api("user/details", methode = "GET")
+
+api_url <- "https://master.apis.dev.openstreetmap.org"
+api_url <- "https://www.openstreetmap.org"
+osmapi_api <- function(path, xml = '', methode = "PUT") {
+  library(httr)
+  url <- sprintf("%s/api/0.6/%s", api_url, path)
   carp("url: %s", url)
   username <- mes_options("openstreetmap_user")
   password <- mes_options("openstreetmap_password")
-  res <- httr::PUT(
-    url,
-    body = xml,
-    authenticate(username, password, type = "basic"),
-    verbose()
-  )
-  stop_for_status(res)
-  txt <- httr::content(res, as = "text")
-  carp("text: %s", txt)
+  dsn <- "d:/osmapi_url.txt"
+  write(xml, dsn)
+  ua <- user_agent("http://github.com/hadley/httr")
+  if (methode == "PUT") {
+    resp <- httr::PUT(
+      url,
+      body = xml,
+      authenticate(username, password, type = "basic"),
+      content_type_xml(),
+      ua,
+      verbose()
+    )
+  }
+  if (methode == "POST") {
+    resp <- httr::POST(
+      url,
+      body = xml,
+      authenticate(username, password, type = "basic"),
+      content_type_xml(),
+      ua,
+      verbose()
+    )
+  }
+  if (methode == "GET") {
+    resp <- httr::GET(
+      url,
+      authenticate(username, password, type = "basic"),
+      ua,
+      verbose()
+    )
+  }
+  stop_for_status(resp)
+  txt <- httr::content(resp, as = "text")
+
+  if (http_type(resp) == "application/json") {
+    print(jsonlite::prettify(txt, indent = 2))
+  } else {
+    print(txt)
+  }
   return(invisible(txt))
 }
+
+# source("geo/scripts/transport.R"); osmapi_get_node()
+osmapi_get_node <- function() {
+  library(stringi)
+  path <- "node/6256112832"
+  xml <- osmapi_get(path)
+  xml <- str_split(xml, "\\n+", simplify = TRUE)
+  xml <- head(xml[-1:-2], -2)
+  xml <- paste(xml,  collapse = "\n")
+  print(xml)
+  osmapi_put("modify", text = xml)
+}
+# https://gist.github.com/typebrook/d166d5e8d0a293c30f697b0f403b3c0e
+#
 # source("geo/scripts/transport.R"); osmapi_put()
-osmapi_put <- function(osmchange = '', force = FALSE) {
-  library(httr)
+osmapi_put <- function(osmchange = "create", text = "osm", force = FALSE) {
   library(tidyverse)
   xml <- '<osm>
   <changeset>
     <tag k="created_by" v="R 0.6"/>
     <tag k="comment" v="test"/>
+    <tag k="bot" v="yes"/>
   </changeset>
 </osm>'
-  changeset_id <- osmapi_api("changeset/create", xml)
+  changeset_id <- osmapi_api("changeset/create", xml, methode = "PUT")
+  carp("changeset_id: %s", changeset_id)
+  text <- osmapi_osmchange(changeset_id, change = osmchange, osm = text)
+  path <- sprintf("changeset/%s/upload", changeset_id)
+  res <- osmapi_api(path, xml = text, methode = "POST")
   path <- sprintf("changeset/%s/close", changeset_id)
-  res <- osmapi_api(path)
-
+  res <- osmapi_api(path, methode = "PUT")
+  carp("changeset: %s/changeset/%s", api_url, changeset_id)
+}
+# source("geo/scripts/transport.R"); osmapi_osmchange()
+osmapi_osmchange <- function(changeset_id = 200, change = "create", osm = "<node>") {
+  timestamp <- format(Sys.time(), "%Y-%m-%dT%H:%M:%S.0+02:00")
+  osm <- str_replace(osm, 'changeset="\\d+"', 'changeset="{changeset_id}"')
+  text <- '<osmChange version="0.3" generator="mga_geo">
+<{change}>
+{osm}
+</{change}>
+</osmChange>'
+  text <- str_glue(text)
+  text <- str_glue(text)
+  return(text)
+}
+#
+# create_node : création d'un node
+# source("geo/scripts/transport.R");osmapi_create_node()
+osmapi_create_node <- function() {
+  text <- '<node id="-1" timestamp="{timestamp}" lat="48.0875052" lon="-1.6445175" changeset="1" version="1">
+  <tag k="name" v="mga_geo"/>
+</node>
+'
+  osmapi_put("create", text = text)
+  return()
 }

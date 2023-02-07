@@ -1,22 +1,22 @@
 # <!-- coding: utf-8 -->
-# le réseau de bus de Lamballe
+# le réseau de bus de Pontivy
 # utilisation des données opendata
 # auteur : Marc Gauthier
 #
-# source("geo/scripts/transport.R");tibus_jour()
-tibus_jour <- function() {
+# source("geo/scripts/transport.R");pontivy_jour()
+pontivy_jour <- function() {
   library(tidyverse)
   library(rio)
   carp()
-  config_xls('tibus')
+  config_xls('pontivy')
 }
 
 #
 ## la partie routage avec osrm
 #
-# source("geo/scripts/transport.R");dsn <- tibus_relations_route_get()
+# source("geo/scripts/transport.R");dsn <- pontivy_relations_route_get()
 #
-tibus_relations_route_get <- function(network = 'tibus', force = FALSE) {
+pontivy_relations_route_get <- function(force = TRUE, network = 'pontivy') {
   library(tidyverse)
   library(rio)
   library(xml2)
@@ -69,7 +69,7 @@ tibus_relations_route_get <- function(network = 'tibus', force = FALSE) {
       next;
     }
     type <- "relation"
-    dsn <- tibus_osrm(id, network = network, force = force)
+    dsn <- pontivy_osrm(id, force = force)
     if ( ! file.exists(dsn) || force == TRUE) {
 #      next
     }
@@ -78,7 +78,7 @@ tibus_relations_route_get <- function(network = 'tibus', force = FALSE) {
     html <- append(html, href)
     href <- sprintf("<a href='http://level0.osmz.ru/?url=relation/%s'>level0</a>", id)
     html <- append(html, href)
-    href <- sprintf("<a href='http://localhost/transport/%s/level0/relation_%s_level0.txt'>osrm</a>", network, id)
+    href <- sprintf("<a href='http://bv/transport/%s/level0/relation_%s_level0.txt'>osrm</a>", network, id)
     html <- append(html, href)
     href <- sprintf("<a href='http://localhost:8111/open_file?filename=D:/web.heb/bv/transport/%s/level0/relation_%s.geojson'>josm geojson</a>", network, id)
     html <- append(html, href)
@@ -90,11 +90,62 @@ tibus_relations_route_get <- function(network = 'tibus', force = FALSE) {
   carp("dsn: %s", dsn)
   return()
 }
+# source("geo/scripts/transport.R");dsn <- pontivy_relations_route_rmd()
+pontivy_relations_route_rmd <- function(force = FALSE, network = 'pontivy') {
+  library(tidyverse)
+  library(rio)
+  library(xml2)
+  doc <- overpass_relations_route_get_xml(force = force, network = network)
+  has_relations <- osm_has_xpath(doc, "//relation")
+  if (! has_relations) {
+    stop("***")
+  }
+  relations <- xml2::xml_find_all(doc, "//relation")
+  for (relation in relations) {
+    id <- xml_attr(relation, "id")[[1]]
+    cat("  \n### id r",  id, "  \n")
+    tag_ref <-  xml2::xml_attr(xml2::xml_find_first(relation, './/tag[@k="ref"]'), "v")
+    tag_ref_network <<-  xml2::xml_attr(xml2::xml_find_first(relation, './/tag[@k="ref:network"]'), "v")
+    tag_shape_id <-  xml2::xml_attr(xml2::xml_find_first(relation, './/tag[@k="gtfs:shape_id"]'), "v")
+    tag_name <-  xml2::xml_attr(xml2::xml_find_first(relation, './/tag[@k="name"]'), "v")
+    tag_from <-  xml2::xml_attr(xml2::xml_find_first(relation, './/tag[@k="from"]'), "v")
+    tag_to <-  xml2::xml_attr(xml2::xml_find_first(relation, './/tag[@k="to"]'), "v")
+    members_way <<-  xml2::xml_find_all(relation, './/member[@type="way"]')
+    members_node <<-  xml2::xml_find_all(relation, './/member[@type="node"]')
+    md <- sprintf("name: %s from: %s to: %s", tag_name, tag_from, tag_to)
+    cat("\n",  md, "  \n")
+    md <- sprintf("ref: %s ref:network: %s", tag_ref, tag_ref_network)
+    cat("\n",  md, "  \n")
+    md <- sprintf("members_way: %s members_node: %s", length(members_way), length(members_node))
+    cat("\n",  md, "  \n")
+    osmdata_relation_route_plot(id)
+    cat("  \n")
+  }
+}
+#
+# conversion en format sf des relations "route=bus"
+# source("geo/scripts/transport.R");dsn <- pontivy_relation_route_sf()
+pontivy_relation_route_sf <- function(force = FALSE, network = 'pontivy') {
+  library(tidyverse)
+  library(sf)
+  library(osmdata)
+  carp()
+  relation <- 13436728
+  dsn <- osmapi_object_full(relation, type = "relation", force = force)
+  carp("dsn: %s", dsn)
+  q <- opq(bbox = c(45, -6, 58, 0))
+  osm.sf <- osmdata_sf(q, dsn) %>%
+    glimpse()
+  plot(st_geometry(osm.sf$osm_multilines))
+  stops.sf <- osm.sf$osm_points %>%
+    filter(! is.na(public_transport))
+  plot(st_geometry(stops.sf), add = TRUE)
+}
 #
 # pour une ref
-tibus_osrm <- function(ref, network = 'tibus', force = TRUE) {
+pontivy_osrm <- function(ref, network = 'pontivy', force = TRUE) {
   library(clipr)
-  carp("ref: %s", ref)
+  carp()
   config_xls(network);
   carp("josmDir: %s", josmDir)
   carp("level0Dir: %s", level0Dir)
@@ -106,23 +157,8 @@ tibus_osrm <- function(ref, network = 'tibus', force = TRUE) {
   if ( ! file.exists(dsn) || force == TRUE) {
     osrm_relation_stops(ref, force = force)
   }
-#  stop("****")
   return(dsn)
   carp(dsn)
   level0 <- read_lines(file = dsn)
   write_clip(level0)
-}
-#
-# pour les shapes : la conversion en gpx/geojson
-# source("geo/scripts/transport.R");tibus_gtfs_shapes()
-tibus_gtfs_shapes <- function(tt) {
-  carp()
-  config_xls('tibus');txt_gtfs_shapes_sf()
-}
-#
-# pour les stops
-# source("geo/scripts/transport.R");tibus_gtfs_stops()
-tibus_gtfs_stops <- function() {
-  carp()
-  config_xls('tibus');txt_gtfs_stops_sf()
 }

@@ -1,22 +1,22 @@
 # <!-- coding: utf-8 -->
-# le réseau de bus de Lamballe
+# le réseau de bus de landerneau
 # utilisation des données opendata
 # auteur : Marc Gauthier
 #
-# source("geo/scripts/transport.R");tibus_jour()
-tibus_jour <- function() {
+# source("geo/scripts/transport.R");landerneau_jour()
+landerneau_jour <- function() {
   library(tidyverse)
   library(rio)
   carp()
-  config_xls('tibus')
+  config_xls('landerneau')
 }
 
 #
 ## la partie routage avec osrm
 #
-# source("geo/scripts/transport.R");dsn <- tibus_relations_route_get()
+# source("geo/scripts/transport.R");dsn <- landerneau_relations_route_get(force = TRUE)
 #
-tibus_relations_route_get <- function(network = 'tibus', force = FALSE) {
+landerneau_relations_route_get <- function(network = 'landerneau', force = FALSE) {
   library(tidyverse)
   library(rio)
   library(xml2)
@@ -40,8 +40,8 @@ tibus_relations_route_get <- function(network = 'tibus', force = FALSE) {
   html <- sprintf(html_entete, network)
   for (relation in relations) {
     id <- xml_attr(relation, "id")[[1]]
-    if ( id != "4011816") {
-#      next;
+    if ( grepl("^11", id)) {
+      next;
     }
     carp("id: %s", id)
     href <- sprintf("<br/><b>%s</b>", id)
@@ -69,7 +69,7 @@ tibus_relations_route_get <- function(network = 'tibus', force = FALSE) {
       next;
     }
     type <- "relation"
-    dsn <- tibus_osrm(id, network = network, force = force)
+    dsn <- landerneau_osrm(id, network = network, force = force)
     if ( ! file.exists(dsn) || force == TRUE) {
 #      next
     }
@@ -92,7 +92,7 @@ tibus_relations_route_get <- function(network = 'tibus', force = FALSE) {
 }
 #
 # pour une ref
-tibus_osrm <- function(ref, network = 'tibus', force = TRUE) {
+landerneau_osrm <- function(ref, network = 'landerneau', force = TRUE) {
   library(clipr)
   carp("ref: %s", ref)
   config_xls(network);
@@ -114,15 +114,76 @@ tibus_osrm <- function(ref, network = 'tibus', force = TRUE) {
 }
 #
 # pour les shapes : la conversion en gpx/geojson
-# source("geo/scripts/transport.R");tibus_gtfs_shapes()
-tibus_gtfs_shapes <- function(tt) {
+# source("geo/scripts/transport.R");landerneau_gtfs_shapes()
+landerneau_gtfs_shapes <- function(tt) {
   carp()
-  config_xls('tibus');txt_gtfs_shapes_sf()
+  config_xls('landerneau');txt_gtfs_shapes_sf()
 }
 #
 # pour les stops
-# source("geo/scripts/transport.R");tibus_gtfs_stops()
-tibus_gtfs_stops <- function() {
+# source("geo/scripts/transport.R");landerneau_gtfs_stops()
+landerneau_gtfs_stops <- function() {
   carp()
-  config_xls('tibus');txt_gtfs_stops_sf()
+  config_xls('landerneau');txt_gtfs_stops_sf()
+}
+#
+# pour les stops
+# source("geo/scripts/transport.R");landerneau_gtfs_stop_times()
+landerneau_gtfs_stop_times <- function(force = TRUE) {
+  carp()
+  config_xls('landerneau');
+  stops.df <- txt_gtfs_stops(force = force)
+
+  df1 <- stops.df %>%
+    filter(stop_lat == 0)
+  if(nrow(df1) > 0) {
+    misc_print(df1)
+  }
+  df2 <- stops.df %>%
+    dplyr::select(stop_id) %>%
+    mutate(source = "stops") %>%
+    filter(! grepl("\\:ST\\:", stop_id)) %>%
+    glimpse()
+  stop_times.df <- txt_gtfs_stop_times(force = force)
+  df3 <- stop_times.df %>%
+    distinct(stop_id) %>%
+    mutate(source = "stop_times") %>%
+    glimpse()
+  df4 <- df2 %>%
+    full_join(df3, by = c("stop_id")) %>%
+    filter(is.na(source.x) | is.na(source.y)) %>%
+    glimpse()
+}
+#
+# pour les stops
+# source("geo/scripts/transport.R");landerneau_nodes_busstop_valid()
+landerneau_nodes_busstop_valid <- function(force = TRUE) {
+  carp()
+  config_xls('landerneau');
+  nc <- overpass_nodes_busstop_network_get(force = force)
+  nc1 <- nc %>%
+    glimpse() %>%
+    filter(is.na(ref.Coralie))
+  misc_print(nc1)
+}
+#
+## travail avec tidytransit
+#
+# setwd("d:/web");source("geo/scripts/transport.R");landerneau_tt_zip()
+landerneau_tt_zip <- function(reseau = 'landerneau') {
+  carp()
+  config_xls(reseau)
+  carp("gtfsDir: %s", gtfsDir)
+#  misc_zip(dossier = gtfsDir, zipfile = "gtfs.zip", filtre = "*.txt")
+  gtfs2mga_gtfs_lire(reseau)
+  df <- tidytransit_shapes_stops()
+  lignes <- knitr::kable(df, format = "pipe")
+  txt <- paste(lignes,  collapse = "\n")
+  txt <- sprintf('==les trips==
+<pre>
+%s
+</pre>', txt)
+  wiki_connect()
+  page <- sprintf("User:Mga_geo/Transports_publics/%s/%s", Config["wiki"], "trips_shapes_stops")
+#  wiki_page_init(page = page, article = txt, force = TRUE)
 }

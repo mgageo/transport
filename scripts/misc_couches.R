@@ -286,8 +286,8 @@ ign_geofla_1_lire_sf <- function(layer='COMMUNE') {
   nc <- st_read(dsn, stringsAsFactors=FALSE)
   return(invisible(nc))
 }
-ign_adminexpress_lire_sf <- function(layer='COMMUNE', force=FALSE) {
-  carp()
+# source("geo/scripts/wetlands.R");nc <- ign_adminexpress_lire_sf()
+ign_adminexpress_lire_sf <- function(layer = "COMMUNE", force = FALSE) {
   if ( ! exists('ign_adminexpress.list')) {
     ign_adminexpress.list <<- list()
   }
@@ -296,12 +296,17 @@ ign_adminexpress_lire_sf <- function(layer='COMMUNE', force=FALSE) {
   }
   library(sf)
   dossier <- 'ADMIN-EXPRESS_2-1__SHP__FRA_2019-11-15/ADMIN-EXPRESS/1_DONNEES_LIVRAISON_2019-11-15/ADE_2-1_SHP_LAMB93_FR'
+  dossier <- 'ADMIN-EXPRESS_3-0__SHP__FRA_L93_2021-10-15/ADMIN-EXPRESS_3-0__SHP__FRA_2021-10-15/ADMIN-EXPRESS/1_DONNEES_LIVRAISON_2021-10-15/ADE_3-0_SHP_LAMB93_FR'
+  dossier <- 'ADMIN-EXPRESS_3-1__SHP_LAMB93_FXX_2023-01-16/ADMIN-EXPRESS/1_DONNEES_LIVRAISON_2023-01-16/ADE_3-1_SHP_LAMB93_FXX'
   dsn <- sprintf('%s/%s/%s.shp', ignDir, dossier, layer)
-  nc <- st_read(dsn, stringsAsFactors=FALSE)
+  carp("dsn: %s", dsn)
+  nc <- st_read(dsn, stringsAsFactors = FALSE, quiet = TRUE)
   ign_adminexpress.list[[layer]] <<- nc
   return(invisible(nc))
 }
+
 ign_adminexpress_cog_lire_sf <- function(layer='CHEF_LIEU', force=FALSE) {
+  library(sf)
   carp()
   if ( ! exists('ign_adminexpress_cog.list')) {
     ign_adminexpress_cog.list <<- list()
@@ -309,7 +314,6 @@ ign_adminexpress_cog_lire_sf <- function(layer='CHEF_LIEU', force=FALSE) {
   if ( exists(layer, where=ign_adminexpress_cog.list) & force==FALSE) {
     return(invisible(ign_adminexpress_cog.list[[layer]]))
   }
-  library(sf)
   dossier <- 'ADMIN-EXPRESS-COG_2-0__SHP__FRA_L93_2019-09-24/ADMIN-EXPRESS-COG_2-0__SHP__FRA_2019-09-24/ADMIN-EXPRESS-COG/1_DONNEES_LIVRAISON_2019-09-24/ADE-COG_2-0_SHP_LAMB93_FR'
   dsn <- sprintf('%s/%s/%s.shp', ignDir, dossier, layer)
   nc <- st_read(dsn, stringsAsFactors=FALSE)

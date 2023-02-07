@@ -7,15 +7,16 @@
 # comparaison gtfs osm
 #
 # source("geo/scripts/transport.R");gtfs2osm_jour()
-gtfs2osm_jour <- function() {
+gtfs2osm_jour <- function(reseau = "bibus") {
   library(tidyverse)
   library(rio)
   library(sf)
   carp()
+  config_xls(reseau);
 # mise au format interne des fichiers gtfs
-#  gtfs2mga_jour()
+  gtfs2mga_jour()
 # mise au format interne des fichiers osm
-#  osm2mga_jour(force=FALSE)
+  osm2mga_jour(force=FALSE)
 # comparaison
   gtfs2osm_diff()
 }

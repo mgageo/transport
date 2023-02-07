@@ -3,22 +3,23 @@
 # utilisation des données opendata
 # auteur : Marc Gauthier
 #
-# source("geo/scripts/transport.R");objets_jour()
+# source("geo/scripts/transport.R");config_xls('star');objets_jour()
 objets_jour <- function(force = FALSE) {
   carp()
-  config_xls('tub')
-  routes.df <- objets_relations_route(force)
-  masters.df <- objets_relations_route_master(force)
+  routes.df <- objets_relations_route(force) %>%
+    glimpse()
+  masters.df <- objets_relations_route_master(force) %>%
+    glimpse()
   carp("les masters sans route")
   df1 <- masters.df %>%
     filter(ref == "")
   if (nrow(df1) > 0) {
     print(knitr::kable(df1, format = "pipe"))
   }
-  carp("les route hors master")
   df1 <- routes.df %>%
     filter(! id %in% masters.df$member)
   if (nrow(df1) > 0) {
+    carp("les route hors master: %s", nrow(df1))
     print(knitr::kable(df1, format = "pipe"))
   }
 
@@ -32,7 +33,7 @@ objets_relations_route <- function(force = FALSE) {
     df <- readRDS(dsn)
     return(invisible(df))
   }
-  requete <- sprintf("(relation[network='%s'][type=route][route=bus];);out meta;", config[1, 'network'])
+  requete <- sprintf("(relation[network='%s'][type=route][route=bus];);out meta;", Config[1, 'network'])
   dsn1 <- overpass_query_json(requete, "relations_route", force = force)
   json1.list <- jsonlite::fromJSON(dsn1, simplifyVector = FALSE, simplifyDataFrame = FALSE)
   elements.list <- json1.list$elements
@@ -66,6 +67,9 @@ objets_relations_route <- function(force = FALSE) {
       element.list$user,
       element.list$timestamp,
       tags$ref,
+      tags$network,
+      tags$colour,
+      tags$text_colour,
       shape,
       nodes,
       ways
@@ -84,7 +88,7 @@ objets_relations_route_master <- function(force = FALSE) {
     df <- readRDS(dsn)
     return(invisible(df))
   }
-  requete <- sprintf("(relation[network='%s'][type=route_master][route_master=bus];);out meta;", config[1, 'network'])
+  requete <- sprintf("(relation[network='%s'][type=route_master][route_master=bus];);out meta;", Config[1, 'network'])
   dsn1 <- overpass_query_json(requete, "relations_route_master", force = force)
   json1.list <- jsonlite::fromJSON(dsn1, simplifyVector = FALSE, simplifyDataFrame = FALSE)
   elements.list <- json1.list$elements
@@ -111,6 +115,9 @@ objets_relations_route_master <- function(force = FALSE) {
       element.list$user,
       element.list$timestamp,
       tags$ref,
+      tags$network,
+      tags$colour,
+      tags$text_colour,
       member
     )
   }

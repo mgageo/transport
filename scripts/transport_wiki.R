@@ -40,14 +40,18 @@ wiki_page_init <- function(page = "User:Mga_geo/Transports_publics/toto", articl
   url <- sprintf("%s/w/index.php?title=%s&action=edit", wiki_host, URLencode(page));
   carp("url: %s", url)
 #  return()
+  if (class(wiki_session) != "rvest_session") {
+    wiki_connect()
+  }
   edit <- wiki_session %>%
-    session_jump_to(url)
+    session_jump_to(url) %>%
+    glimpse()
 # c'est bien la création d'une page ?
   new.rvest <- edit %>%
     html_nodes("div.mw-newarticletext")
-  if (length(new.rvest) != 1 ) {
+  if (length(new.rvest) != 1 && force == FALSE) {
     carp("page déjà existante")
-#    stop("*****")
+    stop("*****")
   }
   edit_forms <- edit %>%
     html_form()
@@ -61,9 +65,12 @@ wiki_page_init <- function(page = "User:Mga_geo/Transports_publics/toto", articl
   write(html, file = dsn, append = FALSE)
   carp("dsn: %s", dsn)
 }
-# source("geo/scripts/transport.R");config_xls('landerneau');wiki_pages_init()
+# source("geo/scripts/transport.R");config_xls('tim');wiki_pages_init()
 wiki_pages_init <- function() {
-
+  if (is.na(Config[1, "wiki"])) {
+     stop("*****")
+  }
+  wiki_page <- Config[[1, "wiki"]]
   article <- '
 ==Liens==
 ((website))
@@ -125,14 +132,13 @@ out meta;
 '
   wiki_connect()
   article <- wiki_dfi2tpl(Config, 1, article)
-  page <- sprintf("User:Mga_geo/Transports_publics/%s", Config["wiki"])
-  wiki_page_init(page, article)
+  page <- sprintf("User:Mga_geo/Transports_publics/%s", wiki_page)
+  wiki_page_init(page = page, article = article, force = TRUE)
   for (p in c("network", "route_master", "route", "routes", "routes_stops", "gtfs_shapes", "gtfs_routes_shapes")) {
-    page <- sprintf("User:Mga_geo/Transports_publics/%s/%s", Config["wiki"], p) %>%
+    page <- sprintf("User:Mga_geo/Transports_publics/%s/%s", wiki_page, p) %>%
       glimpse()
     wiki_page_init(page = page, article = "roro", force = FALSE)
   }
-
 }
 #
 # template du pauvre
@@ -149,4 +155,35 @@ wiki_dfi2tpl <- function(df, i, tpl) {
     tpl <-  gsub(re, val, tpl, perl = TRUE)
   }
   return(invisible(tpl))
+}
+#
+# test de la création d'une table
+# source("geo/scripts/transport.R");df <- wiki_df2table_test()
+wiki_df2table_test <- function() {
+  library(tidyverse)
+  df <- tibble(x = 1, y = 2, z = c(3, 4, 5))
+  wiki <- wiki_df2table(df)
+  print(wiki)
+  write(wiki, "d:/wiki.txt")
+}
+#
+# création d'une table mediawiki
+wiki_df2table <- function(df) {
+  wiki <- '{| class="wikitable sortable"'
+  wiki <- append(wiki, "|-")
+  colonnes <- colnames(df)
+  for (i in 1:length(colonnes)) {
+    wiki <- append(wiki, sprintf('!scope="col"| %s', colonnes[i]))
+  }
+  for (i in 1:nrow(df)) {
+    wiki <- append(wiki, "|-")
+    wiki <- append(wiki, sprintf('!scope="row" | %s', df[i, 1]))
+    for (j in 2:ncol(df)) {
+      wiki <- append(wiki, sprintf('| %s', df[i, j]))
+    }
+  }
+  wiki <- append(wiki, "|}")
+  wiki <- paste(wiki,  collapse = "\n")
+#  glimpse(wiki);stop("********")
+  return(invisible(wiki))
 }

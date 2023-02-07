@@ -3,11 +3,18 @@
 # utilisation des données opendata
 # auteur : Marc Gauthier
 #
+#
+# réseau sans shape
 # source("geo/scripts/transport.R");qub_jour()
-qub_jour <- function() {
+qub_jour <- function(reseau = "qub", force = FALSE) {
   carp()
-  config_xls('qub');
-  mobibreizh_gtfs_reseau(config[1, "reseau"], config[1, "agency_id"])
+#  mobibreizh_gtfs_reseau(config[1, "reseau"], config[1, "agency_id"])
+  carp("reseau: %s", reseau)
+  config_xls(reseau)
+  reseau_tpl_tex(reseau = reseau)
+#  osm_relations_route_bus_verif(reseau = reseau, force = force)
+#  osm_relations_route_members(reseau = reseau, force = force)
+  tex_pdflatex(sprintf("%s_osm.tex", reseau))
 }
 # source("geo/scripts/transport.R");qub_stops_diff()
 qub_stops_diff <- function() {
@@ -156,8 +163,8 @@ out meta;", Config[1, "network"])
   html <- html_entete
   for (relation in relations) {
     id <- xml_attr(relation, "id")[[1]]
-    if ( id != "12307588") {
-#      next;
+    if ( id != "4011816") {
+      next;
     }
     carp("id: %s", id)
     href <- sprintf("<br/><b>%s</b>", id)
@@ -205,6 +212,7 @@ out meta;", Config[1, "network"])
 }
 #
 # pour une ref
+# source("geo/scripts/transport.R");qub_osrm(ref = 12228687, force = TRUE)
 qub_osrm <- function(ref, force = TRUE) {
   library(clipr)
   carp()
@@ -223,4 +231,124 @@ qub_osrm <- function(ref, force = TRUE) {
   carp(dsn)
   level0 <- read_lines(file = dsn)
   write_clip(level0)
+}
+#
+# comparaison gtfs wiki
+# source("geo/scripts/transport.R");qub_gtfs_wiki()
+qub_gtfs_wiki <- function() {
+  library(rio)
+  library(tidyverse)
+  config_xls('qub');
+  dsn <- sprintf("%s/routemaster_csv.txt", reseau_dir)
+  carp("dsn: %s", dsn)
+  wiki.df <- rio::import(dsn, encoding = "UTF-8") %>%
+    dplyr::select(ref, name, description, colour, text_colour) %>%
+    glimpse()
+  dsn <- sprintf("%s/routes.txt", gtfsDir)
+  carp("dsn: %s", dsn)
+  gtfs.df <- rio::import(dsn, encoding = "UTF-8") %>%
+    dplyr::select(route_short_name, route_long_name, route_color, route_text_color) %>%
+    filter(route_text_color != "") %>%
+    mutate(route_color = sprintf("#%s", route_color)) %>%
+    mutate(route_text_color = sprintf("#%s", route_text_color)) %>%
+    glimpse()
+  df <- wiki.df %>%
+    full_join(gtfs.df, by = c("ref" = "route_short_name")) %>%
+    filter(! is.na(name)) %>%
+    filter(! is.na(route_long_name)) %>%
+    dplyr::select(-description, -route_long_name) %>%
+    filter(colour != route_color) %>%
+    glimpse()
+  misc_print(df)
+}
+#
+# comparaison des fichiers de référence
+# source("geo/scripts/transport.R");qub_masters_routes()
+qub_masters_routes <- function() {
+  library(rio)
+  library(tidyverse)
+  config_xls('qub');
+  dsn <- sprintf("%s/routes.txt", cfg_dir)
+  carp("dsn: %s", dsn)
+  routes.df <- rio::import(dsn, encoding = "UTF-8") %>%
+    glimpse()
+  dsn <- sprintf("%s/masters.txt", cfg_dir)
+  carp("dsn: %s", dsn)
+  masters.df <- rio::import(dsn, encoding = "UTF-8") %>%
+    glimpse()
+  carp("les ref routes absentes dans masters")
+  df <- routes.df %>%
+    filter(! ref %in% masters.df$ref)
+  if (nrow(df) >0) {
+    misc_print(df)
+    confess()
+  }
+  carp("le name des routes")
+  df <- routes.df %>%
+    filter(! grepl("^Bus QUB", name))
+  if (nrow(df) > 0) {
+    misc_print(df)
+    confess()
+  }
+  carp("la meme description")
+  df <- routes.df %>%
+    full_join(masters.df, by = c("ref")) %>%
+    filter(description.x != description.y) %>%
+    dplyr::select(ref, description.x, description.y)
+  if (nrow(df) > 0) {
+    misc_print(df)
+    confess()
+  }
+  carp("routes, name : Bus QUB ...")
+  df1 <- routes.df %>%
+    extract(name, c("route_name", "route_ref", "route_desc"), "^(Bus\\s\\S+)\\s(\\S+)\\s(.*)$", remove = FALSE)
+  df <- df1 %>%
+    filter(ref_network != route_ref) %>%
+    dplyr::select(ref, name)
+  if (nrow(df) > 0) {
+    misc_print(df)
+    confess()
+  }
+  df <- df1 %>%
+    filter(is.na(route_desc)) %>%
+    dplyr::select(ref, name)
+  if (nrow(df) > 0) {
+    misc_print(df)
+  }
+  df2 <- df1 %>%
+    filter(is.na(route_desc)) %>%
+    mutate(name = sprintf("%s %s %s", "Bus QUB", ref_network, description))
+  df3 <- df1 %>%
+    filter(! is.na(route_desc)) %>%
+    bind_rows(df2) %>%
+    dplyr::select(-route_name, -route_ref, -route_desc) %>%
+    arrange(ref) %>%
+    glimpse()
+  dsn <- sprintf("%s/routes_masters.txt", cfg_dir)
+  carp("dsn: %s", dsn)
+  rio::export(df3, file = dsn, sep = ";")
+}
+#
+# bug du gtfs
+# source("geo/scripts/transport.R");qub_gtfs_bug()
+qub_gtfs_bug <- function() {
+  library(rio)
+  library(tidyverse)
+  config_xls('qub');
+  dsn <- sprintf("%s/stops.txt", gtfsDir)
+  stops.df <- rio::import(dsn, encoding = "UTF-8") %>%
+    filter(grepl("KERROUE", stop_name)) %>%
+    glimpse()
+  dsn <- sprintf("%s/stop_times.txt", gtfsDir)
+  stop_times.df <- rio::import(dsn, encoding = "UTF-8") %>%
+    filter(stop_id %in% stops.df$stop_id) %>%
+    glimpse()
+  dsn <- sprintf("%s/trips.txt", gtfsDir)
+  trips.df <- rio::import(dsn, encoding = "UTF-8") %>%
+    filter(trip_id %in% stop_times.df$trip_id) %>%
+    glimpse()
+  dsn <- sprintf("%s/routes.txt", gtfsDir)
+  routes.df <- rio::import(dsn, encoding = "UTF-8") %>%
+    filter(route_id %in% trips.df$route_id) %>%
+    glimpse()
 }

@@ -9,17 +9,19 @@
 #
 # requete
 # source("geo/scripts/keolis.R");oapi_requete_get()
-oapi_requete_get <- function(requete="(relation[network='TILT'];>>;);out meta;", fic='relation_route.osm') {
+oapi_requete_get <- function(requete = "(relation[network='TILT'];>>;);out meta;", fic = 'relation_route.osm', force = TRUE) {
   library(osmdata)
   library(tidyverse)
   f_osm <- sprintf("%s/%s", osmDir, fic);
-  osm_oapi(requete, f_osm)
+  carp("f_osm: %s", f_osm)
+  osm_oapi(requete, f_osm, force)
   carp("f_osm: %s size: %s", f_osm, file.size(f_osm))
+  return(invisible(f_osm))
 }
 # lecture avec sf
 # https://github.com/r-spatial/sf/blob/master/tests/read.Rout.save
 # source("geo/scripts/keolis.R");oapi_sf_lire('relation_route')
-oapi_sf_lire <- function(fic='relation_route.osm') {
+oapi_sf_lire <- function(fic = 'relation_route.osm', ini = FALSE) {
   library(sf)
   library(tidyverse)
   if (! "OSM" %in% st_drivers()$name ) {
@@ -29,16 +31,20 @@ oapi_sf_lire <- function(fic='relation_route.osm') {
   f_osm <- fic
   carp("f_osm: %s size: %s", f_osm, file.size(f_osm))
 #  osm <- system.file(f_osm, package="sf")
-  Sys.setenv(OSM_USE_CUSTOM_INDEXING="NO")
+#  Sys.setenv(OSM_USE_CUSTOM_INDEXING="NO")
   print(st_layers(f_osm))
-  nc <- st_read(f_osm, "points") %>%
-    glimpse()
+  if (ini == FALSE) {
+    nc <- st_read(f_osm, "points")
+  } else {
+    opt <- sprintf("CONFIG_FILE=%s", ini)
+    nc <- st_read(f_osm, "points", options = opt)
+  }
   return(invisible(nc))
 }
 #
 # lecture avec osmdata
 # source("geo/scripts/keolis.R");oapi_osmdata_lire('relation_route')
-oapi_osmdata_lire_sf <- function(fic='relation_route.osm') {
+oapi_osmdata_lire_sf <- function(fic = 'relation_route.osm') {
   library(osmdata)
   library(tidyverse)
   f_osm <- sprintf("%s/%s", osmDir, fic);
@@ -116,10 +122,10 @@ oapi_departement_get <- function() {
 }
 #
 # les données d'un réseau de transport
-oapi_transport_get <- function() {
+oapi_relations_route_get <- function() {
   library(osmdata)
-  data <- sprintf("(relation[network='FR:STAR'][type=route][route=bus];>>);out meta;")
-  f_osm <- sprintf("%s/relation_route_bus.osm", cfgDir);
+  data <- sprintf("(relation[network='%s'][type=route][route=bus];>>);out meta;")
+  f_osm <- sprintf("%s/oapi_relations_route.osm", varDir);
   osm_oapi(data, f_osm)
   q <- opq(bbox = c(51.1, 0.1, 51.2, 0.2))
   osm.sp <- osmdata_sp(q, f_osm)

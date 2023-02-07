@@ -10,23 +10,26 @@
 # https://gist.github.com/nuest/3ed3b0057713eb4f4d75d11bb62f2d66
 #
 # source("geo/scripts/transport.R");gtfs2mga_jour()
-gtfs2mga_jour <- function() {
+gtfs2mga_jour <- function(reseau = "bibus") {
   library(tidyverse)
   library(rio)
   library(sf)
   carp()
 # la conversion en format "mga"
-  gtfs2mga_gtfs_lire()
+  gtfs2mga_gtfs_lire(reseau = reseau)
 }
 #
 # conversion du gtfs en format interne
+#
+# gtfs2mga est une liste des différents objets
+#
 # source("geo/scripts/transport.R");gtfs2mga_gtfs_lire()
-gtfs2mga_gtfs_lire <- function(reseau='star') {
+gtfs2mga_gtfs_lire <- function(reseau = "star") {
   library(tidyverse)
   carp()
   config_xls(reseau)
-  dsn <- 'D:/web/geo/TRANSPORT/STAR/GTFS/gtfs.zip'
   gtfs2mga <- gtfs2mga_lire()
+  dsn <- sprintf("%s/gtfs.zip", gtfsDir)
   gtfs2mga$tt <- tidytransit_zip_lire(dsn)
   gtfs2mga$shapes_sf <- tidytransit_gtfs_shapes_sf()
 #  glimpse(gtfs2mga); stop('*******')
@@ -37,24 +40,45 @@ gtfs2mga_gtfs_lire <- function(reseau='star') {
 }
 #
 # conversion de certains fichiers du gtfs en format geojson
-# source("geo/scripts/transport.R");gtfs2mga_gtfs_geojson()
+# source("geo/scripts/transport.R");gtfs2mga_gtfs_geojson("bibus")
 gtfs2mga_gtfs_geojson <- function(reseau='star') {
   library(tidyverse)
   carp()
   config_xls(reseau)
-  transport_gtfs_shapes_geojson()
-  transport_gtfs_stops_geojson()
+  gtfs2mga_gtfs_shapes_geojson()
+  gtfs2mga_gtfs_stops_geojson()
+}
+gtfs2mga_gtfs_shapes_geojson <- function(dsn = FALSE) {
+  library(tidyverse)
+  library(sf)
+  carp()
+  shapes.sf <- tidytransit_shapes_sf_lire() %>%
+    glimpse()
+  if (dsn == FALSE) {
+    dsn <- sprintf("%s/%s/shapes.geojson", webDir,  Config[1, 'reseau'])
+  }
+  st_write(shapes.sf, dsn, delete_dsn = TRUE)
+  carp("dsn: %s", dsn)
+}
+gtfs2mga_gtfs_stops_geojson <- function() {
+  library(tidyverse)
+  library(sf)
+  carp()
+  nc <- tidytransit_shapes_stops_sf()
+  dsn <- sprintf("%s/%s/stops.geojson", webDir,  Config[1, 'reseau'])
+  st_write(nc, dsn, delete_dsn = TRUE)
+  carp("dsn: %s", dsn)
 }
 
 # =====================================================================================
 #
 # fonctions utilitaires
 #
-gtfs2mga_ecrire <- function(gtfs2mga, rds='gtfs2mga.Rds') {
+gtfs2mga_ecrire <- function(gtfs2mga, rds = "gtfs2mga.Rds") {
   carp()
   dsn <- sprintf("%s/%s", transportDir, rds)
   carp("dsn: %s", dsn)
-  saveRDS(gtfs2mga, file=dsn)
+  saveRDS(gtfs2mga, file = dsn)
 }
 # source("geo/scripts/transport.R"); gtfs2mga <- gtfs2mga_lire()%>%glimpse()
 gtfs2mga_lire <- function(rds='gtfs2mga.Rds') {
