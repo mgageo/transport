@@ -12,6 +12,12 @@ library(tidyverse)
 library(janitor)
 library(knitr)
 library(kableExtra)
+library(conflicted)
+conflicts_prefer(dplyr::filter())
+conflicts_prefer(dplyr::select())
+conflicts_prefer(dplyr::first())
+conflicts_prefer(dplyr::last())
+
 options("encoding" = "UTF-8")
 par(mar = c(0, 0, 0, 0), oma = c(0, 0, 0, 0), mai = c(0, 0, 0, 0))
 options(stringsAsFactors = FALSE)
@@ -1056,4 +1062,35 @@ misc_dsn <- function(dsn = FALSE, suffixe = "", dossier = "", ...) {
     dsn <- sprintf("%s/%s%s%s.tex", texDir, dossier, curcall, suffixe)
   }
   return(invisible(dsn))
+}
+#
+## gestion d'un cache
+misc_cache_ecrire <- function(objet, nom) {
+  if ( ! exists("misc_cache.list")) {
+    misc_cache.list <<- list()
+  }
+  misc_cache.list[[nom]] <<- objet
+  dsn <- sprintf("%s/misc_cache.rds", varDir)
+  saveRDS(misc_cache.list, dsn)
+  carp("dsn: %s", dsn)
+}
+misc_cache_lire <- function(nom) {
+  if ( ! exists("misc_cache.list")) {
+    misc_cache.list <<- misc_cache_read()
+  }
+  if ( exists(nom, where = misc_cache.list)) {
+    return(invisible(misc_cache.list[[nom]]))
+  }
+  return(invisible(FALSE))
+}
+# lecture du fichier rds
+misc_cache_read <- function() {
+  dsn <- sprintf("%s/misc_cache.rds", varDir)
+  carp("dsn: %s", dsn)
+  if (file.exists(dsn)) {
+    misc_cache.list <<- readRDS(dsn)
+  } else {
+    misc_cache.list <<- list()
+  }
+  return(invisible(misc_cache.list))
 }

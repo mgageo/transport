@@ -15,9 +15,15 @@ reseau_jour <- function(reseau = Reseau, force = TRUE) {
   carp()
   config_xls(reseau)
   reseau_tpl_tex(reseau = reseau)
-  reseau_gtfs_jour(reseau = Reseau, force = force)
-  reseau_osm_jour(reseau = Reseau, force = force)
-  reseau_diff_jour(reseau = Reseau, force = force)
+  if (grepl("MOBIBREIZH", Config[1, "gtfs_dir"])) {
+    mobibreizh_gtfs_reseaux(reseau = reseau)
+  }
+  reseau_osm_jour(reseau = reseau, force = force)
+  if (is.na(Config[1, "gtfs_dir"])) {
+    return()
+  }
+  reseau_gtfs_jour(reseau = reseau, force = force)
+  reseau_diff_jour(reseau = reseau, force = force)
 }
 #
 # recopie des templates tex
@@ -45,10 +51,12 @@ reseau_diff_jour <- function(reseau = Reseau, force = FALSE) {
   library(janitor)
   carp("reseau: %s", reseau)
   config_xls(reseau)
-  reseau_tpl_tex(reseau = reseau)
-  reseau_osm_routes_tag_shape(reseau = reseau, force = force)
-  reseau_osm_routes_shapes(reseau = reseau, force = force)
-  tex_pdflatex(sprintf("%s_diff.tex", reseau))
+  if (Config[[1, "shapes"]] != "FALSE") {
+    reseau_tpl_tex(reseau = reseau)
+    reseau_osm_routes_tag_shape(reseau = reseau, force = force)
+    reseau_osm_routes_shapes(reseau = reseau, force = force)
+    tex_pdflatex(sprintf("%s_diff.tex", reseau))
+  }
 }
 # source("geo/scripts/transport.R");reseau_gtfs_jour(reseau = Reseau)
 reseau_gtfs_jour <- function(reseau = Reseau, force = TRUE) {

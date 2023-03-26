@@ -11,6 +11,7 @@ bretagne_jour <- function(force = FALSE) {
   library(rio)
   library(tidyverse)
   bretagne_jour_osmose()
+  bretagne_communes_osmose_issues_gap()
 }
 #
 # vérification de l'appartenance à un network connu
@@ -119,6 +120,43 @@ out meta;'
   df <- osmapi_objects_get_tags(dsn) %>%
     glimpse()
   saveRDS(df, dsn_rds)
+}
+#
+# source("geo/scripts/transport.R");bretagne_relations_routes_bus()
+bretagne_relations_routes_bus <- function(fic = "bretagne_relations_routes_bus", force = FALSE) {
+  dsn_rds <- sprintf("%s/%s.rds", osmDir, fic)
+  if (file.exists(dsn_rds) && force == FALSE) {
+    rc <- readRDS(dsn_rds)
+    return(invisible(rc))
+  }
+  requete <- '
+area[name="Bretagne"]->.a;
+(
+relation(area.a)[route=bus];
+rel(br);
+);
+out meta;'
+  fic <- sprintf("%s.osm", fic)
+  dsn <- oapi_requete_get(requete, fic, force = force)
+  df <- osmapi_objects_get_tags(dsn) %>%
+    glimpse()
+  saveRDS(df, dsn_rds)
+  return(invisible(df))
+}
+#
+# source("geo/scripts/transport.R");bretagne_relations_routes_disused()
+bretagne_relations_routes_disused <- function(fic = "bretagne_relations_routes_disused", force = FALSE) {
+  requete <- '
+area[name="Bretagne"]->.a;
+(
+relation(area.a)[~"^(was|disused)"~"bus"];
+rel(br);
+rel(br);
+);
+out meta;'
+  fic <- sprintf("%s.osm", fic)
+  dsn <- oapi_requete_get(requete, fic, force = force)
+  return(invisible(dsn))
 }
 #
 ## les erreurs transport détectés par osmose
@@ -298,9 +336,8 @@ bretagne_communes_osmose_issues_ <- function() {
     mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
     mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
     mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
-    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>"
-      , str_sub(elems.1.type,1, 1),  elems.1.id
-    )) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>", str_sub(elems.1.type,1, 1), elems.1.id)) %>%
+    mutate(PTNA = sprintf("<a href='https://ptna.openstreetmap.de/relation.php?id=%s&lang=fr'>PTNA</a>", elems.1.id)) %>%
     glimpse()
   html <- misc_html_append(html, "<h1>Diff ordre des stops</h1>")
   html <- misc_html_append_df(html, df4)
@@ -314,26 +351,66 @@ bretagne_communes_osmose_issues_ <- function() {
     mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
     mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
     mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>", str_sub(elems.1.type,1, 1), elems.1.id)) %>%
+    mutate(PTNA = sprintf("<a href='https://ptna.openstreetmap.de/relation.php?id=%s&lang=fr'>PTNA</a>", elems.1.id)) %>%
+    glimpse()
+  html <- misc_html_append(html, "<h1>Diff gap</h1>")
+  html <- misc_html_append_df(html, df4)
+  dsn_rds <- sprintf("%s/%s.rds", varDir, "bretagne_communes_osmose_issues_gap")
+  saveRDS(df4, dsn_rds)
+  df3 <- df1 %>%
+    filter(class %in% c("6", "8", "10")) %>%
+    dplyr::select(uuid, class, elems.1.id,  elems.1.type
+      , tags.1.network
+    ) %>%
+    glimpse()
+  df4 <- df3 %>%
+    mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
+    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
+    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
     mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>"
       , str_sub(elems.1.type,1, 1),  elems.1.id
     )) %>%
     glimpse()
-  html <- misc_html_append(html, "<h1>Diff gap</h1>")
+  html <- misc_html_append(html, "<h1>Tag stop/platform/bus_stop</h1>")
   html <- misc_html_append_df(html, df4)
   dsn <- sprintf("%s/bretagne_communes_osmose_issues.html", webDir)
   write(html, dsn)
   carp("dsn: %s", dsn)
-  dsn_rds <- sprintf("%s/%s.rds", varDir, "bretagne_communes_osmose_issues_gap")
-  saveRDS(df4, dsn_rds)
+  url <- sprintf("http://localhost/transport/bretagne_communes_osmose_issues.html")
+  browseURL(
+    url,
+    browser = "C:/Program Files/Mozilla Firefox/firefox.exe"
+  )
   return(invisible(df4))
 }
 # source("geo/scripts/transport.R");df <- bretagne_communes_osmose_issues_gap()
 bretagne_communes_osmose_issues_gap <- function() {
   dsn_rds <- sprintf("%s/%s.rds", varDir, "bretagne_communes_osmose_issues_gap")
   df <- readRDS(dsn_rds) %>%
+    glimpse() %>%
+# https://stackoverflow.com/questions/45857787/adding-column-if-it-does-not-exist
+    (function(.df){
+      cls <- c("tags.1.route", "tags.1.network") # columns I need
+      # adding cls columns with NAs if not present in the piped data.frame
+      .df[cls[!(cls %in% colnames(.df))]] = NA
+      return(.df)
+    }) %>%
+    glimpse() %>%
     filter(tags.1.route == "bus") %>%
     filter(tags.1.network != "QUB")
-  for (i in 1:nrow(df)) {
-    osm_relation_route_gap(id = df[i, "elems.1.id"], force = TRUE, force_osm = TRUE)
+  if (nrow(df) == 0) {
+    carp("**** pas de gap")
+    return(invisible(df))
   }
+  gaps.df <- data.frame()
+  for (i in 1:nrow(df)) {
+    df1 <- osm_relation_route_gap(id = df[i, "elems.1.id"], force = TRUE, force_osm = TRUE)
+     if (nrow(df1) > 0) {
+      misc_print(df1)
+#      stop("*****")
+      gaps.df <- rbind(gaps.df, df1)
+    }
+  }
+  misc_print(gaps.df)
 }

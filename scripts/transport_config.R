@@ -4,6 +4,15 @@
 # auteur : Marc Gauthier
 #
 #
+## lecture du fichier excel
+# source("geo/scripts/transport.R");config_agency_lire()
+config_agency_lire <- function() {
+  library(rio)
+  library(tidyverse)
+  dsn <- sprintf("%s/%s.xls", cfgDir, "agency")
+  df <- rio::import(dsn)
+  return(invisible(df))
+}
 ## lecture du fichier excel et filtrage
 # source("geo/scripts/transport.R");config_xls('star')
 config_xls <- function(res = "star", xls ="agency") {
@@ -16,10 +25,11 @@ config_xls <- function(res = "star", xls ="agency") {
   } else {
     carp("import dsn: %s reseau: %s", dsn, res)
     Config <<- import(dsn) %>%
-    filter(reseau == res)
+      filter(reseau == res)
   }
   if (nrow(Config) != 1) {
-    confess("****** %s", res)
+    misc_print(Config)
+    confess("****** res: %s", res)
   }
   carp("network: %s", Config[1, "network"])
   cols <- colnames(Config)

@@ -65,7 +65,7 @@ wiki_page_init <- function(page = "User:Mga_geo/Transports_publics/toto", articl
   write(html, file = dsn, append = FALSE)
   carp("dsn: %s", dsn)
 }
-# source("geo/scripts/transport.R");config_xls('tim');wiki_pages_init()
+# source("geo/scripts/transport.R");config_xls('breizhgo56');wiki_pages_init()
 wiki_pages_init <- function() {
   if (is.na(Config[1, "wiki"])) {
      stop("*****")
@@ -137,7 +137,7 @@ out meta;
   for (p in c("network", "route_master", "route", "routes", "routes_stops", "gtfs_shapes", "gtfs_routes_shapes")) {
     page <- sprintf("User:Mga_geo/Transports_publics/%s/%s", wiki_page, p) %>%
       glimpse()
-    wiki_page_init(page = page, article = "roro", force = FALSE)
+    wiki_page_init(page = page, article = "roro", force = TRUE)
   }
 }
 #

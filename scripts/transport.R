@@ -55,7 +55,8 @@ source("geo/scripts/transport_osmose.R")
 source("geo/scripts/transport_osm2mga.R")
 source("geo/scripts/transport_reseau.R")
 source("geo/scripts/transport_route.R")
-source("geo/scripts/transport_tidytransit.R")
+source("geo/scripts/transport_routes.R"); # cohérence route route_master
+source("geo/scripts/transport_tidytransit.R"); # lecture du fichier gtfs.zip
 source("geo/scripts/transport_train.R");# les réseaux de train
 source("geo/scripts/transport_txt.R")
 source("geo/scripts/transport_wiki.R")
@@ -91,8 +92,6 @@ source("geo/scripts/transport_tub.R")
 source("geo/scripts/transport_tudbus.R")
 
 Reseau <- "concarneau"
-Reseau <- "landerneau"
-Reseau <- "star"; # Rennes
 Reseau <- "kiceo"; # Vannes
 Reseau <- "qub"; # Quimper
 Reseau <- "douarnenez"; # Douarnenez
@@ -100,6 +99,12 @@ Reseau <- "bretagne"; # pseudo-réseau pour la Bretagne
 Reseau <- "breizhgo56"; # pseudo-réseau pour BreizhGo en Morbihan
 Reseau <- "morlaix"; # LinéoTim
 Reseau <- "breizhgo35"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
+Reseau <- "ter"; # pseudo-réseau pour BreizhGo SNCF
+Reseau <- "bibus"; # Brest
+Reseau <- "landerneau"
+Reseau <- "star"; # Rennes
+Reseau <- "breizhgo56"; # Morbihan
+Reseau <- "vitobus"; # Vitré/Chateaubourg
 config_xls(Reseau)
 if ( interactive() ) {
   DEBUG <- TRUE

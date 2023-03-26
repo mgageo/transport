@@ -12,17 +12,42 @@
 # https://exs.breizgo.cityway.fr/ftp/GTFS/MOBIBREIZHBRET.gtfs.zip
 # le fichier doit avoir été téléchargé dans D:\web.var\TRANSPORT\MOBIBREIZH\
 # puis éclaté dans ce dossier
-# source("geo/scripts/transport.R");mobibreizh_jour("concarneau")
-# source("geo/scripts/transport.R");mobibreizh_jour("tim")
-mobibreizh_jour <- function(reseau = "bibus") {
+#
+# source("geo/scripts/transport.R");mobibreizh_jour()
+mobibreizh_jour <- function() {
   library(tidyverse)
   library(rio)
+  library(httr)
+  library(readr)
+  library(archive)
   carp()
-  df <- config_xls(reseau)
-  mobibreizh_gtfs_reseaux(reseau = reseau)
-#  txt_gtfs_shapes_sf()
-#  txt_gtfs_shapes_wiki()
-#  mobibreizh_gtfs_reseaux()
+  url <- "https://data.bretagne.bzh/api/explore/v2.1/catalog/datasets/base-de-donnees-multimodale-transports-publics-en-bretagne-mobibreizh/exports/csv?lang=fr&timezone=Europe%2FBerlin&use_labels=true&delimiter=%3B"
+  res <- httr::GET(url)
+  data <- httr::content(res, "text") %>%
+    glimpse()
+  url <- "https://exs.breizgo.cityway.fr/ftp/GTFS/MOBIBREIZHBRET.gtfs.zip"
+  dsn <- sprintf("%s/gtfs.zip", odDir)
+  download.file(url, dsn)
+  setwd(odDir)
+  archive::archive_extract("gtfs.zip", dir = ".")
+  setwd(baseDir)
+}
+#
+# extraction par réseau et production du gtfs.zip
+mobibreizh_reseaux <- function() {
+  library(tidyverse)
+  library(rio)
+  df <- mobibreizh_agency_lire() %>%
+    filter(agency_id != "") %>%
+    filter(grepl("MOBIBREIZH", gtfs_dir)) %>%
+    glimpse()
+#  return()
+  for (i in 1:nrow(df)) {
+    reseau <- df[i, "reseau"]
+    agency_id <- df[i, "agency_id"]
+    gtfs_dir <- df[i, "gtfs_dir"]
+    mobibreizh_gtfs_reseau(reseau, agency_id, gtfs_dir)
+  }
 }
 # source("geo/scripts/transport.R");mobibreizh_gtfs_reseau_shapes2ogr()
 mobibreizh_gtfs_reseau_shapes2ogr <- function(reseau = "rmat") {
@@ -41,7 +66,7 @@ mobibreizh_gtfs_reseau_shapes2ogr <- function(reseau = "rmat") {
 # source("geo/scripts/transport.R");mobibreizh_gtfs_reseaux(agency = "AXEOBUS")
 # source("geo/scripts/transport.R");mobibreizh_gtfs_reseaux(agency = "QUB")
 # source("geo/scripts/transport.R");mobibreizh_gtfs_reseaux(reseau = "Kiceo")
-# source("geo/scripts/transport.R");mobibreizh_gtfs_reseaux(reseau = "breizhgo35")
+# setwd("d:/web");source("geo/scripts/transport.R");mobibreizh_gtfs_reseaux(reseau = "breizhgo56")
 mobibreizh_gtfs_reseaux <- function(reseau = "Kiceo") {
   library(tidyverse)
   library(rio)
@@ -70,7 +95,8 @@ mobibreizh_gtfs_reseau <- function(reseau, agency_id, gtfs_dir) {
   library(tidyverse)
   library(rio)
   library(stringr)
-  carp("reseau: %s agency_id: %s %s", reseau, agency_id, gtfs_dir)
+  library(archive)
+  carp("reseau: %s agency_id: %s gtfs_dir: %s", reseau, agency_id, gtfs_dir)
   if ( reseau == "star") {
     return()
   }
@@ -90,48 +116,41 @@ mobibreizh_gtfs_reseau <- function(reseau, agency_id, gtfs_dir) {
   rio::export(df, dsn, format = "csv")
   fic <- "routes"
   dsn <- sprintf("%s/%s.txt", odDir, fic)
-  carp("dsn: %s", dsn)
+#  carp("dsn: %s", dsn)
   df <- rio::import(dsn, encoding = "UTF-8") %>%
-    filter(agency_id %in% agencies) %>%
-    glimpse()
+    filter(agency_id %in% agencies)
   dsn <- sprintf("%s/%s.txt", reseau_dir, fic)
   rio::export(df, dsn, format = "csv")
   fic <- "trips"
   dsn <- sprintf("%s/%s.txt", odDir, fic)
-  carp("dsn: %s", dsn)
+#  carp("dsn: %s", dsn)
   df <- rio::import(dsn, encoding = "UTF-8") %>%
-    filter(grepl(regex, route_id)) %>%
-    glimpse()
+    filter(grepl(regex, route_id))
   dsn <- sprintf("%s/%s.txt", reseau_dir, fic)
   rio::export(df, dsn, format = "csv")
   fic <- "shapes"
   dsn <- sprintf("%s/%s.txt", odDir, fic)
-  carp("dsn: %s", dsn)
+#  carp("dsn: %s", dsn)
   df <- rio::import(dsn, encoding = "UTF-8") %>%
-    filter(grepl(regex, shape_id)) %>%
-    glimpse()
+    filter(grepl(regex, shape_id))
   dsn <- sprintf("%s/%s.txt", reseau_dir, fic)
   rio::export(df, dsn, format = "csv")
   fic <- "stops"
   dsn <- sprintf("%s/%s.txt", odDir, fic)
-  carp("dsn: %s", dsn)
+#  carp("dsn: %s", dsn)
   df <- rio::import(dsn, encoding = "UTF-8") %>%
-    filter(grepl(regex, stop_id)) %>%
-    glimpse()
+    filter(grepl(regex, stop_id))
   df <- df %>%
-    mutate(stop_id = gsub("^(BIBUS|TIBUS)\\:", "", stop_id)) %>%
-    glimpse()
+    mutate(stop_id = gsub("^(BIBUS|TIBUS)\\:", "", stop_id))
   dsn <- sprintf("%s/%s.txt", reseau_dir, fic)
   rio::export(df, dsn, format = "csv")
   fic <- "stop_times"
   dsn <- sprintf("%s/%s.txt", odDir, fic)
-  carp("dsn: %s", dsn)
+#  carp("dsn: %s", dsn)
   df <- rio::import(dsn, encoding = "UTF-8") %>%
-    filter(grepl(regex, trip_id)) %>%
-    glimpse()
+    filter(grepl(regex, trip_id))
   df <- df %>%
-    mutate(stop_id = gsub("^(BIBUS|TIBUS)\\:", "", stop_id)) %>%
-    glimpse()
+    mutate(stop_id = gsub("^(BIBUS|TIBUS)\\:", "", stop_id))
   dsn <- sprintf("%s/%s.txt", reseau_dir, fic)
   rio::export(df, dsn, format = "csv")
   fic <- "calendar_dates"
@@ -140,13 +159,14 @@ mobibreizh_gtfs_reseau <- function(reseau, agency_id, gtfs_dir) {
   df <- rio::import(dsn, encoding = "UTF-8")
   dsn <- sprintf("%s/%s.txt", reseau_dir, fic)
   rio::export(df, dsn, format = "csv")
-  carp("dsn: %s", dsn)
+#  carp("dsn: %s", dsn)
   setwd(reseau_dir)
   carp("reseau_dir: %s", reseau_dir)
-  files <- list.files('.', pattern = ".txt$", full.names = FALSE) %>%
-    glimpse()
-  utils::zip(zipfile = 'gtfs_toto.zip', files = files)
+  files <- list.files('.', pattern = ".txt$", full.names = FALSE)
+#  utils::zip(zipfile = 'gtfs_toto.zip', files = files)
+  archive::archive_write_files("gtfs.zip", files)
   setwd(baseDir)
+  carp("reseau_dir: %s", reseau_dir)
 }
 # source("geo/scripts/transport.R");mobibreizh_jour()
 mobibreizh_jour_v0 <- function() {

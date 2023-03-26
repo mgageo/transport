@@ -76,6 +76,168 @@ osmapi_object_full <- function(ref, type = "relation", force = FALSE) {
   }
   return(invisible(dsn))
 }
+osmapi_object_history <- function(ref, type = "relation", force = FALSE) {
+  library(readr)
+  library(tidyverse)
+  library(httr)
+  dsn <- sprintf("%s/%s_%s_history.osm", osmDir, type, ref)
+  carp("dsn: %s", dsn)
+  if (! file.exists(dsn) | force == TRUE) {
+    url <- sprintf("https://www.openstreetmap.org/api/0.6/%s/%s/history", type, ref)
+    res <- httr::GET(url = url, encoding = "UTF-8", type = "application/xml", httr::write_disk(dsn, overwrite = TRUE))
+    stop_for_status(res)
+  }
+  return(invisible(dsn))
+}
+#
+# il y a plusieurs versions des nodes/ways/relations
+osmapi_object_history_version <- function(dsn, ref, type = "relation", version,force = FALSE) {
+  library(readr)
+  library(tidyverse)
+  library(httr)
+  library(mapsf)
+  dsn_rds <- sprintf("%s/osmapi_object_history_version_%s.rds", osmDir, ref)
+  if (file.exists(dsn_rds) && force == FALSE) {
+    rc <- readRDS(dsn_rds)
+    return(invisible(rc))
+  }
+  carp("dsn: %s", dsn)
+  doc <- read_xml(dsn)
+#
+# les nodes
+  carp("les nodes")
+  nodes <- xml2::xml_find_all(doc, ".//node")
+  carp("nodes nb: %s", length(nodes))
+  nodes.df <- osmapi_objects_tags(nodes) %>%
+    dplyr::select(id, version, lat, lon, name, public_transport, matches("^(bus|ref)")) %>%
+    mutate(v = as.numeric(version)) %>%
+    arrange(id, v) %>%
+    group_by(id) %>%
+    summarise_all(last) %>%
+    mutate(lat = as.numeric(lat)) %>%
+    mutate(lon = as.numeric(lon)) %>%
+    glimpse()
+#  misc_print(nodes.df); stop("*****")
+
+#
+# les ways
+  carp("les ways")
+  ways <- xml2::xml_find_all(doc, ".//way")
+  carp("ways nb: %s", length(ways))
+  ways.df <- osmapi_objects_tags(ways) %>%
+    dplyr::select(id, version, matches("^(name|highway|junction|oneway|oneway\\:bus|ref)")) %>%
+    mutate(v = as.numeric(version)) %>%
+    arrange(id, v) %>%
+    group_by(id) %>%
+    summarise_all(last) %>%
+    (function(.df){
+      cls <- c("name", "highway", "junction", "oneway", "oneway:bus", "ref", "nodes")
+      .df[cls[!(cls %in% colnames(.df))]] = NA
+      return(.df)
+    }) %>%
+    glimpse()
+#  stop("*****")
+#  print(xml_structure(ways[[1]]))
+  ls.v <- c()
+  for (i in 1:nrow(ways.df)) {
+    carp("i: %s/%s", i, nrow(ways.df))
+    nodes <- xml_find_all(ways[[i]], ".//nd") %>%
+      xml_attr("ref")
+    df1 <- data.frame(id = nodes) %>%
+      left_join(nodes.df, by = ("id")) %>%
+      mutate(point = sprintf("%s %s", lon, lat)) %>%
+      summarize(points = paste(point, collapse = ",")) %>%
+      mutate(wkt = sprintf("LINESTRING(%s)", points))
+     ways.df[i, "wkt"] <- df1[[1, "wkt"]]
+#    ls1 <- st_linestring(matrix(c(df1$lon, df1$lat), nrow(df1), 2))
+#    ways.df[i, "ls"][[1]] <- list(ls1)
+#    ls.v <- append(ls.v, ls1)
+# https://ryouready.wordpress.com/2016/07/18/populating-data-frame-cells-with-more-than-one-value/
+    ways.df[i, "nb_nodes"] <- length(nodes)
+    ways.df$nodes[i] <- list(nodes)
+    ways.df[i, "node1"] <- nodes[1]
+    ways.df[i, "node9"] <- nodes[length(nodes)]
+#    mga <<- nodes
+#    glimpse(nodes); stop("*****")
+  }
+#  glimpse(ways.df); stop("*****")
+  ways.sf <- st_as_sf(ways.df, geometry = st_as_sfc(ways.df$wkt, crs = 4326)) %>%
+    st_transform(2154) %>%
+    glimpse()
+#
+# les relations
+  relations <- xml2::xml_find_all(doc, ".//relation")
+  carp("relations nb: %s", length(relations))
+  relations.df <- data.frame()
+  i_relation <- 0
+  for (relation in relations) {
+    carp("les attributs de la relation")
+    relation.df <- xml_attrs(relation) %>%
+      as_tibble_row() %>%
+      glimpse()
+    if (relation.df$version[1] %notin% c("10", "11")) {
+      next
+    }
+    i_relation <- i_relation + 1
+#  print(as.character(relation))
+    members <- xml2::xml_find_all(relation, ".//member")
+    carp("members nb: %s", length(members))
+    members.list <- list()
+    for (attr in c("type", "ref", "role")) {
+      members.list[[attr]] <- members %>% xml_attr(attr)
+    }
+    members.df <- as_tibble(members.list) %>%
+      glimpse()
+#
+# on peut s'attaquer au rapprochement pour les nodes stop/platform
+    df1 <- members.df %>%
+      filter(type == "node") %>%
+      left_join(nodes.df, by = c("ref" = "id")) %>%
+      clean_names()
+    df2 <- df1 %>%
+      filter(grepl("platform", role)) %>%
+      glimpse()
+    platforms <- paste(df2$name, collapse = ";")
+#    carp("platforms: %s", platforms); stop("*****")
+    carp("les arrêts")
+    df3 <- df1 %>%
+      filter(grepl("(stop|platform)", role))
+#
+# on peut s'attaquer au rapprochement pour les ways
+#  misc_print(members.df)
+    df11 <- members.df %>%
+      filter(role == "" & type == "way") %>%
+#    glimpse();stop("*****")
+      left_join(ways.sf, by = c("ref" = "id")) %>%
+      rename(id = ref) %>%
+      clean_names()
+    sf11 <- st_as_sf(df11, geometry = st_as_sfc(df11$wkt, crs = 4326)) %>%
+      mutate(way_no = row_number()) %>%
+      st_transform(2154) %>%
+      glimpse()
+    rc <- list("platforms_name" = platforms, "members.df" <- df3, "ways.sf" = sf11)
+    couleur <- "red"
+    largeur <- 1
+    if (i_relation == 1) {
+      mf_init(rc$ways.sf, expandBB = c(0.1, 0.1, 0.1, 0.1))
+      couleur <- "blue"
+      largeur <- 4
+    }
+    mf_map(x = rc$ways.sf, col = couleur, lwd = largeur, add = TRUE)
+    next
+    relation.df$rc <- list()
+    relation.df$rc[1] <- rc
+    relations.df <- bind_rows(relations.df, relation.df)
+  }
+  return(invisible())
+#  glimpse(relations.df);stop("*****")
+  saveRDS(relations.df, dsn_rds)
+  carp("mapsf")
+  rc <- relations.df[1, "rc"]
+  rc <- relations.df[2, "rc"]
+  mf_map(x = rc$ways.sf, col = "red", lwd = 3, add = TRUE)
+  return(invisible())
+}
 
 #
 # récupération des coordonnées des arrêts d'une relation transport
@@ -319,7 +481,12 @@ osmapi_get_transport <- function(ref = "11920346", force = FALSE, force_osm = FA
 # les ways
   carp("les ways")
   ways.df <- osmapi_objects_tags(ways) %>%
-    dplyr::select(id, matches("^(name|highway|junction|oneway|oneway\\:busf|ref)")) %>%
+    dplyr::select(id, matches("^(name|highway|junction|oneway|oneway\\:bus|ref)")) %>%
+    (function(.df){
+      cls <- c("name", "highway", "junction", "oneway", "oneway:bus", "ref")
+      .df[cls[!(cls %in% colnames(.df))]] = NA
+      return(.df)
+    }) %>%
     glimpse()
 #  stop("*****")
 #  print(xml_structure(ways[[1]]))
@@ -437,6 +604,37 @@ osmapi_objects_tags <- function(objects) {
   }
   return(invisible(objects.df))
 }
+osmapi_objects_get_attrs <- function(dsn = "d:/web.var/TRANSPORT/STAR/OSM/node_7883832201_relations.osm", force = FALSE) {
+  library(readr)
+  library(tidyverse)
+  library(janitor)
+  library(xml2)
+  osm <- read_file(dsn)
+# les caractères exotiques
+  osm <- str_replace_all(osm, "\\<U\\+[0-9a-fA-F]{4}\\>", "?")
+#  write(osm, "d:osm.txt");
+  doc <- read_xml(osm)
+  objects <- xml2::xml_children(doc)
+  carp("objects nb: %s", length(objects))
+  objects.df <- data.frame()
+  if (length(objects) == 0) {
+    return(invisible(objects.df))
+  }
+  objects.df <- osmapi_objects_attrs(objects)
+  return(invisible(objects.df))
+}
+#
+# les attrs
+osmapi_objects_attrs <- function(objects) {
+  objects.df <- data.frame()
+  for (object in objects) {
+    object.df <- xml_attrs(object) %>%
+      as_tibble_row()
+    object.df$xml_name <- xml_name(object)
+    objects.df <- bind_rows(objects.df, object.df)
+  }
+  return(invisible(objects.df))
+}
 # Cast the character vector list into a matrix and then convert to a data.frame
 osmapi_attrs_to_df <- function(nodes) {
   raw_node_attrs <- xml_attrs(nodes)
@@ -458,7 +656,7 @@ osmapi_attrs_to_df <- function(nodes) {
 
 api_url <- "https://master.apis.dev.openstreetmap.org"
 api_url <- "https://www.openstreetmap.org"
-osmapi_api <- function(path, xml = '', methode = "PUT") {
+osmapi_api <- function(path, xml = '', methode = "PUT", debug = FALSE) {
   library(httr)
   url <- sprintf("%s/api/0.6/%s", api_url, path)
   carp("url: %s", url)
@@ -497,25 +695,69 @@ osmapi_api <- function(path, xml = '', methode = "PUT") {
   }
   stop_for_status(resp)
   txt <- httr::content(resp, as = "text")
-
-  if (http_type(resp) == "application/json") {
-    print(jsonlite::prettify(txt, indent = 2))
-  } else {
-    print(txt)
+  if (debug == TRUE) {
+    if (http_type(resp) == "application/json") {
+      print(jsonlite::prettify(txt, indent = 2))
+    }
+    if (http_type(resp) == "application/xml") {
+      xml <- str_split(txt, "\\n+", simplify = TRUE)
+      xml <- head(xml[-1:-2], -2)
+      xml <- paste(xml,  collapse = "\n")
+      print(xml)
+    }
   }
   return(invisible(txt))
 }
 
-# source("geo/scripts/transport.R"); osmapi_get_node()
-osmapi_get_node <- function() {
+#
+# source("geo/scripts/transport.R"); res <- osmapi_get_object_xml(); print(res)
+osmapi_get_object_xml <- function(id = "11920346", type = "relation", force = FALSE) {
   library(stringi)
-  path <- "node/6256112832"
-  xml <- osmapi_get(path)
+  path <- "{type}/{id}"
+  path <- str_glue(path)
+  xml <- osmapi_api(path, methode = "GET")
   xml <- str_split(xml, "\\n+", simplify = TRUE)
   xml <- head(xml[-1:-2], -2)
-  xml <- paste(xml,  collapse = "\n")
-  print(xml)
-  osmapi_put("modify", text = xml)
+  xml <- paste(xml, collapse = "\n")
+  return(invisible(xml))
+}
+#
+## interrogation d'un changeset par son id
+# le node créé
+# source("geo/scripts/transport.R"); osmapi_get_changeset(id = "132833877")
+# modify
+# source("geo/scripts/transport.R"); osmapi_get_changeset(id = "132571776")
+# ref en double
+# source("geo/scripts/transport.R"); osmapi_get_changeset(id = "132572055")
+osmapi_get_changeset <- function(id = "132833877") {
+  library(stringi)
+  library(xml2)
+  path <- "changeset/{id}/download"
+  path <- str_glue(path)
+  txt <- osmapi_api(path, methode = "GET", debug = TRUE)
+  xml <- xml2::read_xml(txt)
+  actions <- xml_children(xml)
+  actions.df <- data.frame()
+  for (action in actions) {
+    objects <- xml_children(action)
+    action.df <- osmapi_objects_attrs(objects)
+    action.df$xml_action <- xml_name(action)
+    actions.df <- bind_rows(actions.df, action.df)
+  }
+  return(invisible(actions.df))
+}
+# https://www.openstreetmap.org/api/0.6/changesets?display_name=mga_geo
+# source("geo/scripts/transport.R"); osmapi_get_changesets()
+osmapi_get_changesets <- function(display_name = "mga_geo") {
+  library(stringi)
+  library(xml2)
+  path <- "changesets/?display_name={display_name}"
+  path <- str_glue(path)
+  txt <- osmapi_api(path, methode = "GET", debug = TRUE)
+  xml <- xml2::read_xml(txt)
+  text <- xml_children(xml) %>%
+    xml_name()
+  print(text)
 }
 # https://gist.github.com/typebrook/d166d5e8d0a293c30f697b0f403b3c0e
 #
@@ -535,8 +777,10 @@ osmapi_put <- function(osmchange = "create", text = "osm", force = FALSE) {
   path <- sprintf("changeset/%s/upload", changeset_id)
   res <- osmapi_api(path, xml = text, methode = "POST")
   path <- sprintf("changeset/%s/close", changeset_id)
-  res <- osmapi_api(path, methode = "PUT")
+  res <- osmapi_api(path, methode = "PUT") %>%
+    glimpse()
   carp("changeset: %s/changeset/%s", api_url, changeset_id)
+  return(invisible(changeset_id))
 }
 # source("geo/scripts/transport.R"); osmapi_osmchange()
 osmapi_osmchange <- function(changeset_id = 200, change = "create", osm = "<node>") {
@@ -559,6 +803,28 @@ osmapi_create_node <- function() {
   <tag k="name" v="mga_geo"/>
 </node>
 '
-  osmapi_put("create", text = text)
-  return()
+  changeset_id <- osmapi_put("create", text = text)
+  txt <- osmapi_get_changeset(id = changeset_id)
+  return(invisible(changeset_id))
+}
+#
+# test
+# - création
+# - modification
+# - suppression
+# source("geo/scripts/transport.R");osmapi_test()
+osmapi_test <- function() {
+  library(stringi)
+# création d'un node
+#  id <- osmapi_create_node()
+  id <- "132833877"
+#
+  df <- osmapi_get_changeset(id = id)
+  text <- osmapi_get_object_xml(id = df[[1, "id"]], type = df[[1, "xml_name"]])
+  text <- stri_replace(text, 'v="mga_geo_2"', regex = 'v="mga_geo"')
+  print(text)
+  changeset_id <- osmapi_put("modify", text = text)
+  text <- osmapi_get_object_xml(id = df[[1, "id"]], type = df[[1, "xml_name"]])
+  changeset_id <- osmapi_put("delete", text = text)
+  return(invisible())
 }

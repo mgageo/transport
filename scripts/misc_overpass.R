@@ -63,9 +63,9 @@ overpass_query_v1 <- function(query, quiet=FALSE) {
   httr::stop_for_status(res)
   if (!quiet) message("Query complete!")
   if (res$headers$`content-type` == "text/csv") {
-    return(httr::content(res, as="text", encoding="UTF-8"))
+    return(httr::content(res, as = "text", encoding = "UTF-8"))
   }
-  doc <- xml2::read_xml(httr::content(res, as="text", encoding="UTF-8"))
+  doc <- xml2::read_xml(httr::content(res, as = "text", encoding = "UTF-8"))
   return(invisible(doc))
 }
 overpass_query_json <- function(query, fic = "test", force = FALSE) {
@@ -269,4 +269,22 @@ out body;", id)
   q <- opq(bbox = c(51.1, 0.1, 51.2, 0.2))
   od <- osmdata_sf(q, dsn)
   return(invisible(od))
+}
+overpass_relation_get_history <- function(id = "4013532", force = TRUE) {
+  library(tidyverse)
+  library(rio)
+  dsn <- sprintf("overpass_relation_get_%s_history", id)
+  carp("dsn: %s", dsn)
+  requete <- sprintf('
+timeline(rel, %s);
+foreach(
+  retro(u(t["created"]))
+  (
+    (rel(%s);>>;);
+    out meta;
+
+  );
+);', id, id)
+  dsn <- overpass_query(query = requete, fic = dsn, force = force)
+  return(invisible(dsn))
 }

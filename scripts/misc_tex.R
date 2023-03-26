@@ -358,7 +358,7 @@ tex_df2table_v1 <- function(df, dsn=FALSE, suffixe="", num=FALSE, nb_lignes=50, 
 escapeLatexSpecials <- function(x) {
 #  x <- gsub("\\", "$\\backslash$", x, fixed = T)
   x <- gsub("#", "\\\\#", x)
-#  x <- gsub("$", "\\\\$", x)
+  x <- gsub("\\$", "\\\\$", x)
   x <- gsub("%", "\\\\%", x)
 #  x <- gsub("&", "***", x)
   x <- gsub("&", "\\\\&", x)
@@ -378,6 +378,7 @@ tex_regex_escape <- function(x, double_backslash = FALSE) {
     x <- gsub("\\\\", "\\\\\\\\", x)
   }
   x <- gsub("\\$", "\\\\\\$", x)
+  x <- gsub("\\_", "\\\\_", x)
   x <- gsub("\\(", "\\\\(", x)
   x <- gsub("\\)", "\\\\)", x)
   x <- gsub("\\[", "\\\\[", x)

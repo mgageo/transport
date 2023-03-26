@@ -13,20 +13,29 @@
 #
 # source("geo/scripts/transport.R");tidytransit_jour()
 tidytransit_jour <- function(reseau = Reseau, force = TRUE) {
-  carp()
   library(tidytransit)
+  library(archive)
   config_xls(reseau)
   dsn <- sprintf("%s/%s", gtfsDir, "gtfs.zip")
+  carp("dsn: %s", dsn)
+  if (is.na(Config[1, "gtfs_dir"])) {
+    return()
+  }
+#  setwd(gtfsDir)
+  archive::archive_extract(dsn, gtfsDir)
+#  setwd(baseDir)
   tidytransit_zip_lire(dsn = dsn)
   tidytransit_gtfs_stops_sf()
 #  glimpse(tt); stop("****")
   if( Config[1, "shapes"] == "TRUE" ) {
+    tidytransit_shapes_stops()
     tidytransit_shapes_stops_tex()
     tidytransit_gtfs_shapes_gpx()
     tidytransit_gtfs_routes_shapes_stops()
     tidytransit_shapes_stops_coord()
   }
   tidytransit_routes_fiche()
+  tidytransit_routes_stops()
 }
 # lecture des routes, données GTFS
 # https://eu.ftp.opendatasoft.com/star/gtfs/GTFS_2022.1.2.0_20221003_20221023.zip
@@ -183,8 +192,7 @@ tidytransit_routes_stops <- function() {
     arrange(stop_sequence) %>%
     group_by(trip_id) %>%
     summarise(
-      nb=n()
-      , first_stop = first(stop_id), last_stop = last(stop_id), stops = paste(stop_id, collapse = ";")
+      first_stop = first(stop_id), last_stop = last(stop_id), stops = paste(stop_id, collapse = ";")
       , first_name = first(stop_name), last_name = last(stop_name), names = paste(stop_name, collapse = ";")
       , first_desc = first(stop_desc), last_desc = last(stop_desc), descs = paste(stop_desc, collapse = ";")
       , nb_stops = n()
@@ -212,7 +220,7 @@ tidytransit_routes_stops <- function() {
     mutate(direction_id = sprintf("%s", direction_id)) %>%
     dplyr::select(-d) %>%
     glimpse() %>%
-    arrange(ref_network, nb) %>%
+    arrange(ref_network, nb_stops) %>%
 # que les lignes de bus
     filter(route_type == 3) %>%
     dplyr::select(-route_url, -route_type) %>%
@@ -293,6 +301,7 @@ tidytransit_gtfs_routes_shapes_stops_carto <- function(rds = "gtfs_routes_shapes
   df1 <- tidytransit_lire("gtfs_shapes_stops") %>%
     glimpse()
   nc1 <- tidytransit_lire("gtfs_shapes_stops_coord") %>%
+    st_transform(2154) %>%
     glimpse()
   df <- tt$routes %>%
     left_join(df1) %>%
@@ -449,6 +458,7 @@ tidytransit_shapes_stops_tex <- function() {
   df3 <- tidytransit_lire("gtfs_shapes_stops")
 #  misc_print(df3)
   df4 <- df3 %>%
+    glimpse() %>%
     dplyr::select(ref_network, shape_id, nb_stops, nb, names)
 
   tex_df2kable(df4, num = TRUE)

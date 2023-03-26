@@ -679,6 +679,22 @@ osm_relations_route_members <- function(reseau = "star", force = FALSE, force_os
   tex_df2kable(members_kref.df, suffixe = "kref", longtable = TRUE)
   return(invisible())
 }
+#
+## différence entre deux versions
+# requete via l'overpass
+# source("geo/scripts/transport.R");osm_relation_route_versions(id = "3440638", force = TRUE)
+osm_relation_route_versions <- function(id, force = FALSE, force_osm = FALSE) {
+  library(tidyverse)
+  library(data.table)
+  library(sf)
+  library(janitor)
+  carp("id: %s", id)
+  dsn <- overpass_relation_get_history(id = id, force = force_osm)
+  df <- osmapi_objects_get_attrs(dsn) %>%
+    glimpse()
+  osmapi_object_history_version(dsn = dsn, ref = id, type = "relation", version = "11")
+}
+
 # Quimper 6-A
 # Vannes 4754448 6b
 # source("geo/scripts/transport.R");osm_relation_route_members(id = "4754448", force = TRUE)
@@ -1023,6 +1039,27 @@ osm_relation_route_stops_order <- function(rc, id = 3184038, force = FALSE, forc
   }
 }
 #
+# les trous
+# source("geo/scripts/transport.R");osm_relations_route_gap(force = FALSE, force_osm = FALSE)
+osm_relations_route_gap <- function(force = TRUE, force_osm = TRUE) {
+  library(tidyverse)
+  library(data.table)
+  library(sf)
+  library(janitor)
+  carp()
+  dsn <- osm_relations_routes_bus_csv(force = force_osm)
+  df <- fread(dsn, encoding = "UTF-8") %>%
+    as.data.table() %>%
+    clean_names() %>%
+    filter(type_2 == "route") %>%
+    glimpse()
+  for (i in 1:nrow(df)) {
+    osm_relation_route_gap(id = df[i, "id"], force = TRUE, force_osm = TRUE)
+  }
+
+}
+
+#
 # cohérence route route_master
 # même operator, colour, text_colour
 # source("geo/scripts/transport.R");osm_relations_routes_bus(force = FALSE, force_osm = FALSE)
@@ -1102,24 +1139,30 @@ osm_relations_level0 <- function(force = TRUE, force_osm = TRUE) {
 ## les gaps dans une relation
 #
 # source("geo/scripts/transport.R");osm_relation_route_gap(id = 4260060, force = FALSE, force_osm = FALSE)
-# source("geo/scripts/transport.R");osm_relation_route_gap(id = 14194690, force = FALSE, force_osm = FALSE)
+# source("geo/scripts/transport.R");osm_relation_route_gap(id = 14632216, force = FALSE, force_osm = FALSE)
+# source("geo/scripts/transport.R");osm_relation_route_gap(id = 4260060, force = FALSE, force_osm = FALSE)
 # oneway:bus = no
 osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE) {
   library(tidyverse)
+  gaps.df <- data.frame()
   rc <- osm_relation_route_members(id = id, force = force, force_osm = force_osm)
   if ("note:mga_geo" %in% names(rc$relation)) {
     carp("note:mga_geo id: %s", id)
-    return()
+#    return(invisible(gaps.df))
   }
   carp("les ways")
   ways.df <- rc$ways.sf %>%
     st_drop_geometry()
+  if (nrow(ways.df) == 0) {
+    carp("****id: %s pas de ways", id)
+    return(invisible(gaps.df))
+  }
   df1 <- ways.df %>%
     mutate(no = 1:n()) %>%
     mutate(tags = highway) %>%
     mutate(tags = ifelse(is.na(junction), tags, sprintf("%s,%s", tags, junction))) %>%
     mutate(tags = ifelse(is.na(oneway), tags, sprintf("%s,%s", tags, oneway))) %>%
-    select(no, id, tags, node1, node9, name)
+    dplyr::select(no, id, tags, node1, node9, name)
   misc_print(df1)
   if (nrow(ways.df) < 2) {
     confess("pas assez de voies")
@@ -1128,10 +1171,11 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
   ways.df <- ways.df %>%
     mutate(no = 1:n()) %>%
     rowwise() %>%
+    glimpse() %>%
     mutate(wRP = grepl("roundabout|circular", junction)) %>%
     mutate(wRP = ifelse(node1 == node9, TRUE, FALSE)) %>%
     mutate(wOW = grepl("yes", oneway)) %>%
-#    mutate(wOW = ifelse(oneway_bus == "no", FALSE, TRUE)) %>%
+    mutate(wOW = ifelse(grepl("yes", oneway_bus), TRUE, FALSE)) %>%
     mutate(name = ifelse(is.na(name), ref_y, name)) %>%
     mutate(name = sprintf("%s(%s)", name, nb_nodes)) %>%
     dplyr::select(no, id, node1, node9, wRP, wOW, name, nodes) %>%
@@ -1140,13 +1184,16 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
   nAvant <- "-1"
   carp("****id: %s", id)
   for (i in 2:nrow(ways.df)) {
-#    carp("***i: %s", i)
+#    carp("***i: %s %s", i, ways.df[i, "name"])
 #    misc_print(ways.df[c(i -1, i), ])
 # c'est un rond-point ?
     if (ways.df[i , "wRP"] == TRUE) {
 # précédé d'un rond-point ?
       if (ways.df[i - 1 , "wRP"] == TRUE) {
-        confess("deux ronds-points i: %s", i)
+        gaps.df <- ways.df[c(i -1, i), ]
+        gaps.df$r_id <- id
+        gaps.df$err <- "deux ronds-points"
+        break
       }
       next
     }
@@ -1154,15 +1201,20 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
     if (i == 2) {
       if (ways.df[i - 1 , "node1"] == ways.df[i , "node1"] ) {
         if (ways.df[i - 1, "wOW"]  == TRUE) {
-          confess("sens unique i-1: %s", i)
+          gaps.df <- ways.df[c(i -1, i), ]
+          gaps.df$r_id <- id
+          gaps.df$err <- "sens unique i-1"
+          break
         }
         nAvant <- ways.df[i , "node9"]
         next;
       }
       if (ways.df[i - 1 , "node1"] == ways.df[i , "node9"] ) {
         if (ways.df[i, "wOW"]  == TRUE) {
-          misc_print(ways.df[c(i -1, i), ])
-          confess("sens unique i: %s", i)
+          gaps.df <- ways.df[c(i -1, i), ]
+          gaps.df$r_id <- id
+          gaps.df$err <- "sens unique i"
+          break
         }
         nAvant <- ways.df[i , "node1"]
         next;
@@ -1173,25 +1225,10 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
       }
       if (ways.df[i - 1 , "node9"] == ways.df[i , "node9"]) {
        if (ways.df[i, "wOW"]  == TRUE) {
-          misc_print(ways.df[c(i -1, i), ])
-          confess("sens unique i: %s", i)
-        }
-        nAvant <- ways.df[i , "node1"]
-        next;
-      }
-      misc_print(ways.df[c(i -1, i), ])
-      confess("gap i: %s", i)
-    }
-# la suite
-    if (i > 2) {
-      if (nAvant == ways.df[i , "node1"]) {
-        nAvant <- ways.df[i , "node9"]
-        next;
-      }
-      if (nAvant == ways.df[i , "node9"]) {
-        if (ways.df[i, "wOW"]  == TRUE) {
-          misc_print(ways.df[c(i -1, i), ])
-          confess("sens unique i: %s", i)
+          gaps.df <- ways.df[c(i -1, i), ]
+          gaps.df$r_id <- id
+          gaps.df$err <- "sens unique i-1"
+          break
         }
         nAvant <- ways.df[i , "node1"]
         next;
@@ -1207,12 +1244,57 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
           nAvant <- ways.df[i , "node1"]
           next;
         }
-        glimpse(nodes)
-        confess("un rond-point avant i: %s", i)
+        gaps.df <- ways.df[c(i -1, i), ]
+        gaps.df$r_id <- id
+        gaps.df$err <- "un rond-point avant"
+        break
       }
-      misc_print(ways.df[c(i -1, i), ])
-      confess("gap i: %s %s", i, nAvant)
+      gaps.df <- ways.df[c(i -1, i), ]
+      gaps.df$r_id <- id
+      gaps.df$err <- "gap"
+      break
+    }
+# la suite
+    if (i > 2) {
+      if (nAvant == ways.df[i , "node1"]) {
+        nAvant <- ways.df[i , "node9"]
+        next;
+      }
+      if (nAvant == ways.df[i , "node9"]) {
+        if (ways.df[i, "wOW"]  == TRUE) {
+          gaps.df <- ways.df[c(i -1, i), ]
+          gaps.df$r_id <- id
+          gaps.df$err <- "sens unique"
+          break
+        }
+        nAvant <- ways.df[i , "node1"]
+        next;
+      }
+# précédé d'un rond-point ?
+      if (ways.df[i - 1 , "wRP"] == TRUE) {
+        nodes <- unlist(ways.df[i - 1 , "nodes"])
+        if (ways.df[i , "node1"] %in% nodes) {
+          nAvant <- ways.df[i , "node9"]
+          next;
+        }
+        if (ways.df[i , "node9"] %in% nodes) {
+          nAvant <- ways.df[i , "node1"]
+          next;
+        }
+        gaps.df <- ways.df[c(i -1, i), ]
+        gaps.df$r_id <- id
+        gaps.df$err <- "un rond-point avant"
+        break
+      }
+      gaps.df <- ways.df[c(i -1, i), ]
+      gaps.df$r_id <- id
+      gaps.df$err <- "gap"
+      break
     }
   }
+  if (nrow(gaps.df) > 0) {
+    misc_print(gaps.df)
+  }
   carp("fin id: %s", id)
+  return(invisible(gaps.df))
 }
