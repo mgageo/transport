@@ -1,9 +1,11 @@
 # <!-- coding: utf-8 -->
-# le réseau de bus de Saint-Brieuc
-# utilisation des données opendata
-# auteur : Marc Gauthier
 #
-
+# le réseau de bus de Saint-Brieuc
+#
+# auteur : Marc Gauthier
+# licence: Creative Commons Paternité - Pas d'Utilisation Commerciale - Partage des Conditions Initiales à l'Identique 2.0 France
+# ===============================================================
+#
 # source("geo/scripts/transport.R");tub_shiny()
 tub_shiny <- function() {
   shiny::runApp("geo/scripts/transport")

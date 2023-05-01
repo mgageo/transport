@@ -46,7 +46,7 @@ shapes_as_sf <- function(df) {
 }
 #shapes_as_sf(tt$shapes)
 # lecture des routes, données GTFS
-tidytransit_zip_lire <- function(dsn, rds='gtfs.Rds') {
+tidytransit_zip_lire <- function(dsn, rds = 'gtfs.Rds') {
   carp()
   library(tidytransit)
 #  dsn <- sprintf("%s/20190805/mobibreizh-bd-gtfs.zip", transportDir)
@@ -58,7 +58,7 @@ tidytransit_zip_lire <- function(dsn, rds='gtfs.Rds') {
   return(invisible(tt))
 }
 # source("geo/scripts/keolis.R"); tt <- tidytransit_lire()
-tidytransit_lire <- function(rds='gtfs.Rds') {
+tidytransit_lire <- function(rds = 'gtfs.Rds') {
   dsn <- sprintf("%s/%s", transportDir, rds)
   carp("dsn: %s", dsn)
   tt <- readRDS(file=dsn)

@@ -1,6 +1,10 @@
 # <!-- coding: utf-8 -->
+#
 # les réseaux de bus d'une zone
+#
 # auteur : Marc Gauthier
+# licence: Creative Commons Paternité - Pas d'Utilisation Commerciale - Partage des Conditions Initiales à l'Identique 2.0 France
+# ===============================================================
 #
 # source("geo/scripts/transport.R"); df <- zone_jour()
 zone_jour <- function(force = FALSE) {

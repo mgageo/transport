@@ -1,7 +1,11 @@
 # <!-- coding: utf-8 -->
+#
 # le réseau de bus de Lamballe
-# utilisation des données opendata
+#
 # auteur : Marc Gauthier
+# licence: Creative Commons Paternité - Pas d'Utilisation Commerciale - Partage des Conditions Initiales à l'Identique 2.0 France
+# ===============================================================
+#
 #
 # source("geo/scripts/transport.R");tibus_jour()
 tibus_jour <- function() {

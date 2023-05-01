@@ -1,7 +1,12 @@
 # <!-- coding: utf-8 -->
-# pour la cohérence route route_route_master
-# utilisation des données opendata
+#
+# le réseau de bus
+#
 # auteur : Marc Gauthier
+# licence: Creative Commons Paternité - Pas d'Utilisation Commerciale - Partage des Conditions Initiales à l'Identique 2.0 France
+# ===============================================================
+#
+# pour la cohérence route route_route_master
 #
 # source("geo/scripts/transport.R");routes_jour(force = FALSE)
 routes_jour <- function(force = TRUE) {

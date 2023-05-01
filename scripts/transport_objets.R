@@ -1,7 +1,10 @@
 # <!-- coding: utf-8 -->
-#  interrogation des objets d'un réseau de transport
-# utilisation des données opendata
+#
+# le réseau de bus
+#
 # auteur : Marc Gauthier
+# licence: Creative Commons Paternité - Pas d'Utilisation Commerciale - Partage des Conditions Initiales à l'Identique 2.0 France
+# ===============================================================
 #
 # source("geo/scripts/transport.R");config_xls('star');objets_jour()
 objets_jour <- function(force = FALSE) {

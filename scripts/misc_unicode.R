@@ -1,6 +1,11 @@
 # <!-- coding: utf-8 -->
-# conversion d'unicode
+#
+# quelques fonctions génériques pour conversion d'unicode
+#
 # auteur : Marc Gauthier
+# licence: Creative Commons Paternité - Pas d'Utilisation Commerciale - Partage des Conditions Initiales à l'Identique 2.0 France
+# ===============================================================
+#
 #
 u2u <- function(code) {
 #  code <- 'toto'

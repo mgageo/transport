@@ -69,7 +69,7 @@ osmose_issue_get <- function(id, force = TRUE) {
   library(data.table)
   url <- sprintf("%s/issue/%s", osmose_host, id)
 #    carp("url: %s", url)
-    resp <- GET(url)
+  resp <- RETRY("GET", url)
   stop_for_status(resp)
   lst <- content(resp, as = "parsed")
   return(invisible(lst))

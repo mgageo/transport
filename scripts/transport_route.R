@@ -1,7 +1,11 @@
 # <!-- coding: utf-8 -->
-# pour le tracé des routes
-# utilisation des données opendata
+#
+# le réseau de bus : pour le tracé des routes
+#
 # auteur : Marc Gauthier
+# licence: Creative Commons Paternité - Pas d'Utilisation Commerciale - Partage des Conditions Initiales à l'Identique 2.0 France
+# ===============================================================
+#
 #
 # source("geo/scripts/transport.R");route_jour()
 route_jour <- function() {

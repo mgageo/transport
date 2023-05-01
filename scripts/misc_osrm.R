@@ -1,7 +1,11 @@
 # <!-- coding: utf-8 -->
-# le réseau de bus
-# utilisation des données d'OpenStreetMap pour le routage
+#
+# quelques fonctions génériques pour utilisation des données d'OpenStreetMap pour le routage
+#
 # auteur : Marc Gauthier
+# licence: Creative Commons Paternité - Pas d'Utilisation Commerciale - Partage des Conditions Initiales à l'Identique 2.0 France
+# ===============================================================
+#
 #
 # https://blog.ippon.fr/2018/04/03/osrm-pour-tracer-la-route/
 # https://github.com/ITSLeeds/osmextract

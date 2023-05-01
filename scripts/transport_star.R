@@ -1,14 +1,32 @@
 # <!-- coding: utf-8 -->
-# le réseau de bus de Rennes
-# utilisation des données opendata
+#
+# le réseau de bus Star de Rennes
+#
 # auteur : Marc Gauthier
+# licence: Creative Commons Paternité - Pas d'Utilisation Commerciale - Partage des Conditions Initiales à l'Identique 2.0 France
+# ===============================================================
 #
 # source("geo/scripts/transport.R");star_jour()
-star_jour <- function(force = TRUE) {
+star_jour <- function(reseau = "star", force = TRUE) {
   library(tidyverse)
   library(rio)
-  library(sf)
+  library(archive)
   carp()
+  config_xls(reseau)
+# https://data.rennesmetropole.fr/api/explore/v2.1/catalog/datasets/versions-des-horaires-theoriques-des-lignes-du-reseau-star-au-format-gtfs/exports/csv?lang=fr&timezone=Europe%2FBerlin&use_labels=true&delimiter=%3B
+
+  gtfs_source <- Config[1, "gtfs_source"]
+  fn_source <- gsub("^.*/", "", gtfs_source)
+  dsn_source <- sprintf("%s/%s", gtfsDir, fn_source)
+  carp("dsn_source: %s", dsn_source)
+  if (! file.exists(dsn_source)) {
+    download.file(gtfs_source, dsn_source)
+  }
+  dsn <- sprintf("%s/gtfs.zip", gtfsDir)
+  file.copy(dsn_source, dsn, overwrite = TRUE)
+  carp("dsn: %s", dsn)
+  archive_extract(dsn, gtfsDir)
+#  stop("****")
 # la conversion en sf des shapes
   star_gtfs_jour(force = force)
 # la conversion en sf des routes

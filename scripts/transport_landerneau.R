@@ -1,7 +1,10 @@
 # <!-- coding: utf-8 -->
-# le réseau de bus de landerneau
-# utilisation des données opendata
+#
+# le réseau de bus de Landerneau
+#
 # auteur : Marc Gauthier
+# licence: Creative Commons Paternité - Pas d'Utilisation Commerciale - Partage des Conditions Initiales à l'Identique 2.0 France
+# ===============================================================
 #
 # source("geo/scripts/transport.R");landerneau_jour()
 landerneau_jour <- function() {

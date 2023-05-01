@@ -1,7 +1,10 @@
 # <!-- coding: utf-8 -->
-# le réseau de bus d'Auray
-# utilisation des données opendata
+#
+# quelques fonctions pour les réseaux de transport
+#
 # auteur : Marc Gauthier
+# licence: Creative Commons Paternité - Pas d'Utilisation Commerciale - Partage des Conditions Initiales à l'Identique 2.0 France
+# ===============================================================
 #
 # source("geo/scripts/transport.R");auray_jour()
 auray_jour <- function() {

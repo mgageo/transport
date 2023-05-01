@@ -1,7 +1,10 @@
 # <!-- coding: utf-8 -->
+#
 # le réseau de bus de Brest
-# utilisation des données opendata
+#
 # auteur : Marc Gauthier
+# licence: Creative Commons Paternité - Pas d'Utilisation Commerciale - Partage des Conditions Initiales à l'Identique 2.0 France
+# ===============================================================
 #
 # source("geo/scripts/transport.R");bibus_jour()
 bibus_jour <- function() {

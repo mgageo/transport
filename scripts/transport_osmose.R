@@ -1,7 +1,10 @@
 # <!-- coding: utf-8 -->
+#
 # le réseau de bus
-# utilisation des données d'OpenStreetMap
+#
 # auteur : Marc Gauthier
+# licence: Creative Commons Paternité - Pas d'Utilisation Commerciale - Partage des Conditions Initiales à l'Identique 2.0 France
+# ===============================================================
 #
 # https://osmose.openstreetmap.fr/en/byuser/mga_geo.rss?
 # https://wiki.openstreetmap.org/wiki/FR:Osmose

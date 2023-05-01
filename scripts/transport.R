@@ -1,9 +1,11 @@
 # <!-- coding: utf-8 -->
-# lees réseaux de transport
-# utilisation des données d'OpenStreetMap et des gtfs
-# auteur : Marc Gauthier
 #
-
+# quelques fonctions pour les réseaux de transport
+#
+# auteur : Marc Gauthier
+# licence: Creative Commons Paternité - Pas d'Utilisation Commerciale - Partage des Conditions Initiales à l'Identique 2.0 France
+# ===============================================================
+#
 Drive <- substr( getwd(),1,2)
 baseDir <- sprintf("%s/web", Drive)
 cfgDir <- sprintf("%s/web/geo/TRANSPORT", Drive)
@@ -70,6 +72,7 @@ source("geo/scripts/transport_objets.R")
 source("geo/scripts/transport_axeo.R")
 source("geo/scripts/transport_auray.R")
 source("geo/scripts/transport_bibus.R")
+source("geo/scripts/transport_bordeaux.R")
 source("geo/scripts/transport_breizhgo.R")
 source("geo/scripts/transport_bretagne.R")
 source("geo/scripts/transport_concarneau.R")
@@ -102,9 +105,9 @@ Reseau <- "breizhgo35"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
 Reseau <- "ter"; # pseudo-réseau pour BreizhGo SNCF
 Reseau <- "bibus"; # Brest
 Reseau <- "landerneau"
-Reseau <- "star"; # Rennes
 Reseau <- "breizhgo56"; # Morbihan
 Reseau <- "vitobus"; # Vitré/Chateaubourg
+Reseau <- "star"; # Rennes
 config_xls(Reseau)
 if ( interactive() ) {
   DEBUG <- TRUE

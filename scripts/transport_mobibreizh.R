@@ -1,8 +1,10 @@
 # <!-- coding: utf-8 -->
+#
 # les réseaux de bus de la région Bretagne
-# utilisation des données opendata
+#
 # auteur : Marc Gauthier
 # licence: Creative Commons Paternité - Pas d'Utilisation Commerciale - Partage des Conditions Initiales à l'Identique 2.0 France
+# ===============================================================
 #
 #
 ## validation des fichiers gtfs de la région

@@ -1,7 +1,11 @@
 # <!-- coding: utf-8 -->
+#
 # les réseaux de bus de la région Bretagne
-# utilisation des données opendata
+#
 # auteur : Marc Gauthier
+# licence: Creative Commons Paternité - Pas d'Utilisation Commerciale - Partage des Conditions Initiales à l'Identique 2.0 France
+# ===============================================================
+#
 #
 # source("geo/scripts/transport.R");bretagne_jour()
 bretagne_jour <- function(force = FALSE) {
@@ -373,6 +377,23 @@ bretagne_communes_osmose_issues_ <- function() {
     )) %>%
     glimpse()
   html <- misc_html_append(html, "<h1>Tag stop/platform/bus_stop</h1>")
+  html <- misc_html_append_df(html, df4)
+# Non route relation member in route_master relation
+  df3 <- df1 %>%
+    filter(class %in% c("3")) %>%
+    distinct(class, elems.1.id,  elems.1.type
+      , tags.1.network
+    ) %>%
+    glimpse()
+  df4 <- df3 %>%
+    mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
+    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
+#    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>"
+      , str_sub(elems.1.type,1, 1),  elems.1.id
+    )) %>%
+    glimpse()
+  html <- misc_html_append(html, "<h1>Non route relation member in route_master relation</h1>")
   html <- misc_html_append_df(html, df4)
   dsn <- sprintf("%s/bretagne_communes_osmose_issues.html", webDir)
   write(html, dsn)
