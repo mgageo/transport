@@ -57,14 +57,13 @@ overpass_query <- function(query, fic = "test", force = FALSE) {
   }
   return(invisible(dsn))
 }
-overpass_query_v1 <- function(query, quiet=FALSE) {
+overpass_query_xml <- function(query, fic, force = TRUE, quiet = FALSE) {
   carp("query: %s", query)
-  res <- httr::POST(overpass_base_url, body=query)
+  dsn <- sprintf("%s/%s.osm", osmDir, fic)
+  carp("dsn: %s", dsn)
+  res <- httr::POST(overpass_base_url, body = query, httr::write_disk(dsn, overwrite = TRUE))
   httr::stop_for_status(res)
   if (!quiet) message("Query complete!")
-  if (res$headers$`content-type` == "text/csv") {
-    return(httr::content(res, as = "text", encoding = "UTF-8"))
-  }
   doc <- xml2::read_xml(httr::content(res, as = "text", encoding = "UTF-8"))
   return(invisible(doc))
 }
@@ -76,6 +75,7 @@ overpass_query_json <- function(query, fic = "test", force = FALSE) {
   carp("dsn: %s", dsn)
   if (! file.exists(dsn) || force == TRUE) {
     query <- sprintf("data=[timeout:600][maxsize:1073741824][out:json];%s", query)
+    print(query);
     res <- httr::POST(overpass_base_url, body=query, httr::write_disk(dsn, overwrite = TRUE))
     stop_for_status(res)
   }
@@ -287,4 +287,111 @@ foreach(
 );', id, id)
   dsn <- overpass_query(query = requete, fic = dsn, force = force)
   return(invisible(dsn))
+}
+#
+## recherche des arrêts proches
+#
+# source("geo/scripts/transport.R");overpass_arrets_proches(force = FALSE)
+overpass_arrets_proches <- function(force = TRUE) {
+  library(tidyverse)
+  library(nngeo)
+  library(sf)
+#  library(maggritr)
+  carp()
+
+  dsn2 <- sprintf("%s/overpass_arrets_proches.Rds", transportDir)
+  if ( ! file.exists(dsn2) | force == TRUE) {
+    dsn1 <- sprintf("%s/overpass_arrets_parse.Rds", transportDir)
+    nc1 <- readRDS(dsn1) %>%
+#    slice_head(n = 10) %>%
+      glimpse()
+    nc2 <- overpass_proches(nc1, nc1, k = 2)
+    carp("dsn2: %s", dsn2)
+    saveRDS(nc2, file = dsn2)
+  } else {
+    nc2 <- readRDS(dsn2)
+  }
+#  josm <- "http://127.0.0.1:8111/load_and_zoom?left=8.19&right=8.20&top=48.605&bottom=48.590&select=node413602999
+  zoom <- "left=%0.5f&right=%0.5f&top=%0.5f&bottom=%0.5f"
+  select <- "node%s,node%s"
+  df2 <- nc2 %>%
+    mutate(X=st_coordinates(.)[,'X']) %>%
+    mutate(Y=st_coordinates(.)[,'Y']) %>%
+    st_drop_geometry()
+  names(df2) <- names(df2) %>%
+    str_replace_all("^ref.*\\.1$", "kref1") %>%
+    str_replace_all("^ref\\..*$", "kref") %>%
+    glimpse()
+  df2 <- df2 %>%
+    filter(dist < 10) %>%
+    filter(osm_id < osm_id.1) %>%
+    filter(is.na(kref) | is.na(kref1)) %>%
+#    filter(kref != kref1) %>%
+    filter(name == name.1) %>%
+    mutate(select = sprintf(select, osm_id, osm_id.1)) %>%
+    mutate(zoom = sprintf(zoom, X - .001, X + .001, Y + .001, Y - .001)) %>%
+    mutate(josm = sprintf("<a href='http://127.0.0.1:8111/load_and_zoom?%s&select=%s'>josm</a>", zoom, select)) %>%
+    dplyr::select(-select, -zoom, -X, -Y) %>%
+    arrange(name) %>%
+    glimpse()
+  html <- misc_html_titre(sprintf("%s_overpass_arrets_proches", Config["reseau"]))
+  html <- misc_html_append_df(html, df2)
+  dsn <- sprintf("%s/%s_overpass_arrets_proches.html", webDir, Config["reseau"])
+  write(html, dsn)
+  carp("dsn: %s", dsn)
+  url <- sprintf("http://localhost/transport/%s_overpass_arrets_proches.html", Config["reseau"])
+  browseURL(
+    url,
+    browser = "C:/Program Files/Mozilla Firefox/firefox.exe"
+  )
+  return(invisible())
+}
+overpass_proches <- function(nc1, nc2, k = 1) {
+  library(nngeo)
+  n <- st_nn(nc1, nc2, k = k, progress = TRUE, returnDist = TRUE)
+  mga <<- n
+  ids <-  sapply(n[[1]], "[", k)
+  dists <- sapply(n[[2]], "[", k)
+  df3 <- data.frame(nc1, st_drop_geometry(nc2)[ids, , drop = FALSE])
+  nc3 <- st_sf(df3)
+  nc3$dist <- dists
+  return(invisible(nc3))
+}
+#
+# source("geo/scripts/transport.R");overpass_arrets_query()
+overpass_arrets_query <- function(force = TRUE) {
+  library(tidyverse)
+  library(sf)
+  carp()
+  dsn <- sprintf("overpass_arrets_query")
+  requete <- sprintf('
+area[name="%s"]->.a;
+(
+node(area.a)[highway=bus_stop];
+node(area.a)[public_transport=platform];
+);
+out meta;', Config[1, "zone"] )
+  dsn <- overpass_query(query = requete, fic = dsn, force = force)
+  return(invisible(dsn))
+}
+#
+# source("geo/scripts/transport.R");overpass_arrets_parse()
+overpass_arrets_parse <-  function(force = TRUE) {
+  library(tidyverse)
+  library(rio)
+  library(sf)
+  library(osmdata)
+  carp()
+  dsn <- overpass_arrets_query(force = force)
+  carp("dsn: %s", dsn)
+  q <- opq(bbox = c(45, -6, 58, 0))
+  od <- osmdata_sf(q, dsn) %>%
+    glimpse()
+  points.sf <- od$osm_points %>%
+    dplyr::select(osm_id, name, Config[["k_ref"]]) %>%
+    glimpse()
+  Encoding(points.sf$name) <- "UTF-8"
+  dsn <- sprintf("%s/overpass_arrets_parse.Rds", transportDir)
+  carp("dsn: %s", dsn)
+  saveRDS(points.sf, file = dsn)
 }

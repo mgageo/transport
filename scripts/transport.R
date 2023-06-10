@@ -28,10 +28,11 @@ dir.create(imagesDir, showWarnings = FALSE, recursive = TRUE)
 DEBUG <- FALSE
 source("geo/scripts/mga.R")
 source("geo/scripts/misc.R")
-source("geo/scripts/misc_couches.R")
 source("geo/scripts/misc_datagouv.R")
+source("geo/scripts/misc_geocode.R")
 source("geo/scripts/misc_gpx.R")
 source("geo/scripts/misc_gtfs.R")
+source("geo/scripts/misc_ign.R")
 source("geo/scripts/misc_level0.R")
 source("geo/scripts/misc_md.R")
 source("geo/scripts/misc_osm.R")
@@ -48,6 +49,7 @@ source("geo/scripts/transport_config.R")
 # source("geo/scripts/transport_gtfs.R")
 source("geo/scripts/transport_gtfs2mga.R")
 source("geo/scripts/transport_gtfs2osm.R")
+source("geo/scripts/transport_mapbox.R")
 source("geo/scripts/transport_misc.R")
 source("geo/scripts/transport_mobibreizh.R"); # pour le gtfs de la région
 source("geo/scripts/transport_oapi.R")
@@ -103,11 +105,14 @@ Reseau <- "breizhgo56"; # pseudo-réseau pour BreizhGo en Morbihan
 Reseau <- "morlaix"; # LinéoTim
 Reseau <- "breizhgo35"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
 Reseau <- "ter"; # pseudo-réseau pour BreizhGo SNCF
-Reseau <- "bibus"; # Brest
 Reseau <- "landerneau"
 Reseau <- "breizhgo56"; # Morbihan
 Reseau <- "vitobus"; # Vitré/Chateaubourg
 Reseau <- "star"; # Rennes
+Reseau <- "dinan"; # Dinan / Côtes d'Armor
+Reseau <- "gironde"; # les lignes régionales
+Reseau <- "bibus"; # Brest
+Reseau <- "bordeaux"; # Bordeaux Métropole
 config_xls(Reseau)
 if ( interactive() ) {
   DEBUG <- TRUE

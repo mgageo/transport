@@ -6,6 +6,8 @@
 # licence: Creative Commons Paternité - Pas d'Utilisation Commerciale - Partage des Conditions Initiales à l'Identique 2.0 France
 # ===============================================================
 #
+# https://transport.data.gouv.fr/datasets/horaires-theoriques-et-temps-reel-des-bus-et-tramways-circulant-sur-le-territoire-de-brest-metropole
+#
 # source("geo/scripts/transport.R");bibus_jour()
 bibus_jour <- function() {
   library(tidyverse)
@@ -140,4 +142,17 @@ bibus_osrm <- function(ref, network = 'bibus', force = TRUE) {
   carp(dsn)
   level0 <- read_lines(file = dsn)
   write_clip(level0)
+}
+#
+# bug stations de tram
+# source("geo/scripts/transport.R");bibus_gtfs_tram()
+bibus_gtfs_tram <- function() {
+  library(rio)
+  library(tidyverse)
+  config_xls('bibus');
+  dsn <- sprintf("%s/stops.txt", gtfsDir)
+  carp("dsn: %s", dsn)
+  stops.df <- rio::import(dsn, encoding = "UTF-8") %>%
+    filter(grepl("_T[AR]$", stop_id)) %>%
+    glimpse()
 }

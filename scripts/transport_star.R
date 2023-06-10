@@ -26,6 +26,7 @@ star_jour <- function(reseau = "star", force = TRUE) {
   file.copy(dsn_source, dsn, overwrite = TRUE)
   carp("dsn: %s", dsn)
   archive_extract(dsn, gtfsDir)
+  tidytransit_jour()
 #  stop("****")
 # la conversion en sf des shapes
   star_gtfs_jour(force = force)

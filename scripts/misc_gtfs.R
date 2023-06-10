@@ -33,7 +33,29 @@ gtfs_file_lire <- function(file = "routes") {
   df <- rio::import(dsn, encoding = "UTF-8")
   return(invisible(df))
 }
-
+#
+# geocode pour la commune
+# source("geo/scripts/transport.R");config_xls('bordeaux');gtfs_stops_geocode() %>% glimpse()
+gtfs_stops_geocode <- function() {
+  library(tidyverse)
+  df <- gtfs_file_lire("stops")
+  df1 <- df %>%
+#    filter(location_type == 0) %>%
+    dplyr::select(lat = stop_lat, lon = stop_lon, name = stop_id) %>%
+    glimpse()
+  dsn <- sprintf("%s/gtfs_stops_geocode_search.csv", varDir)
+  rio::export(df1, dsn, sep = ",")
+  f_dest <- sprintf("%s/gtfs_stops_geocode_api.csv", varDir)
+  geocode_reverse_csv_datagouv(dsn, f_dest, url = "https://api-adresse.data.gouv.fr")
+  carp("f_dest: %s", f_dest)
+  df2 <- rio::import(f_dest, encoding = "UTF-8") %>%
+    dplyr::mutate(name = sprintf("%s", name)) %>%
+    dplyr::select(name, city = result_city)
+  df3 <- df %>%
+    left_join(df2, by = c("stop_id" = "name"))
+  dsn <- sprintf("%s/%s.txt", gtfsDir, "stops_geocode")
+  rio::export(df3, dsn, sep = ",")
+}
 
 gtfs_stops_sf <- function(df) {
   library(tidyverse)

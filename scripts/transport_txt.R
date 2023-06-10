@@ -53,7 +53,7 @@ txt_gtfs_stops_sf <- function(force = FALSE) {
   return(invisible(stops.sf))
 }
 # conversion des stops d'un gtfs
-# source("geo/scripts/transport.R");config_xls('concarneau');txt_gtfs_stops()
+# source("geo/scripts/transport.R");config_xls('qub');txt_gtfs_stops(force = TRUE)
 txt_gtfs_stops <- function(force = FALSE) {
   library(tidyverse)
   library(janitor)
@@ -70,6 +70,14 @@ txt_gtfs_stops <- function(force = FALSE) {
     glimpse()
   saveRDS(stops.df, file = dsn)
   carp("dsn: %s", dsn)
+  df1 <- df %>%
+    group_by(stop_id) %>%
+    summarize(nb = n()) %>%
+    filter(nb > 1) %>%
+    glimpse()
+  df2 <- stops.df %>%
+    filter(stop_id %in% df1$stop_id)
+  misc_print(df2)
   return(invisible(stops.df))
 }
 # conversion des stop_times d'un gtfs

@@ -17,6 +17,7 @@ conflicts_prefer(dplyr::filter(), .quiet = TRUE)
 conflicts_prefer(dplyr::select(), .quiet = TRUE)
 conflicts_prefer(dplyr::first(), .quiet = TRUE)
 conflicts_prefer(dplyr::last(), .quiet = TRUE)
+#conflicts_prefer(tidyr::extract(), .quiet = TRUE)
 
 options("encoding" = "UTF-8")
 par(mar = c(0, 0, 0, 0), oma = c(0, 0, 0, 0), mai = c(0, 0, 0, 0))
@@ -982,6 +983,7 @@ misc_html_append <- function(html1, html2) {
 }
 misc_html_append_df <- function(html, df) {
   glimpse(df)
+  rownames(df) <- NULL
   htm <- df %>%
     kbl(escape = F) %>%
 #    kable_minimal() %>%

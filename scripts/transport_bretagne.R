@@ -344,9 +344,10 @@ bretagne_communes_osmose_issues_ <- function() {
     mutate(PTNA = sprintf("<a href='https://ptna.openstreetmap.de/relation.php?id=%s&lang=fr'>PTNA</a>", elems.1.id)) %>%
     glimpse()
   html <- misc_html_append(html, "<h1>Diff ordre des stops</h1>")
-  html <- misc_html_append_df(html, df4)
+#  html <- misc_html_append_df(html, df4)
   df3 <- df1 %>%
     filter(class == "1") %>%
+    filter(tags.1.route == "bus") %>%
     dplyr::select(uuid, subtitle = subtitle.auto, elems.1.id,  elems.1.type
       , tags.1.network, tags.1.route
     ) %>%
@@ -362,8 +363,9 @@ bretagne_communes_osmose_issues_ <- function() {
   html <- misc_html_append_df(html, df4)
   dsn_rds <- sprintf("%s/%s.rds", varDir, "bretagne_communes_osmose_issues_gap")
   saveRDS(df4, dsn_rds)
+#
   df3 <- df1 %>%
-    filter(class %in% c("6", "8", "10")) %>%
+    filter(class %in% c("6", "10")) %>%
     dplyr::select(uuid, class, elems.1.id,  elems.1.type
       , tags.1.network
     ) %>%
@@ -377,6 +379,41 @@ bretagne_communes_osmose_issues_ <- function() {
     )) %>%
     glimpse()
   html <- misc_html_append(html, "<h1>Tag stop/platform/bus_stop</h1>")
+  html <- misc_html_append_df(html, df4)
+# The stop_position is not part of a way
+  df3 <- df1 %>%
+    filter(class %in% c("7")) %>%
+    dplyr::select(uuid, class, elems.1.id,  elems.1.type
+      , tags.1.network
+    ) %>%
+    glimpse()
+  df4 <- df3 %>%
+    mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
+    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
+    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>"
+      , str_sub(elems.1.type,1, 1),  elems.1.id
+    )) %>%
+    glimpse()
+  html <- misc_html_append(html, "<h1>stop/platform part of a way</h1>")
+  html <- misc_html_append_df(html, df4)
+# The platform is part of a way, it should have the role stop
+  df3 <- df1 %>%
+    filter(class == "8") %>%
+    dplyr::select(uuid, subtitle = subtitle.auto, elems.1.id,  elems.1.type,  elems.2.id,  elems.2.type
+      , tags.1.network, tags.2.network
+    ) %>%
+    glimpse()
+  df4 <- df3 %>%
+    mutate(josm = if_else(elems.2.type == "relation", sprintf("%s/%s/full", elems.2.type,  elems.2.id), sprintf("%s/%s",  elems.2.type,  elems.2.id))) %>%
+    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
+    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s, %s%s'>level0</a>"
+      , str_sub(elems.1.type,1, 1),  elems.1.id
+      , str_sub(elems.2.type,1, 1),  elems.2.id
+    )) %>%
+    glimpse()
+  html <- misc_html_append(html, "<h1>stop/platform part of a way</h1>")
   html <- misc_html_append_df(html, df4)
 # Non route relation member in route_master relation
   df3 <- df1 %>%

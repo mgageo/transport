@@ -15,9 +15,32 @@ qub_jour <- function(reseau = "qub", force = FALSE) {
   carp("reseau: %s", reseau)
   config_xls(reseau)
   reseau_tpl_tex(reseau = reseau)
+#  qub_opendata()
+  tidytransit_jour()
+  return()
+  tidytransit_routes_trips_stops()
 #  osm_relations_route_bus_verif(reseau = reseau, force = force)
 #  osm_relations_route_members(reseau = reseau, force = force)
   tex_pdflatex(sprintf("%s_osm.tex", reseau))
+}
+#
+# téléchargement des données en opendata
+#
+# source("geo/scripts/transport.R");qub_opendata()
+qub_opendata <- function(force = TRUE) {
+  library(tidyverse)
+  library(rio)
+  library(archive)
+  carp()
+  config_xls("qub")
+  gtfs_source <- "https://www.data.gouv.fr/fr/datasets/r/251cbf71-a4e7-4be4-9212-6c91f19bd71b"
+  dsn_source <- sprintf("%s/gtfs.zip", gtfsDir)
+  if (force == TRUE | ! file.exists(dsn_source) ) {
+    download.file(gtfs_source, dsn_source)
+    setwd(gtfsDir)
+    archive::archive_extract("gtfs.zip", dir = ".")
+    setwd(baseDir)
+  }
 }
 # source("geo/scripts/transport.R");qub_stops_diff()
 qub_stops_diff <- function() {
@@ -353,5 +376,17 @@ qub_gtfs_bug <- function() {
   dsn <- sprintf("%s/routes.txt", gtfsDir)
   routes.df <- rio::import(dsn, encoding = "UTF-8") %>%
     filter(route_id %in% trips.df$route_id) %>%
+    glimpse()
+}
+#
+# bug stations de tram
+# source("geo/scripts/transport.R");qub_gtfs_tram()
+qub_gtfs_tram <- function() {
+  library(rio)
+  library(tidyverse)
+  config_xls('qub');
+  dsn <- sprintf("%s/stops.txt", gtfsDir)
+  stops.df <- rio::import(dsn, encoding = "UTF-8") %>%
+    filter(grepl("CHATEAU", stop_name)) %>%
     glimpse()
 }

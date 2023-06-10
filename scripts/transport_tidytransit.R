@@ -25,7 +25,7 @@ tidytransit_jour <- function(reseau = Reseau, force = TRUE) {
   archive::archive_extract(dsn, gtfsDir)
 #  setwd(baseDir)
   tidytransit_zip_lire(dsn = dsn)
-  tidytransit_gtfs_stops_sf()
+  tidytransit_stops_sf()
 #  glimpse(tt); stop("****")
   if( Config[1, "shapes"] == "TRUE" ) {
     tidytransit_shapes_stops()
@@ -33,8 +33,8 @@ tidytransit_jour <- function(reseau = Reseau, force = TRUE) {
     tidytransit_gtfs_shapes_gpx()
     tidytransit_gtfs_routes_shapes_stops()
     tidytransit_shapes_stops_coord()
+    tidytransit_routes_fiche()
   }
-  tidytransit_routes_fiche()
   tidytransit_routes_stops()
 }
 # lecture des routes, données GTFS
@@ -182,9 +182,9 @@ tidytransit_routes_stops <- function() {
     misc_print(df0)
   }
   trips.df <- tt$trips %>%
-    dplyr::select(trip_id, shape_id, service_id, route_id, direction_id, wheelchair_accessible)
+    dplyr::select(trip_id, service_id, route_id, direction_id)
   stops.df <- tt$stops %>%
-    dplyr::select(stop_id, stop_name, stop_desc)
+    dplyr::select(stop_id, stop_name, stop_desc, stop_code)
   stop_times.df <- tt$stop_times %>%
     left_join(stops.df, by = c("stop_id"))
   carp("on regroupe par voyage")
@@ -192,7 +192,10 @@ tidytransit_routes_stops <- function() {
     arrange(stop_sequence) %>%
     group_by(trip_id) %>%
     summarise(
-      first_stop = first(stop_id), last_stop = last(stop_id), stops = paste(stop_id, collapse = ";")
+      first_stop = first(stop_id)
+      , last_stop = last(stop_id)
+      , stops = paste(stop_id, collapse = ";")
+      , stops_code = paste(stop_code, collapse = ";")
       , first_name = first(stop_name), last_name = last(stop_name), names = paste(stop_name, collapse = ";")
       , first_desc = first(stop_desc), last_desc = last(stop_desc), descs = paste(stop_desc, collapse = ";")
       , nb_stops = n()
@@ -225,7 +228,7 @@ tidytransit_routes_stops <- function() {
     filter(route_type == 3) %>%
     dplyr::select(-route_url, -route_type) %>%
     glimpse()
-  tidytransit_sauve(df3, "gtfs_routes_stops")
+  tidytransit_sauve(df3, "tidytransit_routes_stops")
   texFic <- sprintf("%s/%s", imagesDir, "tidytransit_routes_stops.tex")
   TEX <- file(texFic)
   tex <- "% <!-- coding: utf-8 -->"
@@ -946,4 +949,63 @@ shapes_as_sf <- function(df) {
     sort() %>% # sort to match with names(sfc); split()'s factor-cohercion alpha sorts
     st_sf(shape_id = ., geometry = sfc) %>%
     glimpse()
+}
+#
+# détermination pour les voyages (trips)  et des arrêts (stops)
+tidytransit_routes_trips_stops <- function() {
+  library(tidyverse)
+  tt <- tidytransit_lire("gtfs")
+  dsn <- sprintf("%s/stop_times.txt", gtfsDir)
+  mtime <- file.info(dsn)$mtime
+  carp("dsn: %s %s", dsn, mtime)
+  df <- tt$stop_times
+  carp("ajout nom des stops")
+  stops.df <- tt$stops
+  df1 <- df %>%
+    left_join(stops.df, c("stop_id"="stop_id")) %>%
+    glimpse()
+  carp('determination depart, arrivee, et arrets')
+  df2 <- df1 %>%
+    group_by(trip_id) %>%
+    arrange(stop_sequence) %>%
+    summarise(
+      nb = n(),
+      depart = first(stop_name),
+      arrivee = last(stop_name),
+      arrets = paste(stop_name, collapse = ";"),
+      stops_id = paste(stop_id, collapse = ";")
+    ) %>%
+    glimpse()
+  carp('ajout voyage')
+  trips.df <-tt$trips
+  df3 <- df2 %>%
+    left_join(trips.df, c("trip_id"="trip_id")) %>%
+    glimpse()
+  carp('ajout route')
+  routes.df <- tt$routes
+  df4 <- df3 %>%
+    left_join(routes.df, c("route_id"="route_id")) %>%
+#    filter(agency_id==agency) %>%
+    glimpse()
+  df10 <- df4 %>%
+    filter(route_long_name == "Lianes 1" & direction_id == 1) %>%
+    glimpse()
+#  stop("*****")
+  carp('parcours differents')
+  df5 <- df4 %>%
+    group_by(route_short_name, route_long_name, direction_id, depart, arrivee, arrets) %>%
+    summarise(nb=n()) %>%
+    arrange(route_short_name, route_long_name, direction_id, nb, depart, arrivee, arrets) %>%
+    select(route_short_name, route_long_name, direction_id, nb, depart, arrivee, arrets) %>%
+    glimpse() %>%
+    print(n=20)
+  dsn <- sprintf("%s/routes_trips_stops.csv", reseau_dir)
+  write.csv(df5, file=dsn, row.names=FALSE, na="", quote = FALSE, fileEncoding = "UTF-8")
+  carp("dsn: %s", dsn)
+  page <- sprintf("User:Mga_geo/Transports_publics/%s/%s", Config["wiki"], "tidytransit_routes_trips_stops") %>%
+    glimpse()
+  wiki <- sprintf("==%s==", mtime)
+  wiki <- sprintf("%s
+%s", wiki, wiki_df2table(df5))
+  wiki_page_init(page = page, article = wiki, force = TRUE)
 }

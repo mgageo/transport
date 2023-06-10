@@ -106,24 +106,55 @@ osm_relations_routemaster_bus_read <- function(fic='relations_routemaster_bus') 
 #
 ## les arrêts
 #
-osm_nodes_stop_get <- function(fic = 'nodes_stop') {
-  requete <- "relation[network~'%s'][type=route][route=bus]->.a;node(r.a);out meta;"
+# source("geo/scripts/transport.R"); od <- osm_bus_stop_network(force = TRUE) %>% glimpse
+osm_bus_stop_network <- function(fic = 'osm_bus_stop_network', force = TRUE) {
   requete <- '
 relation[type=route][route=bus][network="%s"]->.a;
 (
-  node[highway=bus_stop](r.a);
-  node[public_transport](r.a);
+  nwr[highway=bus_stop](r.a);
+  nwr[public_transport](r.a);
 );
 out meta;'
   requete <- sprintf(requete, Config[1, 'network'])
   fic <- sprintf("%s.osm", fic)
-  oapi_requete_get(requete, fic)
+  nc <- osm_overpass_query(requete, fic, force = force)
+  return(invisible(nc))
 }
-# source("geo/scripts/transport.R");osm_arrets_csv(force = TRUE)
-osm_arrets_csv <- function(fic = 'osm_arrets', force = FALSE) {
+# source("geo/scripts/transport.R");osm_bus_stop_network_csv(force = TRUE)
+osm_bus_stop_network_csv <- function(fic = 'osm_bus_stop_network', force = FALSE) {
   requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,::lat,::lon,name,highway,public_transport,"%s";true;"|")];
-node[highway=bus_stop]["%s"];
-out meta;', Config[1, 'k_ref'], Config[1, 'k_ref'])
+(
+  nwr[bus](r.a);
+  nwr[highway=bus_stop](r.a);
+  nwr[public_transport](r.a);
+);
+out center meta;', Config[1, 'k_ref'])
+  dsn <- overpass_query_csv(requete, fic, force = force)
+  carp("dsn: %s", dsn)
+  return(invisible(dsn))
+}
+# source("geo/scripts/transport.R"); od <- osm_bus_stop_area(force = TRUE) %>% glimpse
+osm_bus_stop_area <- function(fic = 'osm_bus_stop_area', force = FALSE) {
+  requete <- sprintf('
+area[name="%s"]->.a;
+(
+  nwr(area.a)[highway=bus_stop];
+  nwr(area.a)[public_transport];
+);
+out meta;', Config[1, 'zone'])
+  fic <- sprintf("%s.osm", fic)
+  nc <- osm_overpass_query(requete, fic, force = force)
+  return(invisible(nc))
+}
+# source("geo/scripts/transport.R");osm_bus_stop_area_csv(force = TRUE)
+osm_bus_stop_area_csv <- function(fic = 'osm_bus_stop_area', force = FALSE) {
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,::lat,::lon,name,highway,public_transport,rail,"%s";true;"|")];
+area[name="%s"]->.a;
+(
+  nwr(area.a)[highway=bus_stop];
+  nwr(area.a)[public_transport];
+);
+out meta;', Config[1, 'k_ref'], Config[1, 'zone'])
   dsn <- overpass_query_csv(requete, fic, force = force)
   carp("dsn: %s", dsn)
   return(invisible(dsn))
@@ -154,14 +185,15 @@ osm_nodes_stop_read <- function(fic = 'nodes_stop') {
 ## les interrogations avec réponse en csv
 #
 osm_bretagne_relations_bus_csv <- function(fic = 'bretagne_relations_bus_csv', force = FALSE) {
-  requete <- '// les relations route/route_master
+  requete <- sprintf('// les relations route/route_master
 [out:csv(::id, ::type, network, name; true; "|")];
-area[admin_level=4][name="Bretagne"]->.a;
+//area[admin_level=4][name="%s"]->.a;
+area[name="%s"]->.a;
 (
 relation(area.a)[type=route][route=bus];
 relation(area.a)[type=route_master][route_master=bus];
 );
-out body;'
+out body;', Config[1, 'zone'])
   overpass_query_csv(requete, fic, force = force)
 }
 osm_relations_routemaster_bus_csv <- function(fic = 'relations_routemaster_bus', force = FALSE) {
@@ -172,21 +204,21 @@ out;', Config[1, 'network'])
 }
 osm_relations_route_bus_csv <- function(fic = 'relations_route_bus', force = FALSE) {
   requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,name,ref,"ref:network","gtfs:shape_id",from,to;true;"|")];
-area[name="Bretagne"]->.a;
+area[name="%s"]->.a;
 relation(area.a)[type=route][route=bus][network="%s"];
-out meta;', Config[1, 'network'])
+out meta;', Config[1, 'zone'], Config[1, 'network'])
   dsn <- overpass_query_csv(requete, fic, force = force)
   carp("dsn: %s", dsn)
   return(invisible(dsn))
 }
 osm_relations_routes_bus_csv <- function(fic = 'relations_routes_bus', force = FALSE) {
   requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,ref,"ref:network",type,colour,text_colour,operator;true;"|")];
-area[name="Bretagne"]->.a;
+area[name="%s"]->.a;
 (
 relation(area.a)[type=route][route=bus][network="%s"];
 relation["type"="route_master"]["route_master"="bus"][network="%s"];
 );
-out meta;', Config[1, 'network'], Config[1, 'network'])
+out meta;', Config[1, 'network'], Config[1, 'network'], Config[1, 'network'])
   dsn <- overpass_query_csv(requete, fic, force = force)
   carp("dsn: %s", dsn)
   return(invisible(dsn))
@@ -556,7 +588,7 @@ out meta;'
 }
 #
 #
-# source("geo/scripts/transport.R");config_xls('star');osm_relations_route_bus_disused_tex()
+# source("geo/scripts/transport.R");osm_relations_route_bus_disused_tex()
 osm_relations_route_bus_disused_tex <- function(fic = 'osm_relations_route_bus_disused', force = FALSE) {
   library(tidyverse)
   library(stringr)
@@ -583,7 +615,7 @@ osm_relations_route_bus_disused_tex <- function(fic = 'osm_relations_route_bus_d
   carp(" texFic: %s", texFic)
 }
 # source("geo/scripts/transport.R");osm_relations_route_members(reseau = Reseau, force = FALSE, force_osm = FALSE, osrm = FALSE)
-osm_relations_route_members <- function(reseau = "star", force = FALSE, force_osm = FALSE, osrm = TRUE) {
+osm_relations_route_members <- function(reseau = Reseau, force = TRUE, force_osm = TRUE, osrm = FALSE) {
   library(tidyverse)
   library(data.table)
   library(sf)
@@ -594,7 +626,29 @@ osm_relations_route_members <- function(reseau = "star", force = FALSE, force_os
   df <- fread(dsn, encoding = "UTF-8") %>%
     clean_names() %>%
     mutate(reseau = !!reseau) %>%
-    arrange(ref_network)
+    arrange(ref, ref_network) %>%
+    glimpse()
+# https://ctan.math.illinois.edu/macros/latex/contrib/tabularray/tabularray.pdf
+  df1 <- df %>%
+    mutate(level0 = sprintf("\\href{http://level0.osmz.ru/?url=relation/%s}{level0}", id)) %>%
+    mutate(josm = sprintf("\\href{http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/relation/%s/full}{josm}", id)) %>%
+    mutate(col1 = sprintf("{%s \\\\%s \\\\%s}", id, level0, josm)) %>%
+    mutate(col2 = sprintf("{%s\\\\from: %s to: %s\\\\ref: %s ref\\_network: %s\\\\%s %s}", name, from, to, ref, ref_network, version, timestamp)) %>%
+    mutate(row = sprintf("%s & %s \\\\", col1, col2)) %>%
+#    mutate(row = sprintf("%s & {%s\\\\from: %s to: %s\\\\ref: %s} \\\\", id, name, from, to, ref)) %>%
+    glimpse()
+  rows <- paste(df1$row, collapse = "\n")
+  tex <- sprintf("\\begin{longtblr}[
+caption = {Tableau des relations},
+]{colspec={ll},hlines}
+%s
+\\end{longtblr}", rows)
+  texFic <- sprintf("%s/%s", imagesDir, "osm_relations_route_members_lst.tex")
+  TEX <- file(texFic)
+  write(tex, file = TEX, append = FALSE)
+  close(TEX)
+  return()
+  tex_df2kable(df1, suffixe = "lst", longtable = TRUE)
   texFic <- sprintf("%s/%s", imagesDir, "osm_relations_route_members.tex")
   TEX <- file(texFic)
   tex <- "% <!-- coding: utf-8 -->"
@@ -616,6 +670,11 @@ osm_relations_route_members <- function(reseau = "star", force = FALSE, force_os
 #      filter(ref_network %in% c("4-B")) %>%
 #      filter(grepl("^D3", ref_network)) %>%
       arrange(gtfs_shape_id) %>%
+      glimpse()
+  }
+  if (reseau == "bordeaux") {
+    df <- df %>%
+#      filter(id == 13528658) %>%
       glimpse()
   }
 #  df <- df %>%
@@ -699,7 +758,7 @@ osm_relation_route_versions <- function(id, force = FALSE, force_osm = FALSE) {
 
 # Quimper 6-A
 # Vannes 4754448 6b
-# source("geo/scripts/transport.R");osm_relation_route_members(id = "4754448", force = TRUE)
+# source("geo/scripts/transport.R");osm_relation_route_members(id = "11984170", force = TRUE)
 osm_relation_route_members <- function(id, force = FALSE, force_osm = FALSE) {
   library(tidyverse)
   library(data.table)
@@ -784,14 +843,16 @@ osm_relation_route_members_mapsf <- function(rc) {
   mf_init(rc$ways.sf, expandBB = c(0.1, 0.1, 0.1, 0.1))
   mf_map(x = rc$ways.sf, col = "black", lwd = 3, add = TRUE)
 #  mf_map(x = rc$platforms.sf, col = "blue", lwd = 3, pch = 19, add = TRUE)
-  mf_map(x = rc$members.sf, col = rc$members.sf$couleur, lwd = 3, pch = 19, add = TRUE)
-  mf_label(x = rc$members.sf,
-    var = "Id",
-    cex = 1.5,
-    overlap = FALSE,
-    lines = TRUE,
-    col = rc$members.sf$couleur
-  )
+  if (nrow(rc$members.sf) > 0) {
+    mf_map(x = rc$members.sf, col = rc$members.sf$couleur, lwd = 3, pch = 19, add = TRUE)
+    mf_label(x = rc$members.sf,
+      var = "Id",
+      cex = 1.5,
+      overlap = FALSE,
+      lines = TRUE,
+      col = rc$members.sf$couleur
+    )
+  }
   if (! "ref:network" %in% names(rc$relation)) {
     rc$relation[1, "ref:network" ] <- NA
   }
@@ -850,11 +911,12 @@ osm_relation_route_members_ways <- function(rc) {
   return(invisible(rc))
 }
 # source("geo/scripts/transport.R");osm_relations_route_members_tex()
-osm_relations_route_members_tex <- function(reseau = "star", force = FALSE, force_osm = FALSE) {
+osm_relations_route_members_tex <- function(reseau = Reseau, force = FALSE, force_osm = FALSE) {
   carp()
   config_xls(reseau)
+  reseau_tpl_tex(reseau = reseau)
   osm_relations_route_members(reseau = reseau, force = force, force_osm = force_osm)
-  tex_pdflatex("star_relations_route_members.tex")
+  tex_pdflatex(sprintf("%s_relations_route_members.tex", reseau))
 }
 #
 ## les arrêts qui ne sont plus en service
@@ -934,16 +996,18 @@ osm_relations_route_members_valid <- function(force = TRUE, force_osm = TRUE) {
 }
 
 # source("geo/scripts/transport.R"); osm_relation_route_members_valid(id = 4756509, force = TRUE, force_osm = TRUE)
+# source("geo/scripts/transport.R"); osm_relation_route_members_valid(id = 13528658, force = TRUE, force_osm = TRUE)
 osm_relation_route_members_valid <- function(rc, id = 3184038, force = FALSE, force_osm = FALSE) {
   carp()
   df <- tibble()
   df1 <- rc$members.df
   carp("bus=yes")
   df2 <- df1 %>%
-    filter(bus != "yes")
+    dplyr::bind_rows(dplyr::tibble(bus = character())) %>%
+    filter(bus %in% c("yes", "on_demand"))
   if (nrow(df2) > 0) {
     df2$err <- "bus=yes"
-    df <- rbind(df, df2)
+#    df <- rbind(df, df2)
   }
   roles <- c("stop", "platform", "stop_entry_only", "stop_exit_only", "platform_entry_only", "platform_exit_only")
   df2 <- df1 %>%

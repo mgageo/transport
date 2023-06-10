@@ -97,30 +97,24 @@ tidytransit_lire <- function(rds='gtfs.Rds') {
 }
 #
 # conversion des stops d'un gtfs
-# source("geo/scripts/transport.R");tidytransit_gtfs_stops_sf()
-tidytransit_gtfs_stops_sf <- function(rds='gtfs_stops') {
+# source("geo/scripts/transport.R");tidytransit_stops_sf()
+tidytransit_stops_sf <- function(rds = 'tidytransit_stops_sf') {
   library(tidyverse)
   library(tidytransit)
   library(sf)
   carp()
-  tt <- tidytransit_lire() %>%
-    glimpse()
-#  plot(tt)
-#  routes.sf <- get_route_geometry(tt)
-#  plot(routes.sf)
+  tt <- tidytransit_lire()
   stops.df <- tt$stops %>%
     mutate(lat = as.numeric(stop_lat)) %>%
-    mutate(lon = as.numeric(stop_lon)) %>%
-    glimpse()
-#  plot(stops.sf)
+    mutate(lon = as.numeric(stop_lon))
   stops.sf <- st_as_sf(stops.df, coords = c("lon", "lat"), crs = 4326, remove=FALSE)
   dsn <- sprintf("%s/%s.Rds", transportDir, rds)
   carp("dsn: %s", dsn)
-  saveRDS(stops.sf, file=dsn)
+  saveRDS(stops.sf, file = dsn)
   return(invisible(stops.sf))
 }
 # source("geo/scripts/transport.R");tidytransit_stops_sf_lire()
-tidytransit_stops_sf_lire <- function(rds='gtfs_stops') {
+tidytransit_stops_sf_lire <- function(rds='tidytransit_stops_sf') {
   dsn <- sprintf("%s/%s.Rds", transportDir, rds)
   carp("dsn: %s", dsn)
   nc <- readRDS(file=dsn)

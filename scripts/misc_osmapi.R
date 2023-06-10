@@ -473,6 +473,8 @@ osmapi_get_transport <- function(ref = "11920346", force = FALSE, force_osm = FA
 # les nodes
   carp("les nodes")
   nodes.df <- osmapi_objects_tags(nodes) %>%
+# pas de tag name, public_transport
+    dplyr::bind_rows(dplyr::tibble(name = character(), public_transport = character())) %>%
     dplyr::select(id, lat, lon, name, public_transport, matches("^(bus|ref)")) %>%
     mutate(lat = as.numeric(lat)) %>%
     mutate(lon = as.numeric(lon)) %>%
@@ -689,8 +691,8 @@ osmapi_api <- function(path, xml = '', methode = "PUT", debug = FALSE) {
     resp <- httr::GET(
       url,
       authenticate(username, password, type = "basic"),
-      ua,
-      verbose()
+      ua
+ #     verbose()
     )
   }
   stop_for_status(resp)
@@ -758,6 +760,18 @@ osmapi_get_changesets <- function(display_name = "mga_geo") {
   text <- xml_children(xml) %>%
     xml_name()
   print(text)
+}
+# source("geo/scripts/transport.R"); osmapi_get_changeset_first()
+osmapi_get_changeset_first <- function(display_name = "mga_geo") {
+  library(stringi)
+  library(jsonlite)
+  path <- "changesets/?display_name={display_name}"
+  path <- str_glue(path)
+  txt <- osmapi_api(path, methode = "GET", debug = FALSE)
+  json <- jsonlite::fromJSON(txt, flatten = TRUE)
+  id <- json$changesets[1, "id"]
+  carp("changeset: %s", id)
+  osmapi_get_changeset(id)
 }
 # https://gist.github.com/typebrook/d166d5e8d0a293c30f697b0f403b3c0e
 #
