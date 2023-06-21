@@ -14,8 +14,9 @@ bretagne_jour <- function(force = FALSE) {
   library(janitor)
   library(rio)
   library(tidyverse)
+  config_xls("bretagne")
   bretagne_jour_osmose()
-  bretagne_communes_osmose_issues_gap()
+  osmose_issues_gap()
 }
 #
 # vérification de l'appartenance à un network connu
@@ -172,9 +173,8 @@ out meta;'
 # puis interrogation par issue
 # source("geo/scripts/transport.R");bretagne_jour_osmose()
 bretagne_jour_osmose <- function () {
-  bretagne_communes_osmose()
-  bretagne_communes_osmose_issues()
-  bretagne_communes_osmose_issues_()
+  config_xls("bretagne")
+  osmose_area_jour()
 }
 # contours simplifiés des communes
 # https://www.data.gouv.fr/fr/datasets/contours-des-communes-de-france-simplifie-avec-regions-et-departement-doutre-mer-rapproches/

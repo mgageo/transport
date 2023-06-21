@@ -127,6 +127,7 @@ txt_gtfs_shapes_sf <- function() {
     df1 <- df %>%
       filter(shape_id == shape)
     txt_gtfs_shape_sf(shape, df1)
+    stop("*****")
   }
 }
 # conversion des shapes d'un gtfs

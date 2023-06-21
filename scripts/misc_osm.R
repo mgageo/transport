@@ -497,7 +497,11 @@ osm_changeset=yes
 all_tags=yes
 "
   writeLines(ini_new, "ini_new.ini")
-  nc <- st_read(dsn1, layer = layer, options = "CONFIG_FILE=ini_new.ini")
+  points.sf <- st_read(dsn1, layer = "points", options = "CONFIG_FILE=ini_new.ini") %>%
+    mutate(type = "node")
+  lines.sf <- st_read(dsn1, layer = "lines", options = "CONFIG_FILE=ini_new.ini") %>%
+    mutate(type = "way")
+  nc <- bind_rows(points.sf, lines.sf)
   if(nrow(nc) > 0) {
 
 # comment faire sale

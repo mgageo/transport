@@ -15,8 +15,8 @@ bordeaux_jour <- function(reseau = "bordeaux", force = TRUE) {
   config_xls(reseau)
   reseau_tpl_tex(reseau = reseau)
 #  bordeaux_opendata()
-#  tidytransit_jour()
-#  tidytransit_routes_trips_stops()
+  tidytransit_jour()
+  tidytransit_routes_trips_stops()
   tex_pdflatex(sprintf("%s_osm.tex", reseau))
 }
 #
@@ -316,39 +316,6 @@ bordeaux_chemins_lire <- function(force = TRUE) {
   return(invisible(chemins.sf))
 }
 #
-# ajout départ et arrivée
-# source("geo/scripts/transport.R"); nc1 <- bordeaux_chemins_da() %>% glimpse()
-bordeaux_chemins_da <- function(force = TRUE) {
-  library(tidyverse)
-  library(sf)
-  Reseau <<- "bordeaux"; # Bordeaux Métropole
-  config_xls(Reseau)
-  chemins.sf <- bordeaux_chemins_lire() %>%
-    mutate(rg_sv_arret_p_na = sprintf("%s", rg_sv_arret_p_na))
-  arrets.df <- bordeaux_arrets_lire() %>%
-    st_drop_geometry() %>%
-    mutate(gid = sprintf("%s", gid)) %>%
-    dplyr::select(gid, libelle)
-  lignes.df <- bordeaux_lignes_lire() %>%
-    mutate(gid = sprintf("%s", gid)) %>%
-    dplyr::select(gid, libelle, ident)
-  nc1 <- chemins.sf %>%
-    left_join(arrets.df, by = c("rg_sv_arret_p_nd" = "gid"), suffix = c("", "_nd")) %>%
-    left_join(arrets.df, by = c("rg_sv_arret_p_na" = "gid"), suffix = c("", "_na")) %>%
-    left_join(lignes.df, by = c("rs_sv_ligne_a" = "gid"), suffix = c("", "_li")) %>%
-#    filter(libelle_nd == "Fontaine d'Arlac") %>%
-#    filter(libelle_nd == "Les Renardeaux") %>%
-    filter(libelle_li == "Flexo 51") %>%
-#   filter(sens == "ALLER") %>%
-    filter(sens == "RETOUR") %>%
-    arrange(ident, sens) %>%
-    filter(vehicule == "BUS") %>%
-    glimpse()
-  dsn <- sprintf("%s/%s", transportDir, "bordeaux_chemins_da.geojson")
-  carp("dsn: %s", dsn)
-  st_write(st_transform(nc1, 4326), dsn, delete_dsn = TRUE, driver = "GeoJSON")
-}
-#
 # source("geo/scripts/transport.R"); df <- bordeaux_lignes_lire() %>% glimpse()
 bordeaux_lignes_lire <- function(force = TRUE) {
   library(tidyverse)
@@ -636,4 +603,47 @@ bordeaux_pb_arret <- function(force = TRUE) {
     filter(route_id == "01") %>%
     filter(direction_id == 0) %>%
     glimpse()
+}
+#
+# ajout départ et arrivée
+# source("geo/scripts/transport.R"); nc1 <- bordeaux_chemins_da() %>% glimpse()
+# bash
+# reseau=bordeaux
+# perl scripts/keolis.pl --DEBUG 1 --DEBUG_GET 1 reseau $reseau gtfsosm_jour_routes
+bordeaux_chemins_da <- function(force = TRUE) {
+  library(tidyverse)
+  library(sf)
+  library(sp)
+  library(rgdal)
+  Reseau <<- "bordeaux"; # Bordeaux Métropole
+  config_xls(Reseau)
+  chemins.sf <- bordeaux_chemins_lire() %>%
+    mutate(rg_sv_arret_p_na = sprintf("%s", rg_sv_arret_p_na))
+  arrets.df <- bordeaux_arrets_lire() %>%
+    st_drop_geometry() %>%
+    mutate(gid = sprintf("%s", gid)) %>%
+    dplyr::select(gid, libelle)
+  lignes.df <- bordeaux_lignes_lire() %>%
+    mutate(gid = sprintf("%s", gid)) %>%
+    dplyr::select(gid, libelle, ident)
+  nc1 <- chemins.sf %>%
+    left_join(arrets.df, by = c("rg_sv_arret_p_nd" = "gid"), suffix = c("", "_nd")) %>%
+    left_join(arrets.df, by = c("rg_sv_arret_p_na" = "gid"), suffix = c("", "_na")) %>%
+    left_join(lignes.df, by = c("rs_sv_ligne_a" = "gid"), suffix = c("", "_li")) %>%
+#    filter(libelle_nd == "Fontaine d'Arlac") %>%
+#    filter(libelle_nd == "Les Renardeaux") %>%
+    filter(grepl(" 85$", libelle_li)) %>%
+    filter(sens == "ALLER") %>%
+#    filter(sens == "RETOUR") %>%
+    arrange(ident, sens) %>%
+    filter(vehicule == "BUS") %>%
+    glimpse()
+  dsn <- sprintf("%s/%s", transportDir, "bordeaux_chemins_da.geojson")
+  carp("dsn: %s", dsn)
+  st_write(st_transform(nc1, 4326), dsn, delete_dsn = TRUE, driver = "GeoJSON")
+  return()
+  spdf1 <- as(nc1, "Spatial")
+  dsn <- sprintf("%s/%s", transportDir, "bordeaux_chemins_da.gpx")
+  writeOGR(spdf1, dsn, layer="tracks", driver="GPX", dataset_options="GPX_USE_EXTENSIONS=yes", "FORCE_GPX_TRACK=true", overwrite_layer=TRUE, delete_dsn = TRUE)
+
 }

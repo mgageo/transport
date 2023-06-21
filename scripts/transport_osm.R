@@ -108,43 +108,25 @@ osm_relations_routemaster_bus_read <- function(fic='relations_routemaster_bus') 
 #
 # source("geo/scripts/transport.R"); od <- osm_bus_stop_network(force = TRUE) %>% glimpse
 osm_bus_stop_network <- function(fic = 'osm_bus_stop_network', force = TRUE) {
-  requete <- '
-relation[type=route][route=bus][network="%s"]->.a;
-(
-  nwr[highway=bus_stop](r.a);
-  nwr[public_transport](r.a);
-);
-out meta;'
-  requete <- sprintf(requete, Config[1, 'network'])
-  fic <- sprintf("%s.osm", fic)
-  nc <- osm_overpass_query(requete, fic, force = force)
-  return(invisible(nc))
+  requete <- overpass_query_bus_stop_network()
+  fic <- sprintf("%s", fic)
+  od <- osmdata_query(requete, fic, force = force)
+  return(invisible(od))
 }
 # source("geo/scripts/transport.R");osm_bus_stop_network_csv(force = TRUE)
 osm_bus_stop_network_csv <- function(fic = 'osm_bus_stop_network', force = FALSE) {
-  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,::lat,::lon,name,highway,public_transport,"%s";true;"|")];
-(
-  nwr[bus](r.a);
-  nwr[highway=bus_stop](r.a);
-  nwr[public_transport](r.a);
-);
-out center meta;', Config[1, 'k_ref'])
+  requete <- overpass_query_bus_stop_network_csv()
   dsn <- overpass_query_csv(requete, fic, force = force)
   carp("dsn: %s", dsn)
   return(invisible(dsn))
 }
 # source("geo/scripts/transport.R"); od <- osm_bus_stop_area(force = TRUE) %>% glimpse
 osm_bus_stop_area <- function(fic = 'osm_bus_stop_area', force = FALSE) {
-  requete <- sprintf('
-area[name="%s"]->.a;
-(
-  nwr(area.a)[highway=bus_stop];
-  nwr(area.a)[public_transport];
-);
-out meta;', Config[1, 'zone'])
-  fic <- sprintf("%s.osm", fic)
-  nc <- osm_overpass_query(requete, fic, force = force)
-  return(invisible(nc))
+  requete <- overpass_query_bus_stop_area()
+  fic <- sprintf("%s", fic)
+  od <- osmdata_query(requete, fic, force = force)
+#  od <- st_query(requete, fic, force = force)
+  return(invisible(od))
 }
 # source("geo/scripts/transport.R");osm_bus_stop_area_csv(force = TRUE)
 osm_bus_stop_area_csv <- function(fic = 'osm_bus_stop_area', force = FALSE) {
@@ -207,6 +189,15 @@ osm_relations_route_bus_csv <- function(fic = 'relations_route_bus', force = FAL
 area[name="%s"]->.a;
 relation(area.a)[type=route][route=bus][network="%s"];
 out meta;', Config[1, 'zone'], Config[1, 'network'])
+  dsn <- overpass_query_csv(requete, fic, force = force)
+  carp("dsn: %s", dsn)
+  return(invisible(dsn))
+}
+osm_relations_route_bus_area_csv <- function(fic = 'relations_route_bus_area', force = FALSE) {
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,name,ref,"ref:network","gtfs:shape_id",from,to;true;"|")];
+relation(%s);map_to_area->.a;
+relation(area.a)[type=route][route=bus];
+out meta;', Config[1, 'zone_relation'])
   dsn <- overpass_query_csv(requete, fic, force = force)
   carp("dsn: %s", dsn)
   return(invisible(dsn))
@@ -979,7 +970,6 @@ osm_relations_route_members_valid <- function(force = TRUE, force_osm = TRUE) {
   library(sf)
   library(janitor)
   carp()
-
   dsn <- osm_relations_route_bus_csv(force = force_osm)
   df <- fread(dsn, encoding = "UTF-8") %>%
     as.data.table() %>%
@@ -1229,7 +1219,7 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
     mutate(tags = ifelse(is.na(junction), tags, sprintf("%s,%s", tags, junction))) %>%
     mutate(tags = ifelse(is.na(oneway), tags, sprintf("%s,%s", tags, oneway))) %>%
     dplyr::select(no, id, tags, node1, node9, name)
-  misc_print(df1)
+#  misc_print(df1)
   if (nrow(ways.df) < 2) {
     confess("pas assez de voies")
   }
@@ -1237,16 +1227,16 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
   ways.df <- ways.df %>%
     mutate(no = 1:n()) %>%
     rowwise() %>%
-    glimpse() %>%
+#    glimpse() %>%
     mutate(wRP = grepl("roundabout|circular", junction)) %>%
     mutate(wRP = ifelse(node1 == node9, TRUE, FALSE)) %>%
     mutate(wOW = grepl("yes", oneway)) %>%
     mutate(wOW = ifelse(grepl("yes", oneway_bus), TRUE, FALSE)) %>%
     mutate(name = ifelse(is.na(name), ref_y, name)) %>%
     mutate(name = sprintf("%s(%s)", name, nb_nodes)) %>%
-    dplyr::select(no, id, node1, node9, wRP, wOW, name, nodes) %>%
+    dplyr::select(no, id, node1, node9, wRP, wOW, name, nodes)
 #    filter(! is.na(junction)) %>%
-    glimpse()
+#    glimpse()
   nAvant <- "-1"
   carp("****id: %s", id)
   for (i in 2:nrow(ways.df)) {
@@ -1359,8 +1349,8 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
     }
   }
   if (nrow(gaps.df) > 0) {
-    misc_print(gaps.df)
+#    misc_print(gaps.df)
   }
-  carp("fin id: %s", id)
+  carp("fin id: %s nrow: %s", id, nrow(gaps.df))
   return(invisible(gaps.df))
 }

@@ -27,6 +27,9 @@ tidytransit_jour <- function(reseau = Reseau, force = TRUE) {
   tidytransit_zip_lire(dsn = dsn)
   tidytransit_stops_sf()
 #  glimpse(tt); stop("****")
+  if( Config[1, "reseau"] == "bordeaux" ) {
+    gtfs_stops_geocode()
+  }
   if( Config[1, "shapes"] == "TRUE" ) {
     tidytransit_shapes_stops()
     tidytransit_shapes_stops_tex()
@@ -458,16 +461,22 @@ tidytransit_shapes_stops_tex <- function() {
   library(tidyverse)
   library(tidytransit)
   carp()
+  dsn <- sprintf("%s/stop_times.txt", gtfsDir)
+  mtime <- file.info(dsn)$mtime
+  carp("dsn: %s %s", dsn, mtime)
   df3 <- tidytransit_lire("gtfs_shapes_stops")
 #  misc_print(df3)
   df4 <- df3 %>%
     glimpse() %>%
-    dplyr::select(ref_network, shape_id, nb_stops, nb, names)
+    arrange(ref_network, nb_stops, nb, shape_id, names) %>%
+    dplyr::select(ref_network, nb_stops, nb, shape_id, nb, names)
 
   tex_df2kable(df4, num = TRUE)
   page <- sprintf("User:Mga_geo/Transports_publics/%s/%s", Config["wiki"], "tidytransit_shapes_stops") %>%
     glimpse()
-  wiki <- wiki_df2table(df4)
+  wiki <- sprintf("==%s==", mtime)
+  wiki <- sprintf("%s
+%s", wiki, wiki_df2table(df4))
   wiki_page_init(page = page, article = wiki, force = TRUE)
   return(invisible(df3))
 }
@@ -894,6 +903,9 @@ arrêts: {{arrets}}
 # source("geo/scripts/transport.R");tidytransit_routes_fiche()
 tidytransit_routes_fiche <- function() {
   library(tidyverse)
+  dsn <- sprintf("%s/stop_times.txt", gtfsDir)
+  mtime <- file.info(dsn)$mtime
+  carp("dsn: %s %s", dsn, mtime)
   tt <- tidytransit_lire("gtfs") %>%
     glimpse()
   df1 <- tt$trips %>%
@@ -902,9 +914,9 @@ tidytransit_routes_fiche <- function() {
     group_by(route_id, direction_id, shape_id) %>%
     summarize(nb = n()) %>%
     left_join(tt$routes, by = c("route_id")) %>%
-    dplyr::select(route_id, d = direction_id, shape_id, nb, ref = route_short_name, name = route_long_name) %>%
+    arrange(route_id, direction_id, nb, shape_id) %>%
+    dplyr::select(route_id, d = direction_id, nb, shape_id, ref = route_short_name, name = route_long_name) %>%
     filter(shape_id != "") %>%
-    arrange(route_id, shape_id) %>%
     glimpse()
   tex_df2kable(df1, num = TRUE)
   return()

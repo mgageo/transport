@@ -430,6 +430,8 @@ gtfs_gpx <- function(mtx, name) {
   for(i in 1:nrow(df)) {
     x <- datetime + minutes(i)
     trkpt <- sprintf('  <trkpt lat="%s" lon="%s">
+    <ele>115.976196</ele>
+    <time>%s</time>
   </trkpt>', df[i, "lat"], df[i, "lon"], x)
     gpx <- append(gpx, trkpt)
   }

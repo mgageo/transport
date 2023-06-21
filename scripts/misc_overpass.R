@@ -375,6 +375,23 @@ out meta;', Config[1, "zone"] )
   return(invisible(dsn))
 }
 #
+# source("geo/scripts/transport.R");overpass_arrets_query()
+overpass_arrets_query <- function(force = TRUE) {
+  library(tidyverse)
+  library(sf)
+  carp()
+  dsn <- sprintf("overpass_arrets_query")
+  requete <- sprintf('
+area[name="%s"]->.a;
+(
+node(area.a)[highway=bus_stop];
+node(area.a)[public_transport=platform];
+);
+out meta;', Config[1, "zone"] )
+  dsn <- overpass_query(query = requete, fic = dsn, force = force)
+  return(invisible(dsn))
+}
+#
 # source("geo/scripts/transport.R");overpass_arrets_parse()
 overpass_arrets_parse <-  function(force = TRUE) {
   library(tidyverse)
@@ -394,4 +411,49 @@ overpass_arrets_parse <-  function(force = TRUE) {
   dsn <- sprintf("%s/overpass_arrets_parse.Rds", transportDir)
   carp("dsn: %s", dsn)
   saveRDS(points.sf, file = dsn)
+}
+#
+## les arrêts
+#
+overpass_query_bus_stop_network <- function() {
+  requete <- sprintf('
+relation[type=route][route=bus][network="%s"]->.a;
+(
+  nwr[highway=bus_stop](r.a);
+  nwr[public_transport=platform](r.a);
+);
+(._;>>;);
+out meta;', Config[1, 'network'])
+  return(invisible(requete))
+}
+overpass_query_stop_network_csv <- function(fic = 'osm_bus_stop_network', force = FALSE) {
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,::lat,::lon,name,highway,public_transport,"%s";true;"|")];
+relation[type=route][route=bus][network="%s"]->.a;
+(
+  nwr[highway=bus_stop](r.a);
+  nwr[public_transport=platform](r.a);
+);
+out center meta;', Config[1, 'k_ref'], Config[1, 'network'])
+  return(invisible(requete))
+}
+overpass_query_bus_stop_area <- function(fic = 'osm_bus_stop_area', force = FALSE) {
+  requete <- sprintf('
+area[name="%s"]->.a;
+(
+  nwr(area.a)[highway=bus_stop];
+  nwr(area.a)[public_transport=platform];
+);
+(._;>>;);
+out meta;', Config[1, 'zone'])
+  return(invisible(requete))
+}
+overpass_query_bus_stop_area_csv <- function(fic = 'osm_bus_stop_area', force = FALSE) {
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,::lat,::lon,name,highway,public_transport,rail,"%s";true;"|")];
+area[name="%s"]->.a;
+(
+  nwr(area.a)[highway=bus_stop];
+  nwr(area.a)[public_transport];
+);
+out meta;', Config[1, 'k_ref'], Config[1, 'zone'])
+  return(invisible(requete))
 }

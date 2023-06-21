@@ -815,7 +815,7 @@ export_df2xlsx <- function(df, dsn = FALSE, suffixe = "", dossier = "", onglet =
   writexl::write_xlsx(df, path=dsn)
   carp("dsn: %s", dsn)
 }
-misc_df2xlsx <- function(df, dsn=FALSE, suffixe="", dossier="", onglet='export') {
+misc_df2xlsx <- function(df, dsn = FALSE, suffixe = "", dossier = "", onglet = 'export') {
    if ( dsn  ==  FALSE ) {
     curcall <- as.character(deparse(sys.call(-1)))[1]
     curcall <- gsub('\\(.*$', '', curcall)
@@ -989,6 +989,31 @@ misc_html_append_df <- function(html, df) {
 #    kable_minimal() %>%
     kable_styling(bootstrap_options = "striped", full_width = F, position = "left", fixed_thead = T)
   html <- append(html, htm)
+}
+misc_html_df2fic <- function(df, titre = "titre", dsn = FALSE, suffixe = "", dossier = "") {
+  html <-  misc_html_titre(titre = titre)
+  rownames(df) <- NULL
+  htm <- df %>%
+    kbl(escape = F) %>%
+#    kable_minimal() %>%
+    kable_styling(bootstrap_options = "striped", full_width = F, position = "left", fixed_thead = T)
+  html <- append(html, htm)
+  html <- misc_html_pied(html)
+  if ( dsn == FALSE ) {
+    curcall <- as.character(deparse(sys.call(-1)))[1]
+    curcall <- gsub('\\(.*$', '', curcall)
+    if ( suffixe != "" ) {
+      suffixe <- sprintf("_%s", suffixe)
+    }
+    if ( dossier != "" ) {
+      dossier <- sprintf("%s/", dossier)
+      d <- sprintf("%s/%s", texDir, dossier)
+      dir.create(d, showWarnings = FALSE, recursive = TRUE)
+    }
+    dsn <- sprintf("%s/%s%s%s.html", webDir, dossier, curcall, suffixe)
+  }
+  write(html, dsn)
+  carp("dsn: %s", dsn)
 }
 #
 ## pour journaliser

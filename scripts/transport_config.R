@@ -19,7 +19,7 @@ config_agency_lire <- function() {
 }
 ## lecture du fichier excel et filtrage
 # source("geo/scripts/transport.R");config_xls('star')
-config_xls <- function(res = "star", xls ="agency") {
+config_xls <- function(res = "star", xls = "agency") {
   library(rio)
   library(tidyverse)
   dsn <- sprintf("%s/%s.xls", cfgDir, xls)
@@ -28,7 +28,8 @@ config_xls <- function(res = "star", xls ="agency") {
     Config <<- config_xls_init()
   } else {
     carp("import dsn: %s reseau: %s", dsn, res)
-    Config <<- import(dsn) %>%
+    Config.df <<- import(dsn)
+    Config <<- Config.df %>%
       filter(reseau == res)
   }
   if (nrow(Config) != 1) {

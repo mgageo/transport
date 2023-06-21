@@ -63,6 +63,21 @@ osmapi_get_object_relations <- function(ref, type = "node", force = FALSE) {
   }
   return(invisible(dsn))
 }
+osmapi_object_txt <- function(ref, type = "relation", force = FALSE) {
+  library(readr)
+  library(tidyverse)
+  library(httr)
+  dsn <- sprintf("%s/%s_%s.osm", osmDir, type, ref)
+  if (! file.exists(dsn) | force == TRUE) {
+    carp("dsn: %s", dsn)
+    url <- sprintf("https://www.openstreetmap.org/api/0.6/%s/%s", type, ref)
+    res <- httr::GET(url = url, encoding = "UTF-8", type = "application/xml", httr::write_disk(dsn, overwrite = TRUE))
+    txt <- content(res, "text")
+  } else {
+    txt <- readr::read_file(dsn)
+  }
+  return(invisible(txt))
+}
 osmapi_object_full <- function(ref, type = "relation", force = FALSE) {
   library(readr)
   library(tidyverse)

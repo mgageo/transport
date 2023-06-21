@@ -42,6 +42,7 @@ source("geo/scripts/misc_osmose.R")
 source("geo/scripts/misc_osrm.R")
 source("geo/scripts/misc_overpass.R")
 source("geo/scripts/misc_ssh.R")
+source("geo/scripts/misc_st.R")
 source("geo/scripts/misc_tex.R")
 source("geo/scripts/misc_tidytransit.R")
 source("geo/scripts/misc_unicode.R")
@@ -57,7 +58,7 @@ source("geo/scripts/transport_osm.R")
 source("geo/scripts/transport_osmar.R")
 source("geo/scripts/transport_osmose.R")
 source("geo/scripts/transport_osm2mga.R")
-source("geo/scripts/transport_reseau.R")
+source("geo/scripts/transport_reseau.R"); # les comparaisons osm gtfs
 source("geo/scripts/transport_route.R")
 source("geo/scripts/transport_routes.R"); # cohérence route route_master
 source("geo/scripts/transport_tidytransit.R"); # lecture du fichier gtfs.zip
@@ -100,7 +101,6 @@ Reseau <- "concarneau"
 Reseau <- "kiceo"; # Vannes
 Reseau <- "qub"; # Quimper
 Reseau <- "douarnenez"; # Douarnenez
-Reseau <- "bretagne"; # pseudo-réseau pour la Bretagne
 Reseau <- "breizhgo56"; # pseudo-réseau pour BreizhGo en Morbihan
 Reseau <- "morlaix"; # LinéoTim
 Reseau <- "breizhgo35"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
@@ -108,12 +108,16 @@ Reseau <- "ter"; # pseudo-réseau pour BreizhGo SNCF
 Reseau <- "landerneau"
 Reseau <- "breizhgo56"; # Morbihan
 Reseau <- "vitobus"; # Vitré/Chateaubourg
-Reseau <- "star"; # Rennes
 Reseau <- "dinan"; # Dinan / Côtes d'Armor
 Reseau <- "gironde"; # les lignes régionales
 Reseau <- "bibus"; # Brest
+Reseau <- "arcachon"; # Arcachon
+Reseau <- "toulouse"; # Toulouse Métropole
+Reseau <- "bretagne"; # pseudo-réseau pour la Bretagne
+Reseau <- "star"; # Rennes
+Reseau <- "qub"; # Quimper
 Reseau <- "bordeaux"; # Bordeaux Métropole
-config_xls(Reseau)
+  config_xls(Reseau)
 if ( interactive() ) {
   DEBUG <- TRUE
   graphics.off()
