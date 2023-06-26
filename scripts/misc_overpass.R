@@ -39,63 +39,7 @@ overpass_status <- function(quiet=FALSE) {
   }
   return(invisible(list(available=available, waiting_time=waiting_time, msg=status)))
 }
-#
-# source("geo/scripts/transport.R");res <- overpass_query()
-overpass_query <- function(query, fic = "test", force = FALSE) {
-  library(httr)
-  library(tidyverse)
-  dsn <- sprintf("%s/%s.osm", osmDir, fic)
-  carp("dsn: %s", dsn)
-  if (! file.exists(dsn) || force == TRUE) {
-    query <- sprintf("data=[timeout:600][maxsize:1073741824];%s", query)
-    carp("query: %s", query)
-    res <- httr::POST(overpass_base_url, body=query, httr::write_disk(dsn, overwrite = TRUE))
-    if (status_code(res) != 200) {
-      print(httr::content(res, as="text", encoding="UTF-8"));
-      stop_for_status(res)
-    }
-  }
-  return(invisible(dsn))
-}
-overpass_query_xml <- function(query, fic, force = TRUE, quiet = FALSE) {
-  carp("query: %s", query)
-  dsn <- sprintf("%s/%s.osm", osmDir, fic)
-  carp("dsn: %s", dsn)
-  res <- httr::POST(overpass_base_url, body = query, httr::write_disk(dsn, overwrite = TRUE))
-  httr::stop_for_status(res)
-  if (!quiet) message("Query complete!")
-  doc <- xml2::read_xml(httr::content(res, as = "text", encoding = "UTF-8"))
-  return(invisible(doc))
-}
-overpass_query_json <- function(query, fic = "test", force = FALSE) {
-  library(httr)
-  library(tidyverse)
-  library(rjson)
-  dsn <- sprintf("%s/%s.json", osmDir, fic)
-  carp("dsn: %s", dsn)
-  if (! file.exists(dsn) || force == TRUE) {
-    query <- sprintf("data=[timeout:600][maxsize:1073741824][out:json];%s", query)
-    print(query);
-    res <- httr::POST(overpass_base_url, body=query, httr::write_disk(dsn, overwrite = TRUE))
-    stop_for_status(res)
-  }
-  return(invisible(dsn))
-}
-overpass_query_csv <- function(query, fic = "test", force = TRUE) {
-  library(httr)
-  library(tidyverse)
-  dsn <- sprintf("%s/%s.csv", osmDir, fic)
-  carp("dsn: %s", dsn)
-  if (! file.exists(dsn) || force == TRUE) {
-    carp("query: %s", query)
-    res <- httr::POST(overpass_base_url, body=query, httr::write_disk(dsn, overwrite = TRUE))
-    if (status_code(res) != 200) {
-      print(httr::content(res, as="text", encoding="UTF-8"));
-      stop_for_status(res)
-    }
-  }
-  return(invisible(dsn))
-}
+
 #
 ## les requêtes
 #
@@ -413,7 +357,103 @@ overpass_arrets_parse <-  function(force = TRUE) {
   saveRDS(points.sf, file = dsn)
 }
 #
-## les arrêts
+## nouvelle version de ma bibliothèque overpass
+##########################################################################
+#
+overpass_get <- function(query, format = "xml", force_osm = TRUE) {
+  library(osmdata)
+  fic <- query
+  carp("1 fic: %s", fic)
+  query <- sprintf("overpass_query_%s", query)
+  if (format == "csv") {
+    query <- sprintf("%s_%s", query, format)
+  }
+  carp("query: %s", query)
+  query <- do.call(query, list())
+  carp("2 fic: %s", fic)
+  if (format == "csv") {
+  carp("fic: %s", fic)
+    dsn <- overpass_query_csv(query = query, fic = fic, force = force_osm)
+    res <- fread(dsn, encoding = "UTF-8") %>%
+      replace(is.na(.), "")
+  } else {
+    dsn <- overpass_query(query, fic, force = force_osm)
+    res <- osmdata::osmdata_sf(, dsn)
+  }
+  return(invisible(res))
+}
+
+#
+# source("geo/scripts/transport.R");res <- overpass_query()
+overpass_query <- function(query, fic = "test", force = FALSE) {
+  library(httr)
+  library(tidyverse)
+  dsn <- sprintf("%s/%s.osm", osmDir, fic)
+  carp("dsn: %s", dsn)
+  if (! file.exists(dsn) || force == TRUE) {
+    query <- sprintf("data=[timeout:600][maxsize:1073741824];%s", query)
+    carp("query: %s", query)
+    res <- httr::POST(overpass_base_url, body=query, httr::write_disk(dsn, overwrite = TRUE))
+    if (status_code(res) != 200) {
+      print(httr::content(res, as="text", encoding="UTF-8"));
+      stop_for_status(res)
+    }
+  }
+  return(invisible(dsn))
+}
+overpass_query_csv <- function(query, fic = "test", force = TRUE) {
+  library(httr)
+  library(tidyverse)
+  dsn <- sprintf("%s/%s.csv", osmDir, fic)
+  carp("dsn: %s", dsn)
+  if (! file.exists(dsn) || force == TRUE) {
+    carp("query: %s", query)
+    res <- httr::POST(overpass_base_url, body=query, httr::write_disk(dsn, overwrite = TRUE))
+    if (status_code(res) != 200) {
+      print(httr::content(res, as="text", encoding="UTF-8"));
+      stop_for_status(res)
+    }
+  }
+  return(invisible(dsn))
+}
+overpass_query_json <- function(query, fic = "test", force = FALSE) {
+  library(httr)
+  library(tidyverse)
+  library(rjson)
+  dsn <- sprintf("%s/%s.json", osmDir, fic)
+  carp("dsn: %s", dsn)
+  if (! file.exists(dsn) || force == TRUE) {
+    query <- sprintf("data=[timeout:600][maxsize:1073741824][out:json];%s", query)
+    print(query);
+    res <- httr::POST(overpass_base_url, body=query, httr::write_disk(dsn, overwrite = TRUE))
+    stop_for_status(res)
+  }
+  return(invisible(dsn))
+}
+overpass_query_xml <- function(query, fic, force = TRUE, quiet = FALSE) {
+  carp("query: %s", query)
+  dsn <- sprintf("%s/%s.osm", osmDir, fic)
+  carp("dsn: %s", dsn)
+  res <- httr::POST(overpass_base_url, body = query, httr::write_disk(dsn, overwrite = TRUE))
+  httr::stop_for_status(res)
+  if (!quiet) message("Query complete!")
+  doc <- xml2::read_xml(httr::content(res, as = "text", encoding = "UTF-8"))
+  return(invisible(doc))
+}
+# requête en get
+overpass_query_geojson_get <- function(data, dsn) {
+  library(httr)
+  carp("début data:%s", data)
+  url <- 'http://overpass-api.de/api/interpreter'
+  data <- sprintf("[out:GeoJson][timeout:180];%s", data)
+  url <- sprintf('%s?data=%s', url, URLencode(data));
+  carp("url: %s", url)
+  res <- httr::GET(url = query, encoding = "UTF-8", type = "application/json", verbose(), httr::write_disk(dsn, overwrite = TRUE))
+  json <- httr::content(res, as="text", encoding="UTF-8")
+  return(invisible(dsn))
+}
+#
+## les requêtes pour les arrêts
 #
 overpass_query_bus_stop_network <- function() {
   requete <- sprintf('
@@ -426,8 +466,8 @@ relation[type=route][route=bus][network="%s"]->.a;
 out meta;', Config[1, 'network'])
   return(invisible(requete))
 }
-overpass_query_stop_network_csv <- function(fic = 'osm_bus_stop_network', force = FALSE) {
-  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,::lat,::lon,name,highway,public_transport,"%s";true;"|")];
+overpass_query_bus_stop_network_csv <- function() {
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,::lat,::lon,name,highway,public_transport,bus,ferry,rail,train,tram,railway,"%s";true;"|")];
 relation[type=route][route=bus][network="%s"]->.a;
 (
   nwr[highway=bus_stop](r.a);
@@ -436,24 +476,41 @@ relation[type=route][route=bus][network="%s"]->.a;
 out center meta;', Config[1, 'k_ref'], Config[1, 'network'])
   return(invisible(requete))
 }
-overpass_query_bus_stop_area <- function(fic = 'osm_bus_stop_area', force = FALSE) {
+overpass_query_bus_stop_area <- function() {
   requete <- sprintf('
-area[name="%s"]->.a;
+relation(%s);map_to_area->.a;
 (
   nwr(area.a)[highway=bus_stop];
   nwr(area.a)[public_transport=platform];
 );
 (._;>>;);
-out meta;', Config[1, 'zone'])
+out center meta;', Config[1, 'zone_relation'])
   return(invisible(requete))
 }
-overpass_query_bus_stop_area_csv <- function(fic = 'osm_bus_stop_area', force = FALSE) {
-  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,::lat,::lon,name,highway,public_transport,rail,"%s";true;"|")];
-area[name="%s"]->.a;
+overpass_query_bus_stop_area_csv <- function() {
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,::lat,::lon,name,highway,public_transport,bus,ferry,rail,train,tram,railway,"%s";true;"|")];
+relation(%s);map_to_area->.a;
 (
   nwr(area.a)[highway=bus_stop];
   nwr(area.a)[public_transport];
 );
-out meta;', Config[1, 'k_ref'], Config[1, 'zone'])
+out center meta;', Config[1, 'k_ref'], Config[1, 'zone_relation'])
+  return(invisible(requete))
+}
+#
+## les requêtes pour les routes
+#
+overpass_query_relations_route_bus_network_csv <- function() {
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,name,ref,"ref:network","gtfs:shape_id",from,to;true;"|")];
+area[name="%s"]->.a;
+relation(area.a)[type=route][route=bus][network="%s"];
+out meta;', Config[1, 'zone'], Config[1, 'network'])
+  return(invisible(requete))
+}
+overpass_query_relations_route_bus_area_csv <- function() {
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,name,ref,"ref:network","gtfs:shape_id",from,to;true;"|")];
+relation(%s);map_to_area->.a;
+relation(area.a)[type=route][route=bus];
+out meta;', Config[1, 'zone_relation'])
   return(invisible(requete))
 }

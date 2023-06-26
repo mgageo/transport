@@ -50,11 +50,12 @@ source("geo/scripts/transport_config.R")
 # source("geo/scripts/transport_gtfs.R")
 source("geo/scripts/transport_gtfs2mga.R")
 source("geo/scripts/transport_gtfs2osm.R")
+source("geo/scripts/transport_ign.R"); # pour la détermination des communes des arrêts
 source("geo/scripts/transport_mapbox.R")
 source("geo/scripts/transport_misc.R")
 source("geo/scripts/transport_mobibreizh.R"); # pour le gtfs de la région
 source("geo/scripts/transport_oapi.R")
-source("geo/scripts/transport_osm.R")
+source("geo/scripts/transport_osm.R"); # les interrogations osm soit via l'api soit via l'overpass
 source("geo/scripts/transport_osmar.R")
 source("geo/scripts/transport_osmose.R")
 source("geo/scripts/transport_osm2mga.R")

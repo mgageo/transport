@@ -632,8 +632,8 @@ bordeaux_chemins_da <- function(force = TRUE) {
     left_join(lignes.df, by = c("rs_sv_ligne_a" = "gid"), suffix = c("", "_li")) %>%
 #    filter(libelle_nd == "Fontaine d'Arlac") %>%
 #    filter(libelle_nd == "Les Renardeaux") %>%
-    filter(grepl(" 85$", libelle_li)) %>%
-    filter(sens == "ALLER") %>%
+    filter(grepl(" Arena$", libelle_li)) %>%
+    filter(sens != "ALLER") %>%
 #    filter(sens == "RETOUR") %>%
     arrange(ident, sens) %>%
     filter(vehicule == "BUS") %>%
@@ -641,9 +641,9 @@ bordeaux_chemins_da <- function(force = TRUE) {
   dsn <- sprintf("%s/%s", transportDir, "bordeaux_chemins_da.geojson")
   carp("dsn: %s", dsn)
   st_write(st_transform(nc1, 4326), dsn, delete_dsn = TRUE, driver = "GeoJSON")
-  return()
-  spdf1 <- as(nc1, "Spatial")
+  gpx <- st_sf2gpx(nc1, nc1[[1, "ident"]])
   dsn <- sprintf("%s/%s", transportDir, "bordeaux_chemins_da.gpx")
-  writeOGR(spdf1, dsn, layer="tracks", driver="GPX", dataset_options="GPX_USE_EXTENSIONS=yes", "FORCE_GPX_TRACK=true", overwrite_layer=TRUE, delete_dsn = TRUE)
-
+  carp("dsn: %s", dsn)
+  f <- file(dsn, encoding="UTF-8")
+  write(gpx, file = f, append = FALSE)
 }

@@ -43,8 +43,14 @@ gtfs_stops_geocode <- function() {
 #    filter(location_type == 0) %>%
     dplyr::select(lat = stop_lat, lon = stop_lon, name = stop_id) %>%
     glimpse()
+  df11 <- df1 %>%
+    group_by(name) %>%
+    summarize(nb = n()) %>%
+    filter(nb > 1) %>%
+    glimpse()
   dsn <- sprintf("%s/gtfs_stops_geocode_search.csv", varDir)
   rio::export(df1, dsn, sep = ",")
+  carp("interrogation de datagouv")
   f_dest <- sprintf("%s/gtfs_stops_geocode_api.csv", varDir)
   geocode_reverse_csv_datagouv(dsn, f_dest, url = "https://api-adresse.data.gouv.fr")
   carp("f_dest: %s", f_dest)
@@ -52,9 +58,14 @@ gtfs_stops_geocode <- function() {
     dplyr::mutate(name = sprintf("%s", name)) %>%
     dplyr::select(name, city = result_city)
   df3 <- df %>%
-    left_join(df2, by = c("stop_id" = "name"))
+    left_join(df2, by = c("stop_id" = "name")) %>%
+    glimpse()
   dsn <- sprintf("%s/%s.txt", gtfsDir, "stops_geocode")
   rio::export(df3, dsn, sep = ",")
+  carp("dsn: %s", dsn)
+  df4 <- df3 %>%
+    filter(city == "") %>%
+    glimpse()
 }
 
 gtfs_stops_sf <- function(df) {

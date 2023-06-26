@@ -255,16 +255,19 @@ geocode_reverse_datagouv <- function(points, force = FALSE) {
 # source("geo/scripts/coj.R");geocode_reverse_csv_datagouv_test()
 #
 geocode_reverse_csv_datagouv_test <- function() {
- csv <- 'lat,lon,name
+  csv <- 'lat,lon,name
 48.670333,6.1468826,École Claude Déruet
 48.6495464,6.1521676,École Gilberte Monne
 48.6470103,6.2075765,École maternelle Victor Hugo
 48.7277223,6.1578988,École maternelle Buffon'
+  csv <- 'lat,lon,name
+44.83665,-0.511508,toto'
   f_orig <- sprintf("%s/geocode_reverse.csv", cfgDir);
   F <- file(f_orig, encoding="UTF-8")
   write(csv, file=F, append = FALSE)
   close(F)
   f_reverse <- sprintf("%s/geocode_reverse_geo.csv", cfgDir);
+  carp("f_reverse: %s", f_reverse)
   geocode_reverse_csv_datagouv(f_orig, f_reverse)
 }
 #

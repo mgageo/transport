@@ -76,6 +76,73 @@ osm_relations_route_bus_read <- function(fic='relations_route_bus') {
   carp('dsn: %s', dsn)
   return(invisible(osm.sf))
 }
+#
+# l'historique des versions
+# source("geo/scripts/transport.R"); df1 <- osm_relations_route_bus_history(force = FALSE)
+osm_relations_route_bus_history <- function(force = FALSE) {
+  library(tidyverse)
+  carp()
+  dsn_rds <- sprintf("%s/osm_relations_route_bus_history.rds", osmDir)
+  if (file.exists(dsn_rds) && force == FALSE) {
+    relations.df <- readRDS(dsn_rds)
+    return(invisible(relations.df))
+  }
+  df1 <- overpass_get(query = "relations_route_bus_network", format = "csv", force = force) %>%
+    clean_names() %>%
+    glimpse()
+  relations.df <- data.frame()
+  for (i1 in 1:nrow(df1)) {
+    carp("i1: %s/%s", i1, nrow(df1))
+    relation.df <- osm_relation_route_bus_history(ref = df1[i1, "id"], type = df1[i1, "type"], force = force)
+    relations.df <- bind_rows(relations.df, relation.df)
+  }
+  glimpse(relations.df)
+  saveRDS(relations.df, dsn_rds)
+  return(invisible(relations.df))
+}
+# source("geo/scripts/transport.R");osm_relation_route_bus_history(force = FALSE)
+osm_relation_route_bus_history <- function(ref = "16017716", type = "relation", force = FALSE) {
+  library(tidyverse)
+  dsn <- osmapi_object_history(ref = ref, type = type, force = force)
+  doc <- read_xml(dsn)
+# les relations
+  relations <- xml2::xml_find_all(doc, ".//relation")
+  carp("relations nb: %s", length(relations))
+  relations.df <- data.frame()
+  i_relation <- 0
+  for (relation in relations) {
+#    carp("les attributs de la relation")
+    relation.df <- xml_attrs(relation) %>%
+      as_tibble_row()
+    relations.df <- bind_rows(relations.df, relation.df)
+  }
+#  glimpse(relations.df)
+  return(invisible(relations.df))
+}
+#
+# le créateur de la route
+# source("geo/scripts/transport.R"); df1 <- osm_relations_route_bus_history_stat(force = FALSE)
+osm_relations_route_bus_history_stat <- function(force = FALSE) {
+  library(tidyverse)
+  carp()
+  dsn_rds <- sprintf("%s/osm_relations_route_bus_history.rds", osmDir)
+  relations.df <- readRDS(dsn_rds) %>%
+    glimpse()
+  df1 <- relations.df %>%
+    filter(version == "1") %>%
+    arrange(timestamp)
+  misc_print(df1)
+  df2 <- df1 %>%
+    group_by(user) %>%
+    summarize(nb = n()) %>%
+    arrange(nb)
+  misc_print(df2)
+  df11 <- relations.df %>%
+    group_by(user) %>%
+    summarize(nb = n()) %>%
+    arrange(nb)
+  misc_print(df11)
+}
 # les route_master
 #
 osm_relations_routemaster_bus_get <- function(fic='relations_routemaster_bus') {
@@ -95,7 +162,7 @@ osm_relations_routemaster_bus_save <- function(fic='relations_routemaster_bus') 
   saveRDS(osm.sf, dsn)
   return(invisible(osm.sf))
 }
-osm_relations_routemaster_bus_read <- function(fic='relations_routemaster_bus') {
+osm_relations_routemaster_bus_read <- function(fic = 'relations_routemaster_bus') {
   library(sf)
   library(tidyverse)
   dsn <- sprintf("%s/%s.Rds", transportDir, fic)

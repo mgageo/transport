@@ -103,28 +103,26 @@ reseau_osm_routes_jour <- function(reseau = Reseau, force = TRUE) {
 
 #
 # comparaison à partir des routes gtfs
-# source("geo/scripts/transport.R");reseau_gtfs_routes(reseau = Reseau, force = FALSE)
-reseau_gtfs_routes <- function(reseau = "star", force = FALSE) {
+# source("geo/scripts/transport.R");reseau_diff_routes(reseau = Reseau, force = FALSE)
+reseau_diff_routes <- function(reseau = "star", force = FALSE) {
   library(tidyverse)
   library(data.table)
   library(sf)
   library(janitor)
   carp()
   config_xls(reseau)
-  star.df <- star202210_supprime()
-  dsn <- osm_relations_route_bus_csv(force = force)
-  osm.df <- fread(dsn, encoding = "UTF-8") %>%
+  osm.df <- overpass_get(query = "relations_route_bus_network", format = "csv", force = force) %>%
     clean_names() %>%
     glimpse()
   tt <- tidytransit_lire()
   routes.df <- tt$routes %>%
     glimpse()
   df1 <- routes.df %>%
-    filter(route_desc %notin% c("Métro")) %>%
+    filter(route_type %notin% c(4)) %>%              # le ferry de Bordeaux
+    filter(route_desc %notin% c("Métro", "Transport scolaire")) %>%
     filter(route_short_name %notin% osm.df$ref) %>%
     glimpse()
 }
-
 #
 # comparaison à partir des routes osm
 # source("geo/scripts/transport.R");reseau_osm_routes_tag_shape(reseau = Reseau, force = TRUE)
@@ -206,7 +204,7 @@ reseau_osm_routes_tag_shape <- function(reseau = "star", force = FALSE) {
   return(invisible(df2))
 }
 #
-# source("geo/scripts/transport.R");reseau_osm_routes_refs(reseau = Reseau, force = FALSE)
+# source("geo/scripts/transport.R");reseau_osm_routes_refs(reseau = Reseau, force = TRUE)
 reseau_osm_routes_refs <- function(reseau = "star", force = TRUE) {
   library(tidyverse)
   library(data.table)
@@ -394,24 +392,7 @@ reseau_osm_routes_shapes <- function(reseau = "star", force = TRUE) {
   close(TEX)
   carp(" texFic: %s", texFic)
 }
-# source("geo/scripts/transport.R");reseau_osm_jour_stops(force = TRUE)
-reseau_osm_jour_stops <- function(reseau = "star", force = FALSE) {
-  library(tidyverse)
-  library(data.table)
-  library(janitor)
-  carp()
-  config_xls(reseau)
-  df <- osm_nodes_stop_read()
-  carp("recherche des arrets sans public_transport")
-  df1 <- df %>%
-    filter(is.na(public_transport)) %>%
-    glimpse()
-  carp("recherche des plaforms sans ref")
-  df1 <- df %>%
-    filter(grepl("platform", public_transport)) %>%
-    filter(is.na(ref.FR.STAR)) %>%
-    glimpse()
-}
+
 #
 # la comparaison des deux sources
 #
@@ -496,6 +477,17 @@ transport_read <- function(fic='objets_stop') {
 #
 # la partie osm
 #
+# source("geo/scripts/transport.R");reseau_osm_jour_stops(force = TRUE)
+reseau_osm_jour_stops <- function(reseau = "star", force = FALSE) {
+  library(tidyverse)
+  library(data.table)
+  library(janitor)
+  carp()
+  config_xls(reseau)
+  reseau_osm_stops_valid(force_osm = TRUE)
+}
+#
+# lecture en csv
 # source("geo/scripts/transport.R");reseau_osm_stops_valid(force_osm = FALSE)
 reseau_osm_stops_valid <- function(force_osm = TRUE) {
   library(tidyverse)
@@ -506,18 +498,98 @@ reseau_osm_stops_valid <- function(force_osm = TRUE) {
   titre <- sprintf("reseau_osm_stops_valid_%s", Config[1, 'reseau'])
   html <- misc_html_titre(titre)
   html <- misc_html_append(html, "<h1>OSM</h1>")
-  html <- misc_html_append(html, "<h2>Les stops de la zone</h2>")
+#
+#
+  html <- misc_html_append(html, "<h2>Les stops du réseau</h2>")
   html <- misc_html_append(html, "<h3>Répartition</h3>")
-  area.sf <- osm_bus_stop_area(force = force_osm) %>%
+  network.df <- overpass_get(query = "bus_stop_network", format = "csv", force = force_osm) %>%
+    filter(ferry == "" & tram == "" & rail == "" & train == "") %>%
+    dplyr::select(-ferry, -tram, -rail,  -train) %>%
     glimpse()
-  area.df <- area.sf %>%
-    st_drop_geometry()
-  df1 <- area.df %>%
-    group_by(type, public_transport) %>%
+  df1 <- network.df %>%
+    group_by(`@type`, public_transport, highway, bus) %>%
     summarize(nb = n()) %>%
     glimpse()
+  misc_print(df1)
   html <- misc_html_append_df(html, df1)
+  html <- misc_html_append(html, "<h3>Non conforme PTv2</h3>")
+  tags.df <- read.table(text="type,public_transport,highway,bus
+node,platform,bus_stop,
+node,stop_position,,yes
+", header=TRUE, sep=",", blank.lines.skip = TRUE, stringsAsFactors = FALSE, quote="")
+  misc_print(tags.df)
+  zoom <- "left=%0.5f&right=%0.5f&top=%0.5f&bottom=%0.5f"
+  select <- "%s%s"
 
+  df1 <- network.df %>%
+    filter(!(`@type` == "node" & public_transport == "platform" & highway == "bus_stop" & bus == "")) %>%
+    filter(!(`@type` == "node" & public_transport == "stop_position" & highway == "" & bus == "yes")) %>%
+    filter(!(`@type` == "relation" & public_transport == "stop_area" & highway == "" & bus == "")) %>%
+    filter(!(railway != "")) %>%
+    arrange(`@type`, public_transport, highway, bus) %>%
+    mutate(select = sprintf(select, `@type`, `@id`)) %>%
+    mutate(zoom = sprintf(zoom, `@lon` - .001, `@lon` + .001, `@lat` + .001, `@lat` - .001)) %>%
+    mutate(josm = sprintf("<a href='http://127.0.0.1:8111/load_and_zoom?%s&select=%s'>josm</a>", zoom, select)) %>%
+    dplyr::select(-select, -zoom)
+  df2 <- df1  %>%
+    group_by(`@type`, public_transport, highway, bus) %>%
+    summarize(nb = n()) %>%
+    glimpse()
+  misc_print(df2)
+  html <- misc_html_append_df(html, df2)
+  html <- misc_html_append_df(html, df1)
+#
+#
+  html <- misc_html_append(html, "<h2>Les stops de la zone</h2>")
+  html <- misc_html_append(html, "<h3>Répartition</h3>")
+  area.df <- overpass_get(query = "bus_stop_area", format = "csv", force = force_osm) %>%
+    filter(ferry == "" & tram == "" & rail == "" & train == "") %>%
+    dplyr::select(-ferry, -tram, -rail,  -train) %>%
+    glimpse()
+  df1 <- area.df %>%
+    group_by(`@type`, public_transport, highway, bus) %>%
+    summarize(nb = n()) %>%
+    glimpse()
+  misc_print(df1)
+  html <- misc_html_append_df(html, df1)
+  html <- misc_html_append(html, "<h3>Non conforme PTv2</h3>")
+  tags.df <- read.table(text="type,public_transport,highway,bus
+node,platform,bus_stop,
+node,stop_position,,yes
+", header=TRUE, sep=",", blank.lines.skip = TRUE, stringsAsFactors = FALSE, quote="")
+  misc_print(tags.df)
+  zoom <- "left=%0.5f&right=%0.5f&top=%0.5f&bottom=%0.5f"
+  select <- "%s%s"
+
+  df1 <- area.df %>%
+    filter(!(`@type` == "node" & public_transport == "platform" & highway == "bus_stop" & bus == "")) %>%
+    filter(!(`@type` == "node" & public_transport == "stop_position" & highway == "" & bus == "yes")) %>%
+    filter(!(`@type` == "relation" & public_transport == "stop_area" & highway == "" & bus == "")) %>%
+    filter(!(railway != "")) %>%
+    arrange(`@type`, public_transport, highway, bus) %>%
+    mutate(select = sprintf(select, `@type`, `@id`)) %>%
+    mutate(zoom = sprintf(zoom, `@lon` - .001, `@lon` + .001, `@lat` + .001, `@lat` - .001)) %>%
+    mutate(josm = sprintf("<a href='http://127.0.0.1:8111/load_and_zoom?%s&select=%s'>josm</a>", zoom, select)) %>%
+    dplyr::select(-select, -zoom)
+  df2 <- df1  %>%
+    group_by(`@type`, public_transport, highway, bus) %>%
+    summarize(nb = n()) %>%
+    glimpse()
+  misc_print(df2)
+  html <- misc_html_append_df(html, df2)
+  html <- misc_html_append_df(html, df1)
+#
+#
+  dsn <- sprintf("%s/%s.html", webDir, titre)
+  write(html, dsn)
+  carp("dsn: %s", dsn)
+  url <- sprintf("http://localhost/transport/%s.html", titre)
+  browseURL(
+    url,
+    browser = "C:/Program Files/Mozilla Firefox/firefox.exe"
+  )
+}
+reseau_toto <- function() {
 # les stops à partir des relations route
   html <- misc_html_append(html, "<h2>Les stops des relations route du réseau</h2>")
   network.sf <- osm_bus_stop_network(force = force_osm) %>%
@@ -573,14 +645,6 @@ reseau_osm_stops_valid <- function(force_osm = TRUE) {
     filter(k_ref %in% df1$k_ref) %>%
     arrange(k_ref, osm_id)
   html <- misc_html_append_df(html, df2)
-  dsn <- sprintf("%s/%s.html", webDir, titre)
-  write(html, dsn)
-  carp("dsn: %s", dsn)
-  url <- sprintf("http://localhost/transport/%s.html", titre)
-  browseURL(
-    url,
-    browser = "C:/Program Files/Mozilla Firefox/firefox.exe"
-  )
 }
 #
 # comparaison osm # gtfs

@@ -6,6 +6,8 @@
 # ===============================================================
 # auteur : Marc Gauthier
 #
+# la requête overpass doit extraire tous les objets
+# (._;>>;);
 #
 # source("geo/scripts/transport.R"); res <- osmdata_get_objet_polyline(ref = "11920346")
 osmdata_get_objet_polyline <- function(ref, type = "relation", force = FALSE) {

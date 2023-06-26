@@ -92,7 +92,6 @@ osmapi_object_full <- function(ref, type = "relation", force = FALSE) {
   return(invisible(dsn))
 }
 osmapi_object_history <- function(ref, type = "relation", force = FALSE) {
-  library(readr)
   library(tidyverse)
   library(httr)
   dsn <- sprintf("%s/%s_%s_history.osm", osmDir, type, ref)
@@ -106,7 +105,7 @@ osmapi_object_history <- function(ref, type = "relation", force = FALSE) {
 }
 #
 # il y a plusieurs versions des nodes/ways/relations
-osmapi_object_history_version <- function(dsn, ref, type = "relation", version,force = FALSE) {
+osmapi_object_history_version <- function(dsn, ref, type = "relation", version, force = FALSE) {
   library(readr)
   library(tidyverse)
   library(httr)
