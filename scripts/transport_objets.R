@@ -5,85 +5,75 @@
 # auteur : Marc Gauthier
 # licence: Creative Commons Paternité - Pas d'Utilisation Commerciale - Partage des Conditions Initiales à l'Identique 2.0 France
 # ===============================================================
-#
-# source("geo/scripts/transport.R");config_xls('star');objets_jour()
-objets_jour <- function(force = FALSE) {
-  carp()
-  routes.df <- objets_relations_route(force) %>%
-    glimpse()
-  masters.df <- objets_relations_route_master(force) %>%
-    glimpse()
-  carp("les masters sans route")
-  df1 <- masters.df %>%
-    filter(ref == "")
-  if (nrow(df1) > 0) {
-    print(knitr::kable(df1, format = "pipe"))
-  }
-  df1 <- routes.df %>%
-    filter(! id %in% masters.df$member)
-  if (nrow(df1) > 0) {
-    carp("les route hors master: %s", nrow(df1))
-    print(knitr::kable(df1, format = "pipe"))
-  }
 
-}
 #
 # les relation route avec le tag network
-objets_relations_route <- function(force = FALSE) {
+# source("geo/scripts/transport.R");config_xls('bibus');df <- objets_relations_route() %>% glimpse()
+objets_relations_route <- function(force = TRUE) {
   carp()
   dsn <- sprintf("%s/objets_relations_route.Rds", transportDir)
   if (file.exists(dsn) && force == FALSE) {
     df <- readRDS(dsn)
     return(invisible(df))
   }
-  requete <- sprintf("(relation[network='%s'][type=route][route=bus];);out meta;", Config[1, 'network'])
-  dsn1 <- overpass_query_json(requete, "relations_route", force = force)
-  json1.list <- jsonlite::fromJSON(dsn1, simplifyVector = FALSE, simplifyDataFrame = FALSE)
-  elements.list <- json1.list$elements
-  relations.df <- data.frame(
-    id = character(),
-    user = character(),
-    timestamp = character(),
-    ref = character(),
-    shape = character(),
-    nodes = numeric(),
-    ways = numeric()
-  )
-  for (i in 1:length(elements.list)) {
-    element.list <- elements.list[[i]]
-    tags <- element.list$tags
-    shape <- ""
-    if ( exists("note:mga_geo", where=tags)) {
-      shape <- tags[["note:mga_geo"]]
-    }
-    nodes <- 0
-    ways <- 0
-    if ( exists("members", where=element.list)) {
-      members.list <- element.list$members
-      df1 <- do.call(rbind, lapply(members.list, data.frame))
-      nodes <- nrow(filter(df1, type == "node"))
-      ways <- nrow(filter(df1, type == "way"))    }
-#    carp("shape: %s", shape)
-#    glimpse(tags); stop("****")
-    relations.df[i, ] = c(
-      element.list$id,
-      element.list$user,
-      element.list$timestamp,
-      tags$ref,
-      tags$network,
-      tags$colour,
-      tags$text_colour,
-      shape,
-      nodes,
-      ways
-    )
-  }
-  saveRDS(relations.df, file = dsn)
-  return(invisible(relations.df))
+  doc <- overpass_get(query = "relations_route_bus_network", format = "xml", force = force) %>%
+    glimpse()
+# les relations
+  df <- objects_relations_df(doc)
+  saveRDS(df, file = dsn)
+  return(invisible(df))
 }
 #
 # les relation route master_avec le tag network
-objets_relations_route_master <- function(force = FALSE) {
+# source("geo/scripts/transport.R");config_xls('bibus');df <- objets_relations_route_master() %>% glimpse()
+objets_relations_route_master <- function(force = TRUE) {
+  carp()
+  dsn <- sprintf("%s/objets_relations_route_master.Rds", transportDir)
+  if (file.exists(dsn) && force == FALSE) {
+    df <- readRDS(dsn)
+    return(invisible(df))
+  }
+  doc <- overpass_get(query = "relations_routemaster_bus_network", format = "xml", force = force) %>%
+    glimpse()
+# les relations
+  df <- objects_relations_df(doc)
+  saveRDS(df, file = dsn)
+  return(invisible(df))
+}
+#
+# conversion en dataframe
+objects_relations_df <- function(doc) {
+  carp()
+  library(xml2)
+# les relations
+  relations <- xml2::xml_find_all(doc, ".//relation")
+  carp("relations nb: %s", length(relations))
+  df11 <- tibble()
+  relations.df <- relations %>%
+    map(xml_attrs) %>%
+    map_df(~as.list(.))
+  df <- data.frame()
+  for (i in 1:length(relations)) {
+    relation <- relations[[i]]
+    members <-  xml2::xml_find_all(relation, './/member')
+    members.df <- members %>%
+      map(xml_attrs) %>%
+      map_df(~as.list(.)) %>%
+      mutate(id = relations.df[[i, "id"]])
+    df11 <- bind_rows(df11, members.df)
+#    carp("relations: %s ways: %s nodes: %s", length(members_relation), length(members_way), length(members_node))
+    tags <- xml2::xml_find_all(relation, "tag")
+    tags.df <- tags %>%
+      map(xml_attrs) %>%
+      map_df(~as.list(.)) %>%
+      spread(k, v)
+    df1 <- cbind(relations.df[i, ], tags.df) %>%
+      mutate(nb_members = length(members))
+    df <- bind_rows(df, df1)
+  }
+  return(invisible(list("relations.df" = df, "members.df" = df11)))
+}
+objets_relations_route_master_json <- function(force = TRUE) {
   carp()
   library(jsonlite)
   dsn <- sprintf("%s/objets_relations_route_master.Rds", transportDir)
@@ -91,9 +81,8 @@ objets_relations_route_master <- function(force = FALSE) {
     df <- readRDS(dsn)
     return(invisible(df))
   }
-  requete <- sprintf("(relation[network='%s'][type=route_master][route_master=bus];);out meta;", Config[1, 'network'])
-  dsn1 <- overpass_query_json(requete, "relations_route_master", force = force)
-  json1.list <- jsonlite::fromJSON(dsn1, simplifyVector = FALSE, simplifyDataFrame = FALSE)
+  json1.list <- overpass_get(query = "relations_routemaster_bus_network", format = "json", force = force) %>%
+    glimpse()
   elements.list <- json1.list$elements
   relations.df <- data.frame(
     id = character(),

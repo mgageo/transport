@@ -35,8 +35,16 @@ gtfs_file_lire <- function(file = "routes") {
 }
 #
 # geocode pour la commune
-# source("geo/scripts/transport.R");config_xls('bordeaux');gtfs_stops_geocode() %>% glimpse()
+# source("geo/scripts/transport.R");config_xls('bibus');gtfs_stops_geocode() %>% glimpse()
+#
+# version perso avec intersection sur le contour des communes
 gtfs_stops_geocode <- function() {
+  carp()
+  ign_stops_commune()
+}
+#
+# pb avec le service de datagouv
+gtfs_stops_geocode_v1 <- function() {
   library(tidyverse)
   df <- gtfs_file_lire("stops")
   df1 <- df %>%

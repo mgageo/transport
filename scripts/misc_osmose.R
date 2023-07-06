@@ -27,7 +27,7 @@ osmose_host <- "http://osmose.openstreetmap.fr/api/0.3"
 # 2140 : Jungle Bus – validation ruleset
 # https://github.com/Jungle-Bus/transport_mapcss/blob/master/transport.validator.mapcss
 #
-# source("geo/scripts/transport.R");  config_xls(r"bordeaux"); osmose_area_jour(force = TRUE)
+# source("geo/scripts/transport.R");  config_xls("bordeaux"); osmose_area_jour(force = TRUE)
 osmose_area_jour <- function(force = TRUE) {
 #  osmose_area_get(force = FALSE)
   osmose_country_get(country = Config[1, "zone_osmose"], force = TRUE)

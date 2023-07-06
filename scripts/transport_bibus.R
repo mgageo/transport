@@ -9,15 +9,19 @@
 # https://transport.data.gouv.fr/datasets/horaires-theoriques-et-temps-reel-des-bus-et-tramways-circulant-sur-le-territoire-de-brest-metropole
 #
 # source("geo/scripts/transport.R");bibus_jour()
-bibus_jour <- function() {
+bibus_jour <- function(reseau = "bibus") {
   library(tidyverse)
   library(rio)
   carp()
-  config_xls('bibus')
+  config_xls(reseau)
+  reseau_tpl_tex(reseau = reseau)
 # pour les shapes : la conversion en gpx/geojson
-  txt_gtfs_shapes_sf()
+#  txt_gtfs_shapes_sf()
 # pour les stops
-  txt_gtfs_stops_sf()
+#  txt_gtfs_stops_sf()
+  tidytransit_jour()
+
+  tex_pdflatex(sprintf("%s_osm.tex", reseau))
 }
 
 #

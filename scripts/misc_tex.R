@@ -229,7 +229,7 @@ tex_df2kable <- function(df, dsn = FALSE, suffixe = "", dossier = "", nb_lignes 
     dsn <- sprintf("%s/%s%s%s.tex", texDir, dossier, curcall, suffixe)
   }
   if (num == TRUE) {
-    df <- tibble::rowid_to_column(df, "ID")
+    df <- tibble::rowid_to_column(df, "NO")
   }
   Carp("dsn: %s", dsn)
   if (nrow(df) > 0) {
@@ -289,6 +289,44 @@ TABLEAU VIDE
   close(f)
   return(tex)
 }
+#
+# la version avec tabularray
+# problème de performances
+#
+tex_df2longtblr <- function(df, dsn = FALSE, suffixe = "", dossier = "", num = FALSE, digits = 1) {
+  options("encoding" = "UTF-8")
+  if ( dsn == FALSE ) {
+    curcall <- as.character(deparse(sys.call(-1)))[1]
+    curcall <- gsub('\\(.*$', '', curcall)
+    if ( suffixe != "" ) {
+      suffixe <- sprintf("_%s", suffixe)
+    }
+    if ( dossier != "" ) {
+      dossier <- sprintf("%s/", dossier)
+      d <- sprintf("%s/%s", texDir, dossier)
+      dir.create(d, showWarnings = FALSE, recursive = TRUE)
+    }
+    dsn <- sprintf("%s/%s%s%s.tex", texDir, dossier, curcall, suffixe)
+  }
+  if (num == TRUE) {
+    df <- tibble::rowid_to_column(df, "NO")
+  }
+  Carp("dsn: %s", dsn)
+  df1 <- df %>%
+    mutate(row = sprintf("%s & %s & %s\\\\", ref, stops, names)) %>%
+    glimpse()
+  rows <- paste(df1$row, collapse = "\n")
+  tex <- sprintf("\\begin{longtblr}[
+caption = {Tableau des relations},
+]{colspec={ll},hlines}
+%s
+\\end{longtblr}", rows)
+  f <- file(dsn, open = "w")
+  writeLines(tex, f)
+  close(f)
+  return(tex)
+}
+
 tex_texte <- function(texte, dsn = FALSE, suffixe = "", dossier = "", escape = TRUE) {
   options("encoding" = "UTF-8")
   if ( dsn == FALSE ) {

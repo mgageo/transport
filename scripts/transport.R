@@ -32,11 +32,13 @@ source("geo/scripts/misc_datagouv.R")
 source("geo/scripts/misc_geocode.R")
 source("geo/scripts/misc_gpx.R")
 source("geo/scripts/misc_gtfs.R")
+source("geo/scripts/misc_html.R")
 source("geo/scripts/misc_ign.R")
 source("geo/scripts/misc_level0.R")
 source("geo/scripts/misc_md.R")
 source("geo/scripts/misc_osm.R")
 source("geo/scripts/misc_osmapi.R")
+source("geo/scripts/misc_osmchange.R")
 source("geo/scripts/misc_osmdata.R")
 source("geo/scripts/misc_osmose.R")
 source("geo/scripts/misc_osrm.R")
@@ -75,7 +77,7 @@ source("geo/scripts/transport_objets.R")
 # les différents réseaux
 source("geo/scripts/transport_axeo.R")
 source("geo/scripts/transport_auray.R")
-source("geo/scripts/transport_bibus.R")
+source("geo/scripts/transport_bibus.R"); # brest
 source("geo/scripts/transport_bordeaux.R")
 source("geo/scripts/transport_breizhgo.R")
 source("geo/scripts/transport_bretagne.R")
@@ -101,7 +103,6 @@ source("geo/scripts/transport_tudbus.R")
 Reseau <- "concarneau"
 Reseau <- "kiceo"; # Vannes
 Reseau <- "qub"; # Quimper
-Reseau <- "douarnenez"; # Douarnenez
 Reseau <- "breizhgo56"; # pseudo-réseau pour BreizhGo en Morbihan
 Reseau <- "morlaix"; # LinéoTim
 Reseau <- "breizhgo35"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
@@ -115,9 +116,11 @@ Reseau <- "bibus"; # Brest
 Reseau <- "arcachon"; # Arcachon
 Reseau <- "toulouse"; # Toulouse Métropole
 Reseau <- "bretagne"; # pseudo-réseau pour la Bretagne
-Reseau <- "star"; # Rennes
+Reseau <- "bibus"; # Brest
 Reseau <- "qub"; # Quimper
 Reseau <- "bordeaux"; # Bordeaux Métropole
+Reseau <- "star"; # Rennes
+Reseau <- "douarnenez"; # Douarnenez
   config_xls(Reseau)
 if ( interactive() ) {
   DEBUG <- TRUE

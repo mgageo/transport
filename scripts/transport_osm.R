@@ -9,8 +9,9 @@
 #
 #
 # les traitements journaliers
+
 # source("geo/scripts/transport.R");config_xls('star');osm_jour(routemaster = TRUE, route = TRUE, stop = TRUE)
-osm_jour <- function(routemaster = FALSE, route = TRUE, stop = TRUE, force = FALSE) {
+osm_jour_v1 <- function(routemaster = FALSE, route = TRUE, stop = TRUE, force = FALSE) {
   carp()
   if( routemaster == TRUE ) {
     osm_relations_routemaster_bus_get()
@@ -30,6 +31,56 @@ osm_jour <- function(routemaster = FALSE, route = TRUE, stop = TRUE, force = FAL
     osm.sf <- osm_nodes_stop_read() %>%
       glimpse()
   }
+  osm_routes_refs()
+}
+#
+# source("geo/scripts/transport.R");config_xls('bibus');osm_relations_valid()
+osm_relations_valid <- function(force = TRUE) {
+  carp()
+  titre <- sprintf("osm_relations_valid_%s", Config[1, "reseau"])
+  html <- misc_html_titre(titre)
+  html <- misc_html_append(html, sprintf("<h1>%s</h1>", titre))
+  rc <- objets_relations_route(force)
+  routes.df <- rc[["relations.df"]]
+  rc <- objets_relations_route_master(force)
+  masters.df <- rc[["relations.df"]] %>%
+    glimpse()
+  members.df <- rc[["members.df"]] %>%
+    glimpse()
+#
+  html <- misc_html_append(html, sprintf("<h2>%s</h2>", "cohérence route_master # route"))
+  html <- misc_html_append(html, sprintf("<h3>%s</h3>", "les masters sans route"))
+  df1 <- masters.df %>%
+    filter(nb_members == 0)
+  if (nrow(df1) > 0) {
+    html <- misc_html_append_df(html, df1)
+  }
+#
+  html <- misc_html_append(html, sprintf("<h3>%s</h3>", "les relations route hors master"))
+  df1 <- routes.df %>%
+    filter(! id %in% members.df$ref)
+  if (nrow(df1) > 0) {
+    html <- misc_html_append_df(html, df1)
+  }
+#
+  html <- misc_html_append(html, sprintf("<h3>%s</h3>", "les relations route dans plusieurs master"))
+  df1 <- members.df %>%
+    group_by_all() %>%
+    summarize(nb = n()) %>%
+    filter(nb > 1)
+  if (nrow(df1) > 0) {
+    html <- misc_html_append_df(html, df1)
+  }
+
+  fic <- sprintf("%s.html", titre)
+  dsn <- sprintf("%s/%s", webDir, fic)
+  write(html, dsn)
+  carp("dsn: %s", dsn)
+  url <- sprintf("http://localhost/transport/%s", fic)
+  browseURL(
+    url,
+    browser = "C:/Program Files/Mozilla Firefox/firefox.exe"
+  )
 }
 # les routes
 #
@@ -143,12 +194,61 @@ osm_relations_route_bus_history_stat <- function(force = FALSE) {
     arrange(nb)
   misc_print(df11)
 }
-# les route_master
 #
-osm_relations_routemaster_bus_get <- function(fic='relations_routemaster_bus') {
-  requete <- sprintf("(relation[network='%s'][type=route_master][route_master=bus];);out meta;", Config[1, 'network'])
-  dsn <- sprintf("%s.osm", fic)
-  oapi_requete_get(requete, dsn)
+# ajout d'un tag gtfs:stops
+# tous les membres "platform.*" doivent avoir une référence du réseau
+# source("geo/scripts/transport.R"); df1 <- osm_relations_route_bus_stops(force = FALSE)
+osm_relations_route_bus_stops <- function(force = FALSE) {
+  library(tidyverse)
+  carp()
+  dsn_rds <- sprintf("%s/osm_relations_route_bus_stops.rds", osmDir)
+  if (file.exists(dsn_rds) && force == FALSE) {
+    relations.df <- readRDS(dsn_rds)
+    return(invisible(relations.df))
+  }
+  df1 <- overpass_get(query = "relations_route_bus_network", format = "csv", force = force) %>%
+    clean_names() %>%
+    glimpse()
+  for (i1 in 1:nrow(df1)) {
+    carp("i1: %s/%s", i1, nrow(df1))
+    osm_relation_route_bus_stops(ref = df1[i1, "id"], type = df1[i1, "type"], force = force)
+  }
+}
+# Bordeaux Lianes 4
+# source("geo/scripts/transport.R");osm_relation_route_bus_stops(ref = "1601972", force = FALSE, force_osm = FALSE) %>% glimpse()
+osm_relation_route_bus_stops <- function(ref = "16017716", type = "relation", force = TRUE, force_osm = TRUE) {
+  library(tidyverse)
+  library(digest)
+  rc <- osm_relation_route_members(ref, force = force, force_osm = force_osm)
+  platforms.df <- rc$members.sf %>%
+    st_drop_geometry() %>%
+    filter(grepl("platform", role))
+  if(Config_k_ref %notin% names(platforms.df)) {
+    carp("*** pas de tag k_ref: %s", Config_k_ref)
+    return(invisible())
+  }
+  gtfs.df <- platforms.df %>%
+    filter(! is.na(!!Config_k_ref))
+  if (nrow(platforms.df) != nrow(gtfs.df)) {
+    carp("*** manque des tags k_ref: %s", Config_k_ref)
+    return(invisible())
+  }
+  misc_print(gtfs.df)
+  stops <- paste(gtfs.df[, Config_k_ref], collapse = ",")
+  tags <- list(
+    "gtfs:stops" = digest::md5(stops)
+  )
+  type <- "relation"
+  osmchange_object_modify_tags(id = ref, type = type, tags = tags)
+#  stop("******")
+}
+#
+## les relations route_master
+#
+# source("geo/scripts/transport.R"); df1 <- osm_relations_routemaster_bus_get(force = FALSE)
+osm_relations_routemaster_bus_get <- function(force = TRUE) {
+  doc <- overpass_get(query = "relations_routemaster_bus_network", format = "xml", force = force) %>%
+    glimpse()
 }
 # lecture avec sf
 # https://github.com/r-spatial/sf/blob/master/tests/read.Rout.save
@@ -171,7 +271,123 @@ osm_relations_routemaster_bus_read <- function(fic = 'relations_routemaster_bus'
   return(invisible(osm.sf$osm_multilines))
 }
 #
-## les arrêts
+#
+## pour les stops
+#
+# la partie osm
+#
+# source("geo/scripts/transport.R");reseau_osm_jour_stops(force = TRUE)
+osm_jour_stops <- function(reseau = "star", force = FALSE) {
+  library(tidyverse)
+  library(data.table)
+  library(janitor)
+  carp()
+  config_xls(reseau)
+  osm_stops_valid(force_osm = TRUE)
+}
+#
+# lecture en csv
+# source("geo/scripts/transport.R");osm_stops_valid(force_osm = FALSE)
+osm_stops_valid <- function(force_osm = TRUE) {
+  library(tidyverse)
+  library(data.table)
+  library(janitor)
+  k_ref <- Config[[1, 'k_ref']]
+  carp("k_ref: %s", k_ref)
+  titre <- sprintf("osm_stops_valid_%s", Config[1, 'reseau'])
+  html <- misc_html_titre(titre)
+  html <- misc_html_append(html, "<h1>OSM</h1>")
+#
+#
+  html <- misc_html_append(html, "<h2>Les stops du réseau</h2>")
+  html <- misc_html_append(html, "<h3>Répartition</h3>")
+  network.df <- overpass_get(query = "bus_stop_network", format = "csv", force = force_osm) %>%
+    filter(ferry == "" & tram == "" & rail == "" & train == "") %>%
+    dplyr::select(-ferry, -tram, -rail,  -train) %>%
+    glimpse()
+  df1 <- network.df %>%
+    group_by(`@type`, public_transport, highway, bus) %>%
+    summarize(nb = n()) %>%
+    glimpse()
+  misc_print(df1)
+  html <- misc_html_append_df(html, df1)
+  html <- misc_html_append(html, "<h3>Non conforme PTv2</h3>")
+  tags.df <- read.table(text="type,public_transport,highway,bus
+node,platform,bus_stop,
+node,stop_position,,yes
+", header=TRUE, sep=",", blank.lines.skip = TRUE, stringsAsFactors = FALSE, quote="")
+  misc_print(tags.df)
+  zoom <- "left=%0.5f&right=%0.5f&top=%0.5f&bottom=%0.5f"
+  select <- "%s%s"
+
+  df1 <- network.df %>%
+    filter(!(`@type` == "node" & public_transport == "platform" & highway == "bus_stop" & bus == "")) %>%
+    filter(!(`@type` == "node" & public_transport == "stop_position" & highway == "" & bus == "yes")) %>%
+    filter(!(`@type` == "relation" & public_transport == "stop_area" & highway == "" & bus == "")) %>%
+    filter(!(railway != "")) %>%
+    arrange(`@type`, public_transport, highway, bus) %>%
+    mutate(select = sprintf(select, `@type`, `@id`)) %>%
+    mutate(zoom = sprintf(zoom, `@lon` - .001, `@lon` + .001, `@lat` + .001, `@lat` - .001)) %>%
+    mutate(josm = sprintf("<a href='http://127.0.0.1:8111/load_and_zoom?%s&select=%s'>josm</a>", zoom, select)) %>%
+    dplyr::select(-select, -zoom)
+  df2 <- df1  %>%
+    group_by(`@type`, public_transport, highway, bus) %>%
+    summarize(nb = n()) %>%
+    glimpse()
+  misc_print(df2)
+  html <- misc_html_append_df(html, df2)
+  html <- misc_html_append_df(html, df1)
+#
+#
+  html <- misc_html_append(html, "<h2>Les stops de la zone</h2>")
+  html <- misc_html_append(html, "<h3>Répartition</h3>")
+  area.df <- overpass_get(query = "bus_stop_area", format = "csv", force = force_osm) %>%
+    filter(aerialway == "" & ferry == "" & rail == "" & train == "" & tram == "") %>%
+    dplyr::select(-aerialway, -ferry, -rail,  -train, -tram) %>%
+    glimpse()
+  df1 <- area.df %>%
+    group_by(`@type`, public_transport, highway, bus) %>%
+    summarize(nb = n()) %>%
+    glimpse()
+  misc_print(df1)
+  html <- misc_html_append_df(html, df1)
+  html <- misc_html_append(html, "<h3>Non conforme PTv2</h3>")
+  tags.df <- read.table(text="type,public_transport,highway,bus
+node,platform,bus_stop,
+node,stop_position,,yes
+", header=TRUE, sep=",", blank.lines.skip = TRUE, stringsAsFactors = FALSE, quote="")
+  misc_print(tags.df)
+  zoom <- "left=%0.5f&right=%0.5f&top=%0.5f&bottom=%0.5f"
+  select <- "%s%s"
+
+  df1 <- area.df %>%
+    filter(!(`@type` == "node" & public_transport == "platform" & highway == "bus_stop" & bus == "")) %>%
+    filter(!(`@type` == "node" & public_transport == "stop_position" & highway == "" & bus == "yes")) %>%
+    filter(!(`@type` == "relation" & public_transport == "stop_area" & highway == "" & bus == "")) %>%
+    filter(!(railway != "")) %>%
+    arrange(`@type`, public_transport, highway, bus) %>%
+    mutate(select = sprintf(select, `@type`, `@id`)) %>%
+    mutate(zoom = sprintf(zoom, `@lon` - .001, `@lon` + .001, `@lat` + .001, `@lat` - .001)) %>%
+    mutate(josm = sprintf("<a href='http://127.0.0.1:8111/load_and_zoom?%s&select=%s'>josm</a>", zoom, select)) %>%
+    dplyr::select(-select, -zoom)
+  df2 <- df1  %>%
+    group_by(`@type`, public_transport, highway, bus) %>%
+    summarize(nb = n()) %>%
+    glimpse()
+  misc_print(df2)
+  html <- misc_html_append_df(html, df2)
+  html <- misc_html_append_df(html, df1)
+#
+#
+  dsn <- sprintf("%s/%s.html", webDir, titre)
+  write(html, dsn)
+  carp("dsn: %s", dsn)
+  url <- sprintf("http://localhost/transport/%s.html", titre)
+  browseURL(
+    url,
+    browser = "C:/Program Files/Mozilla Firefox/firefox.exe"
+  )
+}
 #
 # source("geo/scripts/transport.R"); od <- osm_bus_stop_network(force = TRUE) %>% glimpse
 osm_bus_stop_network <- function(fic = 'osm_bus_stop_network', force = TRUE) {
@@ -816,8 +1032,10 @@ osm_relation_route_versions <- function(id, force = FALSE, force_osm = FALSE) {
 
 # Quimper 6-A
 # Vannes 4754448 6b
-# source("geo/scripts/transport.R");osm_relation_route_members(id = "11984170", force = TRUE)
-osm_relation_route_members <- function(id, force = FALSE, force_osm = FALSE) {
+# source("geo/scripts/transport.R");osm_relation_route_members(id = "11984170", force = TRUE) %>% glimpse()
+# Bordeaux 2422223 6b
+# source("geo/scripts/transport.R");osm_relation_route_members(id = "2422223", force = TRUE) %>% glimpse()
+osm_relation_route_members <- function(id, force = TRUE, force_osm = TRUE) {
   library(tidyverse)
   library(data.table)
   library(sf)
@@ -831,8 +1049,7 @@ osm_relation_route_members <- function(id, force = FALSE, force_osm = FALSE) {
   rc <- FALSE
   members_loins.df <- tibble()
   members_kref.df <- tibble()
-  rc <- osmapi_get_transport(ref = id, force = force, force_osm = force_osm) %>%
-    glimpse()
+  rc <- osmapi_get_transport(ref = id, force = force, force_osm = force_osm)
   ways.sf <- rc$ways.sf
   if (st_is_empty(ways.sf[1,]) ) {
     carp("***id: %s", id)
@@ -1420,4 +1637,100 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
   }
   carp("fin id: %s nrow: %s", id, nrow(gaps.df))
   return(invisible(gaps.df))
+}
+#
+# source("geo/scripts/transport.R");osm_routes_refs(reseau = Reseau, force = TRUE)
+osm_routes_refs <- function(reseau = "star", force = TRUE) {
+  library(tidyverse)
+  library(data.table)
+  library(sf)
+  library(janitor)
+  carp()
+  config_xls(reseau)
+  dsn <- osm_relations_route_bus_csv(force = force)
+  df <- fread(dsn, encoding = "UTF-8") %>%
+    as.data.table() %>%
+    clean_names() %>%
+    glimpse()
+  df1 <- df %>%
+    filter(is.na(ref_network)) %>%
+    glimpse()
+  tex_df2kable(df1, suffixe = "absent", longtable = TRUE)
+  gtfs.df <- tidytransit_lire("gtfs_routes_stops") %>%
+    glimpse()
+  df2 <- df %>%
+    filter(ref_network %notin% gtfs.df$ref_network) %>%
+    glimpse()
+  tex_df2kable(df2, suffixe = "inconnu", longtable = TRUE)
+  texFic <- sprintf("%s/%s", imagesDir, "osm_routes_refs.tex")
+  TEX <- file(texFic)
+  tex <- sprintf("<!-- coding: utf-8 -->
+%s ", format(Sys.time(), "%d/%m/%Y %H:%M:%S"))
+#
+# le template tex
+  dsn <- sprintf("%s/routes_refs_tpl.tex", tplDir)
+  template <- readLines(dsn) %>%
+    glimpse()
+#  stop("****")
+  df1 <- df %>%
+    dplyr::select(id, timestamp, user, ref_network) %>%
+    arrange(ref_network)
+  tex_df2kable(df1, suffixe = "lst", longtable = TRUE)
+  for (i in 1:nrow(df)) {
+    carp("i: %s/%s", i, nrow(df))
+    id <-  df[i, "id"]
+    ref <- df[[i, "ref_network"]]
+    dsn <- sprintf("%s/osm_routes_refs_%s.pdf", imagesDir, id)
+#    glimpse(df[i, ]);stop("****")
+# les données osm
+    rc <- osmapi_get_members_platform(ref = id, force = TRUE)
+    route.df <- rc$relation %>%
+      glimpse() %>%
+      mutate(first_stop = sub(";.*$", "", stops_id)) %>%
+      mutate(last_stop = sub("^.*;", "", stops_id))
+    df1 <- rbind(colnames(route.df), route.df) %>%
+      t() %>%
+      as.data.frame()
+    rownames(df1) <- NULL
+    t <- tex_df2table(df1, suffixe = id, dossier = "images", entete = "lp{4cm}p{15cm}")
+# les données gtfs
+    df2 <- gtfs.df %>%
+      filter(ref_network == !!ref)
+    df3 <- df2 %>%
+      dplyr::select(first_stop, last_stop)
+    tex_df2table(df3, suffixe = id, dossier = "stop", entete = "lp{4cm}p{4cm}")
+    if (1 == 2) {
+      t2 <- ""
+      for (i2 in 1:nrow(df2)) {
+        df3 <- df2[i2, ]
+        df3 <- rbind(colnames(df3), df3) %>%
+          t() %>%
+          as.data.frame()
+        rownames(df3) <- NULL
+        t <- tex_df2table(df3, suffixe = id, dossier = "gtfs", entete = "lp{4cm}p{15cm}")
+        t2 <- append(t2, t)
+      }
+      dsn <- tex_dsn(suffixe = id, dossier = "gtfs")
+      carp("dsn: %s", dsn)
+      f <- file(dsn, open="w")
+      writeLines(t2, f)
+      close(f)
+    }
+    tpl <- tex_df2tpl(df, i, template)
+    tpl <- escapeLatexSpecials(tpl)
+    tex <- append(tex, tpl)
+    next
+    break
+    osm.sf <- osmapi_get_ways(ref = id, force = force, force_osm = FALSE) %>%
+      st_transform(2154)
+    add <- FALSE
+    if (! st_is_empty(osm.sf[1,]) ) {
+      plot(st_geometry(osm.sf), col = "blue", lwd = 3)
+      add <- TRUE;
+    }
+    dsn <- dev2pdf(suffixe = id, dossier = "images")
+  }
+  write(tex, file = TEX, append = FALSE)
+  close(TEX)
+  carp("texFic: %s", texFic)
 }

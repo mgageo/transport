@@ -33,3 +33,23 @@ ign_stops_commune <- function() {
     filter(city == "") %>%
     glimpse()
 }
+#
+# source("geo/scripts/transport.R");ign_tidytransit_geocode()
+ign_tidytransit_geocode <- function(tt) {
+  library(readr)
+  carp()
+  communes.sf <- ign_adminexpress_lire_sf() %>%
+    filter(INSEE_DEP == Config[1, "territoire"]) %>%
+    dplyr::select(NOM) %>%
+    rename("city" = NOM) %>%
+    glimpse()
+  stops.df <- tt$stops
+  stops.sf <- st_as_sf(stops.df, coords = c("stop_lon", "stop_lat"), crs = 4326, remove = FALSE) %>%
+    st_transform(2154)
+  df1 <- stops.sf %>%
+    st_join(communes.sf) %>%
+    st_drop_geometry() %>%
+    glimpse()
+  tt$stops <- df1
+  return(invisible(tt))
+}

@@ -549,8 +549,7 @@ osmapi_get_transport <- function(ref = "11920346", force = FALSE, force_osm = FA
 # on peut enfin s'attaquer au rapprochement pour les nodes
   df1 <- members.df %>%
     filter(type == "node") %>%
-    left_join(nodes.df, by = c("ref" = "id")) %>%
-    clean_names()
+    left_join(nodes.df, by = c("ref" = "id"))
   df2 <- df1 %>%
     filter(grepl("platform", role))
   relation.df[1, "stops_name"] <- paste(df2$name, collapse = ";")
@@ -565,8 +564,7 @@ osmapi_get_transport <- function(ref = "11920346", force = FALSE, force_osm = FA
     filter(role == "" & type == "way") %>%
 #    glimpse();stop("*****")
     left_join(ways.sf, by = c("ref" = "id")) %>%
-    rename(id = ref) %>%
-    clean_names()
+    rename(id = ref)
   sf11 <- st_as_sf(df11, geometry = st_as_sfc(df11$wkt, crs = 4326)) %>%
     mutate(way_no = row_number()) %>%
     st_transform(2154) %>%
@@ -697,8 +695,7 @@ osmapi_api <- function(path, xml = '', methode = "PUT", debug = FALSE) {
       body = xml,
       authenticate(username, password, type = "basic"),
       content_type_xml(),
-      ua,
-      verbose()
+      ua
     )
   }
   if (methode == "GET") {
@@ -709,7 +706,18 @@ osmapi_api <- function(path, xml = '', methode = "PUT", debug = FALSE) {
  #     verbose()
     )
   }
-  stop_for_status(resp)
+  if (http_error(resp)) {
+    writeLines(xml)
+    txt <- httr::content(resp, as = "text")
+    writeLines(txt)
+    stop(
+      sprintf(
+        "osm API request failed [%s]",
+        status_code(resp)
+      ),
+      call. = FALSE
+    )
+  }
   txt <- httr::content(resp, as = "text")
   if (debug == TRUE) {
     if (http_type(resp) == "application/json") {
@@ -814,7 +822,7 @@ osmapi_put <- function(osmchange = "create", text = "osm", force = FALSE) {
 osmapi_osmchange <- function(changeset_id = 200, change = "create", osm = "<node>") {
   timestamp <- format(Sys.time(), "%Y-%m-%dT%H:%M:%S.0+02:00")
   osm <- str_replace(osm, 'changeset="\\d+"', 'changeset="{changeset_id}"')
-  text <- '<osmChange version="0.3" generator="mga_geo">
+  text <- '<osmChange version="0.6" generator="R mga_geo">
 <{change}>
 {osm}
 </{change}>

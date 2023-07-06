@@ -8,17 +8,17 @@
 #
 ## quelques options générales ------------------------------------
 #
-library(tidyverse)
-library(janitor)
-library(knitr)
-library(kableExtra)
 library(conflicted)
 conflicts_prefer(dplyr::filter(), .quiet = TRUE)
 conflicts_prefer(dplyr::select(), .quiet = TRUE)
 conflicts_prefer(dplyr::first(), .quiet = TRUE)
 conflicts_prefer(dplyr::last(), .quiet = TRUE)
 #conflicts_prefer(tidyr::extract(), .quiet = TRUE)
-
+library(tidyverse)
+library(janitor)
+library(knitr)
+library(kableExtra)
+library(readr)
 options("encoding" = "UTF-8")
 par(mar = c(0, 0, 0, 0), oma = c(0, 0, 0, 0), mai = c(0, 0, 0, 0))
 options(stringsAsFactors = FALSE)
@@ -1074,7 +1074,7 @@ misc_dsn_test <- function(dsn = FALSE, suffixe = "toto", dossier = "") {
   dsn <- misc_dsn(match.call())
   print(sprintf("dsn: %s", dsn))
 }
-misc_dsn <- function(dsn = FALSE, suffixe = "", dossier = "", ...) {
+misc_dsn <- function(dsn = FALSE, suffixe = "", dossier = "", extension = "tex",...) {
   if ( dsn == FALSE ) {
     curcall <- as.character(deparse(sys.call(-1)))[1]
     curcall <- gsub('\\(.*$', '', curcall)
@@ -1086,7 +1086,7 @@ misc_dsn <- function(dsn = FALSE, suffixe = "", dossier = "", ...) {
       d <- sprintf("%s/%s", texDir, dossier)
       dir.create(d, showWarnings = FALSE, recursive = TRUE)
     }
-    dsn <- sprintf("%s/%s%s%s.tex", texDir, dossier, curcall, suffixe)
+    dsn <- sprintf("%s/%s%s%s.%s", texDir, dossier, curcall, suffixe, extension)
   }
   return(invisible(dsn))
 }
