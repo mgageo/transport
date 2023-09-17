@@ -6,6 +6,11 @@
 # licence: Creative Commons Paternité - Pas d'Utilisation Commerciale - Partage des Conditions Initiales à l'Identique 2.0 France
 # ===============================================================
 #
+#
+# le gtfs ne comprend pas les shapes
+#
+# des infos sont disponibles sur le site opendata mais lien douteux avec le gtfs
+#
 # source("geo/scripts/transport.R");bordeaux_jour()
 bordeaux_jour <- function(reseau = "bordeaux", force = TRUE) {
   library(tidyverse)
@@ -16,8 +21,6 @@ bordeaux_jour <- function(reseau = "bordeaux", force = TRUE) {
   reseau_tpl_tex(reseau = reseau)
 #  bordeaux_opendata()
   tidytransit_jour()
-  tidytransit_routes_trips_stops()
-  tex_pdflatex(sprintf("%s_osm.tex", reseau))
 }
 #
 # téléchargement des données en opendata

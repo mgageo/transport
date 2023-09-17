@@ -2,18 +2,25 @@
 #
 # le réseau de bus de la région Bretagne
 #
+# fusion du réseau régional et des réseaux des départements
+# https://www.breizhgo.bzh/se-deplacer-en-bretagne/se-deplacer-en-car
+# 22 : Tibus
+# 29 : PENNARBED
+# 35 : Illenoo
+# 56 : TIM
+#
 # auteur : Marc Gauthier
 # licence: Creative Commons Paternité - Pas d'Utilisation Commerciale - Partage des Conditions Initiales à l'Identique 2.0 France
 # ===============================================================
 #
 # source("geo/scripts/transport.R");breizhgo_jour()
-breizhgo_jour <- function() {
+breizhgo_jour <- function(reseau= "breizhgo", force = TRUE) {
   carp()
-  config_xls('breizhgo');
-  mobibreizh_gtfs_reseau(Config[1, "reseau"], Config[1, "agency_id"])
-  txt_gtfs_stops_sf()
+  config_xls(reseau);
+#  mobibreizh_gtfs_reseau(Config[1, "reseau"], Config[1, "agency_id"])
+  tidytransit_jour()
+#  reseau_osm_jour(reseau = reseau, force = force)
 }
-# https://www.breizhgo.bzh/se-deplacer-en-bretagne/se-deplacer-en-car
 # source("geo/scripts/transport.R");breizhgo_dpts()
 breizhgo_dpts <- function(force = FALSE) {
   carp()

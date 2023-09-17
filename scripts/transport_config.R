@@ -30,7 +30,8 @@ config_xls <- function(res = "star", xls = "agency") {
     carp("import dsn: %s reseau: %s", dsn, res)
     Config.df <<- import(dsn)
     Config <<- Config.df %>%
-      filter(reseau == res)
+      filter(reseau == res) %>%
+      mutate(route_prefixe = replace_na(route_prefixe, ""))
   }
   if (nrow(Config) != 1) {
     misc_print(Config)

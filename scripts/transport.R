@@ -44,15 +44,18 @@ source("geo/scripts/misc_osmose.R")
 source("geo/scripts/misc_osrm.R")
 source("geo/scripts/misc_overpass.R")
 source("geo/scripts/misc_ssh.R")
-source("geo/scripts/misc_st.R")
+source("geo/scripts/misc_st.R"); # ajout de fonctions à sf dans st_proches
 source("geo/scripts/misc_tex.R")
 source("geo/scripts/misc_tidytransit.R")
 source("geo/scripts/misc_unicode.R")
-source("geo/scripts/transport_config.R")
+source("geo/scripts/transport_carto.R"); # production des cartes
+source("geo/scripts/transport_config.R"); # lecture du fichier excel
+source("geo/scripts/transport_diff.R"); # différence entre gtfs et osm
 # source("geo/scripts/transport_gtfs.R")
 source("geo/scripts/transport_gtfs2mga.R")
 source("geo/scripts/transport_gtfs2osm.R")
 source("geo/scripts/transport_ign.R"); # pour la détermination des communes des arrêts
+source("geo/scripts/transport_menu.R")
 source("geo/scripts/transport_mapbox.R")
 source("geo/scripts/transport_misc.R")
 source("geo/scripts/transport_mobibreizh.R"); # pour le gtfs de la région
@@ -103,7 +106,6 @@ source("geo/scripts/transport_tudbus.R")
 Reseau <- "concarneau"
 Reseau <- "kiceo"; # Vannes
 Reseau <- "qub"; # Quimper
-Reseau <- "breizhgo56"; # pseudo-réseau pour BreizhGo en Morbihan
 Reseau <- "morlaix"; # LinéoTim
 Reseau <- "breizhgo35"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
 Reseau <- "ter"; # pseudo-réseau pour BreizhGo SNCF
@@ -118,9 +120,14 @@ Reseau <- "toulouse"; # Toulouse Métropole
 Reseau <- "bretagne"; # pseudo-réseau pour la Bretagne
 Reseau <- "bibus"; # Brest
 Reseau <- "qub"; # Quimper
+Reseau <- "douarnenez"; # Douarnenez
+Reseau <- "breizhgo35"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
+Reseau <- "breizhgo22"; # pseudo-réseau pour BreizhGo en Côtes d'Armor
+Reseau <- "breizhgo56"; # pseudo-réseau pour BreizhGo en Morbihan
+Reseau <- "breizhgo29"; # pseudo-réseau pour BreizhGo en Finistère
+Reseau <- "dinan"
 Reseau <- "bordeaux"; # Bordeaux Métropole
 Reseau <- "star"; # Rennes
-Reseau <- "douarnenez"; # Douarnenez
   config_xls(Reseau)
 if ( interactive() ) {
   DEBUG <- TRUE

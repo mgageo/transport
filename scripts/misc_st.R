@@ -44,6 +44,17 @@ st_proches <- function(nc1, nc2) {
     mutate(d = as.integer(d))
   return(invisible(df))
 }
+st_proches <- function(nc1, nc2, k = 1) {
+  library(nngeo)
+  n <- st_nn(nc1, nc2, k = k, progress = TRUE, returnDist = TRUE)
+  mga <<- n
+  ids <-  sapply(n[[1]], "[", k)
+  dists <- sapply(n[[2]], "[", k)
+  df3 <- data.frame(nc1, st_drop_geometry(nc2)[ids, , drop = FALSE])
+  nc3 <- st_sf(df3)
+  nc3$dist <- dists
+  return(invisible(nc3))
+}
 #
 ## analyse d'un fichier osm avec sf/gdal
 #

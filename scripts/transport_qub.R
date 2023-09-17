@@ -390,3 +390,259 @@ qub_gtfs_tram <- function() {
     filter(grepl("CHATEAU", stop_name)) %>%
     glimpse()
 }
+#
+## pour mettre en minuscules le nom des arrêts
+# source("geo/scripts/transport.R");config_xls(Reseau);osm_nodes_bus_topo()
+qub_osm_nodes_bus_topo_v1 <- function(fic = 'nodes_bus', force = FALSE) {
+  library(stringr)
+  dsn <- "d:/web.var/TRANSPORT/QUB/OSM/nodes_bus.csv"
+  df <- fread(dsn, encoding = "UTF-8") %>%
+    clean_names() %>%
+    dplyr::select(-type) %>%
+    glimpse()
+  df1 <- df %>%
+    filter(name != "") %>%
+    filter(!grepl("[a-z]", name)) %>%
+    mutate(nom = str_to_title(name)) %>%
+    glimpse()
+  remplacements <- "src;dest;bid
+ De La ; de la ;
+ D E; d'E;
+ De ; de ;
+ Du ; du ;
+ Des ; des ;
+ D'; d';
+ L'; l';
+ An ; an ;
+ Ar ; ar ;
+ Au ; au ;
+ Aux ; aux ;
+ Ty ; ty ;
+^Zac ;ZAC ;
+^Zc ;ZC ;
+^Zi ;ZI ;
+^Epsm;EPSM;
+^Cmpi;CMPI;
+^C.c. ; C.C. ;
+^Cc ;CC ;
+'H$;'h;
+^Cfa;CFA;
+^Iut;IUT;
+Rdpt ; RdPt ;
+^A\\.m\\.;A.M.;
+Sncf;SNCF;
+^Caf;CAF;
+D'auvergne;d'Auvergne;
+ Andre; André;
+Abbe$;Abbé;
+Aeroport;Aéroport
+Ampere;Ampère;
+Becharles;Bécharles;
+Bleriot;Blériot;
+Boissiere;Boissière;
+Chateau;Château;
+^Cite;Cité;
+College;Collège;
+Congres;Congrès;
+Creac'h;Créac'h;
+Crenal;Crénal
+Echange;Échange;
+Ecole;École;
+Eglise;Église;
+Entree;Entrée;
+Ergue;Ergué;
+Eric;Éric;
+Exupery;Exupéry;
+Francois;François;
+Freres;Frères;
+Gaberic; Gabéric;
+General;Général;
+Genets;Genêts;
+Glaieuls;Glaïeuls;
+Guelen;Guélen;
+Guenole;Guénolé;
+Guepratte;Guépratte
+Herve;Hervé;
+Kerdevot;Kerdévot;
+Kerdiles;Kerdilès;
+Kerdrezec;Kerdrézec;
+Kerelan;Kérélan;
+Kerguelen;Kerguélen;
+Kerroue;Kerroué;
+Kerdevot;Kerdévot;
+Leurgueric;Leurguéric;
+Lezebel;Lézebel;
+Liberation;Libération;
+Lycee;Lycée;
+Masse$;Massé;
+Mendes;Mendès;
+Menez;Ménez;
+Metairie;Métairie;
+Nevez;Névez;
+Nominoe;Nominoë;
+Pole;Pôle;
+President;Président;
+Pyrenees;Pyrénées;
+Rene$;René;
+Resistance;Résistance;
+Routiere;Routière;
+Thepot;Thépot;
+Therese;Thérèse;
+Treodet;Tréodet;
+Universite;Université;
+"
+  r.df <- fread(remplacements, strip.white = FALSE) %>%
+    glimpse()
+  for (i in 1:nrow(r.df)) {
+    df1$nom = str_replace(df1$nom, r.df[[i, "src"]], r.df[[i, "dest"]])
+  }
+  misc_print(df1)
+  dsn <- "d:/web.var/TRANSPORT/QUB/OSM/nodes_bus_topo.csv"
+  rio::export(df1, dsn, sep = ";")
+}
+
+
+qub_osm_nodes_bus_topo <- function(fic = 'nodes_bus', force = FALSE) {
+  library(stringr)
+  library(stringi)
+  dsn <- "d:/web.var/TRANSPORT/QUB/OSM/nodes_bus.csv"
+  df <- fread(dsn, encoding = "UTF-8") %>%
+    clean_names() %>%
+    dplyr::select(-type) %>%
+    glimpse()
+  df1 <- df %>%
+    dplyr::select(name) %>%
+    mutate(NAME = str_to_upper(name)) %>%
+    mutate(NAME = stri_trans_general(NAME, id = "Latin-ASCII")) %>%
+    arrange(NAME) %>%
+    distinct(name, NAME) %>%
+    filter(name != NAME) %>%
+    mutate(topo = sprintf("%s;%s", NAME, name)) %>%
+    dplyr::select(topo) %>%
+    glimpse()
+  dsn <- "d:/web.var/TRANSPORT/QUB/OSM/nodes_bus_topo.csv"
+  rio::export(df1, dsn, sep = ";")
+}
+#
+# source("geo/scripts/transport.R");config_xls(Reseau);osm_nodes_bus_mga()
+qub_osm_nodes_bus_mga <- function(fic = 'nodes_bus', force = FALSE) {
+  library(stringr)
+  library(stringi)
+  dsn <- "d:/web.var/TRANSPORT/QUB/OSM/nodes_bus.csv"
+  osm.df <- fread(dsn, encoding = "UTF-8") %>%
+    clean_names() %>%
+    dplyr::select(-type) %>%
+    mutate(NAME = str_to_upper(name)) %>%
+    mutate(NAME = stri_trans_general(NAME, id = "Latin-ASCII")) %>%
+    glimpse()
+  dsn <- "d:/web.var/TRANSPORT/QUB/OSM/nodes_bus_topo_mga.csv"
+  mga.df <- fread(dsn, encoding = "UTF-8") %>%
+    glimpse()
+  df1 <- osm.df %>%
+    left_join(mga.df, by = c("NAME" = "NAME")) %>%
+    filter(is.na(name.y)) %>%
+    filter(NAME != "") %>%
+    arrange(NAME) %>%
+    distinct(NAME) %>%
+    glimpse()
+  df2 <- osm_topo(df1) %>%
+    glimpse()
+  dsn <- "d:/web.var/TRANSPORT/QUB/OSM/nodes_bus_topo.csv"
+  fwrite(df2, dsn, sep = ";")
+}
+qub_osm_topo <- function(df1) {
+  library(stringr)
+  remplacements <- "src;dest;bid
+ De La ; de la ;
+ D E; d'E;
+ De ; de ;
+ Du ; du ;
+ Des ; des ;
+ D'; d';
+ L'; l';
+ An ; an ;
+ Ar ; ar ;
+ Au ; au ;
+ Aux ; aux ;
+ Ty ; ty ;
+^Zac ;ZAC ;
+^Zc ;ZC ;
+^Zi ;ZI ;
+^Epsm;EPSM;
+^Cmpi;CMPI;
+^C.c. ; C.C. ;
+^Cc ;CC ;
+'H$;'h;
+^Cfa;CFA;
+^Iut;IUT;
+Rdpt ; RdPt ;
+Sncf;SNCF;
+^Caf;CAF;
+D'auvergne;d'Auvergne;
+ Andre; André;
+Abbe$;Abbé;
+Aeroport;Aéroport;
+Ampere;Ampère;
+Becharles;Bécharles;
+Bleriot;Blériot;
+Boissiere;Boissière;
+Chateau;Château;
+^Cite;Cité;
+College;Collège;
+Congres;Congrès;
+Creac'h;Créac'h;
+Crenal;Crénal;
+Echange;Échange;
+Ecole;École;
+Eglise;Église;
+Entree;Entrée;
+Ergue;Ergué;
+Eric;Éric;
+Exupery;Exupéry;
+Francois;François;
+Freres;Frères;
+Gaberic; Gabéric;
+General;Général;
+Genets;Genêts;
+Glaieuls;Glaïeuls;
+Guelen;Guélen;
+Guenole;Guénolé;
+Guepratte;Guépratte;
+Herve;Hervé;
+Kerdevot;Kerdévot;
+Kerdiles;Kerdilès;
+Kerdrezec;Kerdrézec;
+Kerelan;Kérélan;
+Kerguelen;Kerguélen;
+Kerroue;Kerroué;
+Kerdevot;Kerdévot;
+Leurgueric;Leurguéric;
+Lezebel;Lézebel;
+Liberation;Libération;
+Lycee;Lycée;
+Masse$;Massé;
+Mendes;Mendès;
+Menez;Ménez;
+Metairie;Métairie;
+Nevez;Névez;
+Nominoe;Nominoë;
+Pole;Pôle;
+President;Président;
+Pyrenees;Pyrénées;
+Rene$;René;
+Resistance;Résistance;
+Routiere;Routière;
+Thepot;Thépot;
+Therese;Thérèse;
+Treodet;Tréodet;
+Universite;Université;
+"
+  r.df <- fread(remplacements, strip.white = FALSE) %>%
+    glimpse()
+  df1 <- df1 %>%
+    mutate(nom = str_to_title(NAME))
+  for (i in 1:nrow(r.df)) {
+    df1$nom = str_replace(df1$nom, r.df[[i, "src"]], r.df[[i, "dest"]])
+  }
+  return(invisible(df1))
+}

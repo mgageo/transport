@@ -462,7 +462,7 @@ osmapi_get_node_ways <- function(node, force = FALSE) {
 # récupération des informations d'une relation transport
 # version xml
 # https://rdrr.io/github/mdlincoln/bigosm/src/R/parse.R
-# source("geo/scripts/transport.R"); rc <- osmapi_get_transport(ref = "8592843", force = TRUE)
+# source("geo/scripts/transport.R"); rc <- osmapi_get_transport(ref = "2422224", force = TRUE)
 osmapi_get_transport <- function(ref = "11920346", force = FALSE, force_osm = FALSE) {
   library(readr)
   library(tidyverse)
@@ -496,41 +496,44 @@ osmapi_get_transport <- function(ref = "11920346", force = FALSE, force_osm = FA
 #
 # les ways
   carp("les ways")
-  ways.df <- osmapi_objects_tags(ways) %>%
-    dplyr::select(id, matches("^(name|highway|junction|oneway|oneway\\:bus|ref)")) %>%
-    (function(.df){
-      cls <- c("name", "highway", "junction", "oneway", "oneway:bus", "ref")
-      .df[cls[!(cls %in% colnames(.df))]] = NA
-      return(.df)
-    }) %>%
-    glimpse()
+  ways.df <- osmapi_objects_tags(ways)
+  if (nrow(ways.df) > 0) {
+    ways.df <- ways.df %>%
+      dplyr::select(id, matches("^(name|highway|junction|oneway|oneway\\:bus|ref)")) %>%
+      (function(.df){
+        cls <- c("name", "highway", "junction", "oneway", "oneway:bus", "ref")
+        .df[cls[!(cls %in% colnames(.df))]] = NA
+        return(.df)
+      }) %>%
+      glimpse()
 #  stop("*****")
 #  print(xml_structure(ways[[1]]))
-  ls.v <- c()
-  for (i in 1:nrow(ways.df)) {
-    nodes <- xml_find_all(ways[[i]], "./nd") %>%
-      xml_attr("ref")
-    df1 <- data.frame(id = nodes) %>%
-      left_join(nodes.df, by = ("id")) %>%
-      mutate(point = sprintf("%s %s", lon, lat)) %>%
-      summarize(points = paste(point, collapse = ",")) %>%
-      mutate(wkt = sprintf("LINESTRING(%s)", points))
-     ways.df[i, "wkt"] <- df1[[1, "wkt"]]
+    ls.v <- c()
+    for (i in 1:nrow(ways.df)) {
+      nodes <- xml_find_all(ways[[i]], "./nd") %>%
+        xml_attr("ref")
+      df1 <- data.frame(id = nodes) %>%
+        left_join(nodes.df, by = ("id")) %>%
+        mutate(point = sprintf("%s %s", lon, lat)) %>%
+        summarize(points = paste(point, collapse = ",")) %>%
+        mutate(wkt = sprintf("LINESTRING(%s)", points))
+       ways.df[i, "wkt"] <- df1[[1, "wkt"]]
 #    ls1 <- st_linestring(matrix(c(df1$lon, df1$lat), nrow(df1), 2))
 #    ways.df[i, "ls"][[1]] <- list(ls1)
 #    ls.v <- append(ls.v, ls1)
 # https://ryouready.wordpress.com/2016/07/18/populating-data-frame-cells-with-more-than-one-value/
-    ways.df[i, "nb_nodes"] <- length(nodes)
-    ways.df[i, "nodes"][[1]] <- list(nodes)
-    ways.df[i, "node1"] <- nodes[1]
-    ways.df[i, "node9"] <- nodes[length(nodes)]
+      ways.df[i, "nb_nodes"] <- length(nodes)
+      ways.df[i, "nodes"][[1]] <- list(nodes)
+      ways.df[i, "node1"] <- nodes[1]
+      ways.df[i, "node9"] <- nodes[length(nodes)]
 #    mga <<- nodes
 #    glimpse(nodes); stop("*****")
   }
 #  glimpse(ways.df); stop("*****")
-  ways.sf <- st_as_sf(ways.df, geometry = st_as_sfc(ways.df$wkt, crs = 4326)) %>%
-    st_transform(2154) %>%
-    glimpse()
+    ways.sf <- st_as_sf(ways.df, geometry = st_as_sfc(ways.df$wkt, crs = 4326)) %>%
+      st_transform(2154) %>%
+      glimpse()
+  }
 #
 # la relation
   relation <- relations[[1]]
@@ -560,15 +563,19 @@ osmapi_get_transport <- function(ref = "11920346", force = FALSE, force_osm = FA
 #
 # on peut enfin s'attaquer au rapprochement pour les ways
 #  misc_print(members.df)
-  df11 <- members.df %>%
-    filter(role == "" & type == "way") %>%
+  if (nrow(ways.df) > 0) {
+    df11 <- members.df %>%
+      filter(role == "" & type == "way") %>%
 #    glimpse();stop("*****")
-    left_join(ways.sf, by = c("ref" = "id")) %>%
-    rename(id = ref)
-  sf11 <- st_as_sf(df11, geometry = st_as_sfc(df11$wkt, crs = 4326)) %>%
-    mutate(way_no = row_number()) %>%
-    st_transform(2154) %>%
-    glimpse()
+      left_join(ways.sf, by = c("ref" = "id")) %>%
+      rename(id = ref)
+    sf11 <- st_as_sf(df11, geometry = st_as_sfc(df11$wkt, crs = 4326)) %>%
+      mutate(way_no = row_number()) %>%
+      st_transform(2154) %>%
+      glimpse()
+  } else {
+    sf11 <- tribble()
+  }
   rc <- list("relation" = relation.df, "members.df" = df3, "ways.sf" = sf11)
   saveRDS(rc, dsn_rds)
   return(invisible(rc))

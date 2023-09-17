@@ -12,6 +12,7 @@
 # https://transport.data.gouv.fr/datasets/base-de-donnees-multimodale-transports-publics-en-bretagne-mobibreizh/
 # https://breizh.opendatasoft.com/explore/dataset/base-de-donnees-multimodale-transports-publics-en-bretagne-mobibreizh/table/
 # https://exs.breizgo.cityway.fr/ftp/GTFS/MOBIBREIZHBRET.gtfs.zip
+#
 # le fichier doit avoir été téléchargé dans D:\web.var\TRANSPORT\MOBIBREIZH\
 # puis éclaté dans ce dossier
 #
@@ -36,6 +37,8 @@ mobibreizh_jour <- function() {
 }
 #
 # extraction par réseau et production du gtfs.zip
+#
+# source("geo/scripts/transport.R");mobibreizh_reseaux()
 mobibreizh_reseaux <- function() {
   library(tidyverse)
   library(rio)

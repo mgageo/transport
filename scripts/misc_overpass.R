@@ -420,8 +420,9 @@ overpass_query_csv <- function(query, fic = "test", force = TRUE) {
   library(httr)
   library(tidyverse)
   dsn <- sprintf("%s/%s.csv", osmDir, fic)
+  mga <<- force
   carp("dsn: %s", dsn)
-  if (! file.exists(dsn) || force == TRUE) {
+  if (! file.exists(dsn) | force == TRUE) {
     carp("query: %s", query)
     res <- httr::POST(overpass_base_url, body=query, httr::write_disk(dsn, overwrite = TRUE))
     if (status_code(res) != 200) {
@@ -471,10 +472,10 @@ overpass_query_geojson_get <- function(data, dsn) {
 ## les requêtes pour les arrêts
 #
 overpass_query_bus_stop_kref_csv <- function() {
-  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,::lat,::lon,name,highway,public_transport,aerialway,bus,ferry,rail,train,tram,railway,"%s";true;"|")];
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,::lat,::lon,name,highway,public_transport,aerialway,bus,ferry,rail,train,tram,railway,walking_bus,"%s";true)];
 (
   nwr[highway=bus_stop]["%s"];
-  nwr[public_transport=platform]["%s"];
+  nwr[public_transport=platform][railway!=platform]["%s"];
 );
 out center meta;', Config[1, 'k_ref'], Config[1, 'k_ref'], Config[1, 'k_ref'])
   return(invisible(requete))
@@ -491,7 +492,7 @@ out meta;', Config[1, 'network'])
   return(invisible(requete))
 }
 overpass_query_bus_stop_network_csv <- function() {
-  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,::lat,::lon,name,highway,public_transport,aerialway,bus,ferry,rail,train,tram,railway,"%s";true;"|")];
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,::lat,::lon,name,highway,public_transport,aerialway,bus,ferry,rail,train,tram,railway,walking_bus,"%s";true;"|")];
 relation[type=route][route=bus][network="%s"]->.a;
 (
   nwr[highway=bus_stop](r.a);
@@ -512,7 +513,7 @@ out center meta;', Config[1, 'zone_relation'])
   return(invisible(requete))
 }
 overpass_query_bus_stop_area_csv <- function() {
-  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,::lat,::lon,name,highway,public_transport,aerialway,bus,ferry,rail,train,tram,railway,"%s";true;"|")];
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,::lat,::lon,name,highway,public_transport,aerialway,bus,ferry,rail,train,tram,railway,walking_bus,"%s";true)];
 relation(%s);map_to_area->.a;
 (
   nwr(area.a)[highway=bus_stop];

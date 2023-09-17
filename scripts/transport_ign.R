@@ -37,9 +37,12 @@ ign_stops_commune <- function() {
 # source("geo/scripts/transport.R");ign_tidytransit_geocode()
 ign_tidytransit_geocode <- function(tt) {
   library(readr)
-  carp()
+  territoire <- Config[1, "territoire"]
+  carp("territoire: %s", territoire)
+  territoire <- unlist(strsplit(territoire, ",")) %>%
+    glimpse()
   communes.sf <- ign_adminexpress_lire_sf() %>%
-    filter(INSEE_DEP == Config[1, "territoire"]) %>%
+    filter(INSEE_DEP %in% territoire) %>%
     dplyr::select(NOM) %>%
     rename("city" = NOM) %>%
     glimpse()
@@ -50,6 +53,12 @@ ign_tidytransit_geocode <- function(tt) {
     st_join(communes.sf) %>%
     st_drop_geometry() %>%
     glimpse()
+  df2 <- df1 %>%
+    filter(is.na(city))
+  if (nrow(df2) > 0) {
+    misc_print(df2)
+    confess("échec geocode nb: %s", nrow(df2))
+  }
   tt$stops <- df1
   return(invisible(tt))
 }

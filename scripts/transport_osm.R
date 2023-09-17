@@ -33,55 +33,6 @@ osm_jour_v1 <- function(routemaster = FALSE, route = TRUE, stop = TRUE, force = 
   }
   osm_routes_refs()
 }
-#
-# source("geo/scripts/transport.R");config_xls('bibus');osm_relations_valid()
-osm_relations_valid <- function(force = TRUE) {
-  carp()
-  titre <- sprintf("osm_relations_valid_%s", Config[1, "reseau"])
-  html <- misc_html_titre(titre)
-  html <- misc_html_append(html, sprintf("<h1>%s</h1>", titre))
-  rc <- objets_relations_route(force)
-  routes.df <- rc[["relations.df"]]
-  rc <- objets_relations_route_master(force)
-  masters.df <- rc[["relations.df"]] %>%
-    glimpse()
-  members.df <- rc[["members.df"]] %>%
-    glimpse()
-#
-  html <- misc_html_append(html, sprintf("<h2>%s</h2>", "cohérence route_master # route"))
-  html <- misc_html_append(html, sprintf("<h3>%s</h3>", "les masters sans route"))
-  df1 <- masters.df %>%
-    filter(nb_members == 0)
-  if (nrow(df1) > 0) {
-    html <- misc_html_append_df(html, df1)
-  }
-#
-  html <- misc_html_append(html, sprintf("<h3>%s</h3>", "les relations route hors master"))
-  df1 <- routes.df %>%
-    filter(! id %in% members.df$ref)
-  if (nrow(df1) > 0) {
-    html <- misc_html_append_df(html, df1)
-  }
-#
-  html <- misc_html_append(html, sprintf("<h3>%s</h3>", "les relations route dans plusieurs master"))
-  df1 <- members.df %>%
-    group_by_all() %>%
-    summarize(nb = n()) %>%
-    filter(nb > 1)
-  if (nrow(df1) > 0) {
-    html <- misc_html_append_df(html, df1)
-  }
-
-  fic <- sprintf("%s.html", titre)
-  dsn <- sprintf("%s/%s", webDir, fic)
-  write(html, dsn)
-  carp("dsn: %s", dsn)
-  url <- sprintf("http://localhost/transport/%s", fic)
-  browseURL(
-    url,
-    browser = "C:/Program Files/Mozilla Firefox/firefox.exe"
-  )
-}
 # les routes
 #
 osm_relations_route_bus_get <- function(fic = 'relations_route_bus', force = FALSE) {
@@ -286,15 +237,168 @@ osm_jour_stops <- function(reseau = "star", force = FALSE) {
   osm_stops_valid(force_osm = TRUE)
 }
 #
+## les validations
+###############################################################
+#
+# source("geo/scripts/transport.R");osm_valid_relations()
+osm_valid_jour <- function(force = TRUE) {
+  carp()
+  osm_valid_stops()
+  osm_valid_relations(); # master # route
+  osm_valid_relations_route_bus()
+}
+# source("geo/scripts/transport.R");osm_valid_relations()
+osm_valid_relations <- function(force = TRUE) {
+  carp()
+  titre <- sprintf("osm_valid_relations_%s", Config[1, "reseau"])
+  html <- misc_html_titre(titre)
+  html <- misc_html_append(html, sprintf("<h1>%s</h1>", titre))
+  rc <- objets_relations_route(force)
+  routes.df <- rc[["relations.df"]]
+  rc <- objets_relations_route_master(force)
+  masters.df <- rc[["relations.df"]] %>%
+    glimpse()
+  members.df <- rc[["members.df"]] %>%
+    glimpse()
+#
+  html <- misc_html_append(html, sprintf("<h2>%s</h2>", "cohérence route_master # route"))
+  html <- misc_html_append(html, sprintf("<h3>%s</h3>", "les masters sans route"))
+  df1 <- masters.df %>%
+    filter(nb_members == 0)
+  if (nrow(df1) > 0) {
+    html <- misc_html_append_df(html, df1)
+  }
+#
+  html <- misc_html_append(html, sprintf("<h3>%s</h3>", "les relations route hors master"))
+  df1 <- routes.df %>%
+    filter(! id %in% members.df$ref)
+  if (nrow(df1) > 0) {
+    df2 <- df1 %>%
+      dplyr::select(id, version, timestamp, user, name)
+    html <- misc_html_append_df(html, df2)
+  }
+#
+  html <- misc_html_append(html, sprintf("<h3>%s</h3>", "les relations route dans plusieurs master"))
+  df1 <- members.df %>%
+    group_by_all() %>%
+    summarize(nb = n()) %>%
+    filter(nb > 1)
+  if (nrow(df1) > 0) {
+    html <- misc_html_append_df(html, df1)
+  }
+
+  fic <- sprintf("%s.html", titre)
+  dsn <- sprintf("%s/%s", webDir, fic)
+  write(html, dsn)
+  carp("dsn: %s", dsn)
+  url <- sprintf("http://localhost/transport/%s", fic)
+  browseURL(
+    url,
+    browser = "C:/Program Files/Mozilla Firefox/firefox.exe"
+  )
+}
+#
+## *************************************************
+# pour avoir la liste des relations route
+# source("geo/scripts/transport.R");osm_valid_relations_route_bus()
+osm_valid_relations_route_bus <- function(force = TRUE) {
+  library(tidyverse)
+  library(data.table)
+  library(janitor)
+  carp()
+  titre <- sprintf("osm_valid_relations_route_bus_%s", Config[1, "reseau"])
+  html <- misc_html_titre(titre)
+  html <- misc_html_append(html, sprintf("<h1>%s</h1>", titre))
+  dsn <- osm_relations_route_bus_csv(force = force)
+  df <- fread(dsn, encoding = "UTF-8") %>%
+    clean_names() %>%
+    glimpse()
+  df10 <- df %>%
+    dplyr::select(id, gtfs_shape_id, ref, ref_network, from, to, name) %>%
+    arrange(gtfs_shape_id)
+  html <- misc_html_append(html, sprintf("<h3>%s</h3>", "les relations route"))
+  html <- misc_html_append_df(html, df10)
+  df11 <- df %>%
+    filter(!grepl("^\\w", gtfs_shape_id)) %>%
+    dplyr::select(id, ref, from, to, name) %>%
+    arrange(ref)
+  html <- misc_html_append(html, sprintf("<h3>%s</h3>", "les relations route avec gtfs:shape_id"))
+  html <- misc_html_append_df(html, df11)
+  df1 <- df %>%
+    group_by(ref) %>%
+    summarize(nb = n()) %>%
+    filter(nb != 2) %>%
+    glimpse()
+  df2 <- df %>%
+    filter(ref %in% df1$ref) %>%
+    arrange(ref, ref_network)
+  misc_print(df2)
+  df3 <- df %>%
+    filter(ref %in% df1$ref) %>%
+    group_by(ref_network) %>%
+    summarize(josm = paste0(id, collapse = ","))
+  html <- misc_html_append(html, sprintf("<h3>%s</h3>", "les relations route ref_network # 2"))
+  html <- misc_html_append_df(html, df3)
+  df5 <- df %>%
+    group_by(gtfs_shape_id) %>%
+    summarize(nb = n()) %>%
+    filter(nb > 1) %>%
+    glimpse()
+  df6 <- df %>%
+    filter(gtfs_shape_id %in% df5$gtfs_shape_id) %>%
+    dplyr::select(ref_network, id, name, from, to, ref, gtfs_shape_id) %>%
+    arrange(gtfs_shape_id) %>%
+#    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/relation/%s/full'>josm</a>", id)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>", "r", id)) %>%
+    glimpse()
+  html <- misc_html_append(html, sprintf("<h3>%s</h3>", "les relations route gtfs:shape_id # 1"))
+  html <- misc_html_append_df(html, df6)
+  fic <- sprintf("%s.html", titre)
+  dsn <- sprintf("%s/%s", webDir, fic)
+  write(html, dsn)
+  carp("dsn: %s", dsn)
+  url <- sprintf("http://localhost/transport/%s", fic)
+  browseURL(
+    url,
+    browser = "C:/Program Files/Mozilla Firefox/firefox.exe"
+  )
+  return(invisible())
+}
+# source("geo/scripts/transport.R");osm_valid_relations_route_bus_network()
+osm_valid_relations_route_bus_network <- function(force = TRUE) {
+  carp("osm: les relations")
+  osm.df <- overpass_get(query = "relations_route_bus_network", format = "csv", force = force) %>%
+    mutate(kref = `gtfs:shape_id`) %>%
+    rename(ref_network = `ref:network`) %>%
+    glimpse()
+  kref <- "gtfs:shape_id"
+  df1 <- osm.df %>%
+    group_by(kref) %>%
+    summarize(nb = n()) %>%
+    filter(nb > 1)
+  if (nrow(df1) > 0) {
+    glimpse(df1)
+    df2 <- osm.df %>%
+      filter(kref %in% df1$kref) %>%
+      arrange(kref) %>%
+      dplyr::select(kref, `@id`)
+    misc_print(df2)
+    carp("**** doublons nb: %s", nrow(df1))
+    stop("*****")
+  }
+  carp(sprintf("pas de doublons kref: %s", kref))
+  return(invisible(osm.df))
+}
+#
 # lecture en csv
-# source("geo/scripts/transport.R");osm_stops_valid(force_osm = FALSE)
-osm_stops_valid <- function(force_osm = TRUE) {
+# source("geo/scripts/transport.R");osm_valid_stops(force_osm = FALSE)
+osm_valid_stops <- function(force_osm = TRUE) {
   library(tidyverse)
   library(data.table)
   library(janitor)
   k_ref <- Config[[1, 'k_ref']]
   carp("k_ref: %s", k_ref)
-  titre <- sprintf("osm_stops_valid_%s", Config[1, 'reseau'])
+  titre <- sprintf("osm_valid_stops_%s", Config[1, 'reseau'])
   html <- misc_html_titre(titre)
   html <- misc_html_append(html, "<h1>OSM</h1>")
 #
@@ -470,7 +574,7 @@ out;', Config[1, 'network'])
 osm_relations_route_bus_csv <- function(fic = 'relations_route_bus', force = FALSE) {
   requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,name,ref,"ref:network","gtfs:shape_id",from,to;true;"|")];
 area[name="%s"]->.a;
-relation(area.a)[type=route][route=bus][network="%s"];
+relation(area.a)[type=route][route=bus][network~"%s"];
 out meta;', Config[1, 'zone'], Config[1, 'network'])
   dsn <- overpass_query_csv(requete, fic, force = force)
   carp("dsn: %s", dsn)
@@ -489,7 +593,7 @@ osm_relations_routes_bus_csv <- function(fic = 'relations_routes_bus', force = F
   requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,ref,"ref:network",type,colour,text_colour,operator;true;"|")];
 area[name="%s"]->.a;
 (
-relation(area.a)[type=route][route=bus][network="%s"];
+relation(area.a)[type=route][route=bus][network~"%s"];
 relation["type"="route_master"]["route_master"="bus"][network="%s"];
 );
 out meta;', Config[1, 'network'], Config[1, 'network'], Config[1, 'network'])
@@ -510,312 +614,8 @@ out meta;', Config[1, 'network'])
   carp("dsn: %s", dsn)
   return(invisible(dsn))
 }
-#
-## pour mettre en minuscules le nom des arrêts
-# source("geo/scripts/transport.R");config_xls(Reseau);osm_nodes_bus_topo()
-osm_nodes_bus_topo_v1 <- function(fic = 'nodes_bus', force = FALSE) {
-  library(stringr)
-  dsn <- "d:/web.var/TRANSPORT/QUB/OSM/nodes_bus.csv"
-  df <- fread(dsn, encoding = "UTF-8") %>%
-    clean_names() %>%
-    dplyr::select(-type) %>%
-    glimpse()
-  df1 <- df %>%
-    filter(name != "") %>%
-    filter(!grepl("[a-z]", name)) %>%
-    mutate(nom = str_to_title(name)) %>%
-    glimpse()
-  remplacements <- "src;dest;bid
- De La ; de la ;
- D E; d'E;
- De ; de ;
- Du ; du ;
- Des ; des ;
- D'; d';
- L'; l';
- An ; an ;
- Ar ; ar ;
- Au ; au ;
- Aux ; aux ;
- Ty ; ty ;
-^Zac ;ZAC ;
-^Zc ;ZC ;
-^Zi ;ZI ;
-^Epsm;EPSM;
-^Cmpi;CMPI;
-^C.c. ; C.C. ;
-^Cc ;CC ;
-'H$;'h;
-^Cfa;CFA;
-^Iut;IUT;
-Rdpt ; RdPt ;
-^A\\.m\\.;A.M.;
-Sncf;SNCF;
-^Caf;CAF;
-D'auvergne;d'Auvergne;
- Andre; André;
-Abbe$;Abbé;
-Aeroport;Aéroport
-Ampere;Ampère;
-Becharles;Bécharles;
-Bleriot;Blériot;
-Boissiere;Boissière;
-Chateau;Château;
-^Cite;Cité;
-College;Collège;
-Congres;Congrès;
-Creac'h;Créac'h;
-Crenal;Crénal
-Echange;Échange;
-Ecole;École;
-Eglise;Église;
-Entree;Entrée;
-Ergue;Ergué;
-Eric;Éric;
-Exupery;Exupéry;
-Francois;François;
-Freres;Frères;
-Gaberic; Gabéric;
-General;Général;
-Genets;Genêts;
-Glaieuls;Glaïeuls;
-Guelen;Guélen;
-Guenole;Guénolé;
-Guepratte;Guépratte
-Herve;Hervé;
-Kerdevot;Kerdévot;
-Kerdiles;Kerdilès;
-Kerdrezec;Kerdrézec;
-Kerelan;Kérélan;
-Kerguelen;Kerguélen;
-Kerroue;Kerroué;
-Kerdevot;Kerdévot;
-Leurgueric;Leurguéric;
-Lezebel;Lézebel;
-Liberation;Libération;
-Lycee;Lycée;
-Masse$;Massé;
-Mendes;Mendès;
-Menez;Ménez;
-Metairie;Métairie;
-Nevez;Névez;
-Nominoe;Nominoë;
-Pole;Pôle;
-President;Président;
-Pyrenees;Pyrénées;
-Rene$;René;
-Resistance;Résistance;
-Routiere;Routière;
-Thepot;Thépot;
-Therese;Thérèse;
-Treodet;Tréodet;
-Universite;Université;
-"
-  r.df <- fread(remplacements, strip.white = FALSE) %>%
-    glimpse()
-  for (i in 1:nrow(r.df)) {
-    df1$nom = str_replace(df1$nom, r.df[[i, "src"]], r.df[[i, "dest"]])
-  }
-  misc_print(df1)
-  dsn <- "d:/web.var/TRANSPORT/QUB/OSM/nodes_bus_topo.csv"
-  rio::export(df1, dsn, sep = ";")
-}
 
 
-osm_nodes_bus_topo <- function(fic = 'nodes_bus', force = FALSE) {
-  library(stringr)
-  library(stringi)
-  dsn <- "d:/web.var/TRANSPORT/QUB/OSM/nodes_bus.csv"
-  df <- fread(dsn, encoding = "UTF-8") %>%
-    clean_names() %>%
-    dplyr::select(-type) %>%
-    glimpse()
-  df1 <- df %>%
-    dplyr::select(name) %>%
-    mutate(NAME = str_to_upper(name)) %>%
-    mutate(NAME = stri_trans_general(NAME, id = "Latin-ASCII")) %>%
-    arrange(NAME) %>%
-    distinct(name, NAME) %>%
-    filter(name != NAME) %>%
-    mutate(topo = sprintf("%s;%s", NAME, name)) %>%
-    dplyr::select(topo) %>%
-    glimpse()
-  dsn <- "d:/web.var/TRANSPORT/QUB/OSM/nodes_bus_topo.csv"
-  rio::export(df1, dsn, sep = ";")
-}
-#
-# source("geo/scripts/transport.R");config_xls(Reseau);osm_nodes_bus_mga()
-osm_nodes_bus_mga <- function(fic = 'nodes_bus', force = FALSE) {
-  library(stringr)
-  library(stringi)
-  dsn <- "d:/web.var/TRANSPORT/QUB/OSM/nodes_bus.csv"
-  osm.df <- fread(dsn, encoding = "UTF-8") %>%
-    clean_names() %>%
-    dplyr::select(-type) %>%
-    mutate(NAME = str_to_upper(name)) %>%
-    mutate(NAME = stri_trans_general(NAME, id = "Latin-ASCII")) %>%
-    glimpse()
-  dsn <- "d:/web.var/TRANSPORT/QUB/OSM/nodes_bus_topo_mga.csv"
-  mga.df <- fread(dsn, encoding = "UTF-8") %>%
-    glimpse()
-  df1 <- osm.df %>%
-    left_join(mga.df, by = c("NAME" = "NAME")) %>%
-    filter(is.na(name.y)) %>%
-    filter(NAME != "") %>%
-    arrange(NAME) %>%
-    distinct(NAME) %>%
-    glimpse()
-  df2 <- osm_topo(df1) %>%
-    glimpse()
-  dsn <- "d:/web.var/TRANSPORT/QUB/OSM/nodes_bus_topo.csv"
-  fwrite(df2, dsn, sep = ";")
-}
-osm_topo <- function(df1) {
-  library(stringr)
-  remplacements <- "src;dest;bid
- De La ; de la ;
- D E; d'E;
- De ; de ;
- Du ; du ;
- Des ; des ;
- D'; d';
- L'; l';
- An ; an ;
- Ar ; ar ;
- Au ; au ;
- Aux ; aux ;
- Ty ; ty ;
-^Zac ;ZAC ;
-^Zc ;ZC ;
-^Zi ;ZI ;
-^Epsm;EPSM;
-^Cmpi;CMPI;
-^C.c. ; C.C. ;
-^Cc ;CC ;
-'H$;'h;
-^Cfa;CFA;
-^Iut;IUT;
-Rdpt ; RdPt ;
-Sncf;SNCF;
-^Caf;CAF;
-D'auvergne;d'Auvergne;
- Andre; André;
-Abbe$;Abbé;
-Aeroport;Aéroport;
-Ampere;Ampère;
-Becharles;Bécharles;
-Bleriot;Blériot;
-Boissiere;Boissière;
-Chateau;Château;
-^Cite;Cité;
-College;Collège;
-Congres;Congrès;
-Creac'h;Créac'h;
-Crenal;Crénal;
-Echange;Échange;
-Ecole;École;
-Eglise;Église;
-Entree;Entrée;
-Ergue;Ergué;
-Eric;Éric;
-Exupery;Exupéry;
-Francois;François;
-Freres;Frères;
-Gaberic; Gabéric;
-General;Général;
-Genets;Genêts;
-Glaieuls;Glaïeuls;
-Guelen;Guélen;
-Guenole;Guénolé;
-Guepratte;Guépratte;
-Herve;Hervé;
-Kerdevot;Kerdévot;
-Kerdiles;Kerdilès;
-Kerdrezec;Kerdrézec;
-Kerelan;Kérélan;
-Kerguelen;Kerguélen;
-Kerroue;Kerroué;
-Kerdevot;Kerdévot;
-Leurgueric;Leurguéric;
-Lezebel;Lézebel;
-Liberation;Libération;
-Lycee;Lycée;
-Masse$;Massé;
-Mendes;Mendès;
-Menez;Ménez;
-Metairie;Métairie;
-Nevez;Névez;
-Nominoe;Nominoë;
-Pole;Pôle;
-President;Président;
-Pyrenees;Pyrénées;
-Rene$;René;
-Resistance;Résistance;
-Routiere;Routière;
-Thepot;Thépot;
-Therese;Thérèse;
-Treodet;Tréodet;
-Universite;Université;
-"
-  r.df <- fread(remplacements, strip.white = FALSE) %>%
-    glimpse()
-  df1 <- df1 %>%
-    mutate(nom = str_to_title(NAME))
-  for (i in 1:nrow(r.df)) {
-    df1$nom = str_replace(df1$nom, r.df[[i, "src"]], r.df[[i, "dest"]])
-  }
-  return(invisible(df1))
-}
-#
-## *************************************************
-# pour avoir la liste des relations route
-# source("geo/scripts/transport.R");osm_relations_route_bus_verif("concarneau")
-osm_relations_route_bus_verif <- function(reseau = "star", force = FALSE) {
-  library(tidyverse)
-  library(data.table)
-  library(janitor)
-  carp()
-  config_xls(reseau)
-  dsn <- osm_relations_route_bus_csv(force = force)
-  df <- fread(dsn, encoding = "UTF-8") %>%
-    clean_names() %>%
-    glimpse()
-  df10 <- df %>%
-    dplyr::select(id, gtfs_shape_id, from, to, name) %>%
-    arrange(gtfs_shape_id)
-  tex_df2kable(df10, num = TRUE)
-  df11 <- df %>%
-    filter(!grepl("^\\w", gtfs_shape_id)) %>%
-    dplyr::select(id, ref, from, to, name) %>%
-    arrange(ref)
-  tex_df2kable(df11, num = TRUE, suffixe = "gsi")
-  df1 <- df %>%
-    group_by(ref) %>%
-    summarize(nb = n()) %>%
-    filter(nb != 2) %>%
-    glimpse()
-  df2 <- df %>%
-    filter(ref %in% df1$ref) %>%
-    arrange(ref, ref_network)
-  misc_print(df2)
-  df3 <- df %>%
-    filter(ref %in% df1$ref) %>%
-    group_by(ref_network) %>%
-    summarize(josm = paste0(id, collapse = ","))
-  tex_df2kable(df3, num = TRUE, suffixe = "ar")
-  df5 <- df %>%
-    group_by(gtfs_shape_id) %>%
-    summarize(nb = n()) %>%
-    filter(nb > 1) %>%
-    glimpse()
-  df6 <- df %>%
-    filter(gtfs_shape_id %in% df5$gtfs_shape_id) %>%
-    dplyr::select(ref_network, id, name, from, to, ref, gtfs_shape_id) %>%
-    arrange(gtfs_shape_id) %>%
-    glimpse()
-  tex_df2kable(df6, suffixe = "doublon", longtable = FALSE)
-  return(invisible())
-}
 #
 # pour avoir la liste des relations route disused
 # source("geo/scripts/transport.R");config_xls('star');osm_relations_route_bus_disused()
@@ -1034,7 +834,7 @@ osm_relation_route_versions <- function(id, force = FALSE, force_osm = FALSE) {
 # Vannes 4754448 6b
 # source("geo/scripts/transport.R");osm_relation_route_members(id = "11984170", force = TRUE) %>% glimpse()
 # Bordeaux 2422223 6b
-# source("geo/scripts/transport.R");osm_relation_route_members(id = "2422223", force = TRUE) %>% glimpse()
+# source("geo/scripts/transport.R");osm_relation_route_members(id = "2422224", force = TRUE) %>% glimpse()
 osm_relation_route_members <- function(id, force = TRUE, force_osm = TRUE) {
   library(tidyverse)
   library(data.table)
@@ -1051,7 +851,8 @@ osm_relation_route_members <- function(id, force = TRUE, force_osm = TRUE) {
   members_kref.df <- tibble()
   rc <- osmapi_get_transport(ref = id, force = force, force_osm = force_osm)
   ways.sf <- rc$ways.sf
-  if (st_is_empty(ways.sf[1,]) ) {
+# st_is_empty(ways.sf[1,]
+  if (nrow(ways.sf) == 0) {
     carp("***id: %s", id)
     return(invisible(rc))
   }
@@ -1093,8 +894,12 @@ osm_relation_route_members <- function(id, force = TRUE, force_osm = TRUE) {
     nc3 <- osm_relation_route_members_nodes(rc, role = "stop")
   }
   if (nrow(platforms.sf) > 0) {
-    d <- as.integer(st_distance(platforms.sf[1, ], rc$ways_points.sf[1, ]))
+    d <- as.integer(st_distance(platforms.sf[1, ], rc$ways.sf[1, ]))
     rc[["distance_depart"]] <- d
+    n1 <- nrow(platforms.sf)
+    n2 <- nrow(rc$ways.sf)
+    d <- as.integer(st_distance(platforms.sf[n1, ], rc$ways.sf[n2, ]))
+    rc[["distance_arrivee"]] <- d
     nc2 <- osm_relation_route_members_nodes(rc, role = "platform")
     if (nrow(nc3) > 0) {
       nc3 <- bind_rows(nc3, nc2)
@@ -1168,6 +973,31 @@ osm_relation_route_members_nodes <- function(rc, role = "stop") {
     dplyr::select(type, ref, name, Id, ordre, public_transport, distance, way_id, way_no) %>%
     glimpse()
   misc_print(nodes.df)
+  err.df <- tibble()
+  if (role == "platform") {
+    df1 <- nodes.df %>%
+      filter(distance > 150) %>%
+      mutate(err = "distance")
+    err.df <- bind_rows(err.df, df1)
+    df1 <- nodes.df %>%
+      filter(Id != ordre) %>%
+      mutate(err = "ordre")
+    err.df <- bind_rows(err.df, df1)
+  }
+  if (role == "stop") {
+    df1 <- nodes.df %>%
+      filter(distance > 0) %>%
+      mutate(err = "distance")
+    err.df <- bind_rows(err.df, df1)
+  }
+  if (nrow(err.df) > 0) {
+    err.df$relation <- rc$relation[1, "id"]
+    err.df$ref_network <- rc$relation[1, "ref_network"]
+    err.df$gtfs_shape_id <- rc$relation[1, "gtfs_shape_id"]
+    misc_print(err.df)
+    stops.df <<- bind_rows(stops.df, err.df)
+#    stop("****")
+  }
   return(invisible(nodes.sf))
 }
 # liste des informations des ways de la relation
@@ -1247,6 +1077,9 @@ osm_platforms_untag <- function(force = FALSE, force_osm = FALSE) {
   misc_print(df2)
   return(invisible(df))
 }
+#
+## l'analyse fine d'une relation
+#
 # source("geo/scripts/transport.R");osm_relations_route_members_valid(force = FALSE, force_osm = FALSE)
 osm_relations_route_members_valid <- function(force = TRUE, force_osm = TRUE) {
   library(tidyverse)
@@ -1259,14 +1092,60 @@ osm_relations_route_members_valid <- function(force = TRUE, force_osm = TRUE) {
     as.data.table() %>%
     clean_names() %>%
     glimpse()
+#  stop("*****")
+  ptv2.df <<- tibble()
+  stops.df <<- tibble()
+  relations.list <- list()
   for (i in 1:nrow(df)) {
-    carp("i: %s/%s", i, nrow(df))
-    rc <- osm_relation_route_members(id = df[i, "id"], force = force, force_osm = force_osm)
-    rc <- osm_relation_route_members_valid(rc = rc, id = df[i, "id"], force = force, force_osm = force_osm)
-    osm_relation_route_stops_order(rc = rc, id = df[i, "id"], force = force, force_osm = force_osm)
-    osm_relation_route_members_mapsf(rc)
+    id <- as.character(df[[i, "id"]])
+    carp("i: %s/%s id: %s", i, nrow(df), id)
+    rc <- osm_relation_route_members(id = id, force = force, force_osm = force_osm)
+    if (nrow(rc$ways.sf) > 0) {
+      rc <- osm_relation_route_members_valid(rc = rc, id = df[i, "id"], force = force, force_osm = force_osm)
+      rc <- osm_relation_route_stops_order(rc = rc, id = df[i, "id"], force = force, force_osm = force_osm)
+#      osm_relation_route_members_mapsf(rc)
+    }
+    relations.list[[id]] <- rc
+#    break
 #    stop("****")
   }
+  misc_print(ptv2.df)
+  carp("les erreurs ordre/distance sur les members")
+  misc_print(stops.df)
+  dsn_rds <- sprintf("%s/osm_relations_route_members_valid.rds", osmDir)
+  saveRDS(relations.list, dsn_rds)
+  carp("dsn_rds: %s", dsn_rds)
+  glimpse(relations.list)
+}
+#
+# source("geo/scripts/transport.R");osm_relations_route_members_valid_tex(force = FALSE, force_osm = FALSE)
+osm_relations_route_members_valid_tex <- function(force = TRUE, force_osm = TRUE) {
+  library(tidyverse)
+  library(janitor)
+  dsn_rds <- sprintf("%s/osm_relations_route_members_valid.rds", osmDir)
+  carp("dsn_rds: %s", dsn_rds)
+  relations.list <- readRDS(dsn_rds)
+  df <- tribble(
+    ~id,
+    ~shape_id,
+    ~distance_depart,
+    ~distance_arrivee)
+  for (id in names(relations.list)) {
+    carp("id: %s", id)
+    relation <- relations.list[[id]]
+    df <- add_row(df,
+      id = id,
+      shape_id = relation$relation[[1, "gtfs:shape_id"]],
+      distance_depart = relation$distance_depart,
+      distance_arrivee = relation$distance_arrivee,
+    )
+#    break
+  }
+  df1 <- df %>%
+    filter(distance_depart > 150 | distance_arrivee > 150) %>%
+    arrange(shape_id) %>%
+    glimpse()
+  misc_print(df1)
 }
 
 # source("geo/scripts/transport.R"); osm_relation_route_members_valid(id = 4756509, force = TRUE, force_osm = TRUE)
@@ -1299,8 +1178,12 @@ osm_relation_route_members_valid <- function(rc, id = 3184038, force = FALSE, fo
   }
   if (nrow(df) > 0) {
     df$relation <- rc$relation[1, "id"]
+    df$ref_network <- rc$relation[1, "ref_network"]
+    df$gtfs_shape_id <- rc$relation[1, "gtfs_shape_id"]
+    rc$members_err <- df
     misc_print(df)
-    stop("*****")
+    ptv2.df <<- bind_rows(ptv2.df, df)
+#    stop("*****")
   }
   df2 <- df1 %>%
     mutate(type = dplyr::recode(type,
@@ -1377,6 +1260,7 @@ osm_relation_route_stops_order <- function(rc, id = 3184038, force = FALSE, forc
     write(level0, dsn)
     carp("dsn: %s", dsn)
   }
+  return(invisible(rc))
 }
 #
 # les trous
@@ -1480,7 +1364,7 @@ osm_relations_level0 <- function(force = TRUE, force_osm = TRUE) {
 #
 # source("geo/scripts/transport.R");osm_relation_route_gap(id = 4260060, force = FALSE, force_osm = FALSE)
 # source("geo/scripts/transport.R");osm_relation_route_gap(id = 14632216, force = FALSE, force_osm = FALSE)
-# source("geo/scripts/transport.R");osm_relation_route_gap(id = 4260060, force = FALSE, force_osm = FALSE)
+# source("geo/scripts/transport.R");osm_relation_route_gap(id = 8319385, force = FALSE, force_osm = FALSE)
 # oneway:bus = no
 osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE) {
   library(tidyverse)
@@ -1492,7 +1376,14 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
   }
   carp("les ways")
   ways.df <- rc$ways.sf %>%
-    st_drop_geometry()
+    st_drop_geometry() %>%
+   (function(.df){
+      cls <- c("oneway_bus") # columns I need
+      .df[cls[!(cls %in% colnames(.df))]] = NA
+      return(.df)
+    }) %>%
+    clean_names() %>%
+    glimpse()
   if (nrow(ways.df) == 0) {
     carp("****id: %s pas de ways", id)
     return(invisible(gaps.df))
@@ -1511,7 +1402,6 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
   ways.df <- ways.df %>%
     mutate(no = 1:n()) %>%
     rowwise() %>%
-#    glimpse() %>%
     mutate(wRP = grepl("roundabout|circular", junction)) %>%
     mutate(wRP = ifelse(node1 == node9, TRUE, FALSE)) %>%
     mutate(wOW = grepl("yes", oneway)) %>%

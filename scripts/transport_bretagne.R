@@ -16,7 +16,7 @@ bretagne_jour <- function(force = FALSE) {
   library(tidyverse)
   config_xls("bretagne")
   bretagne_jour_osmose()
-  osmose_issues_gap()
+#  osmose_issues_gap()
 }
 #
 # vérification de l'appartenance à un network connu
