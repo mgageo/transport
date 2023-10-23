@@ -380,16 +380,17 @@ osmapi_get_members_platform <- function(ref = "11920346", type = "relation", for
   saveRDS(rc, dsn_rds)
   return(invisible(rc))
 }
-# source("geo/scripts/transport.R"); osmapi_get_tags(ref = "14704778", force = FALSE)
+# source("geo/scripts/transport.R"); osmapi_get_tags(ref = "14704778", force = FALSE) %>% glimpse()
 osmapi_get_tags <- function(ref = "11920346", type = "relation", force = FALSE) {
   library(readr)
   library(tidyverse)
   library(janitor)
   library(xml2)
   carp("ref: %s", ref)
-  dsn_rds <- sprintf("%s/%s_%s_full_tags.rds", osmDir, type, ref)
-  if (file.exists(dsn_rds) && force == FALSE) {
-    return(dsn_rds)
+  dsn_rds <- sprintf("%s_%s_get_tags", type, ref)
+  relation.df <- misc.lire(dsn_rds)
+  if (! is.logical(relation.df) & force == FALSE) {
+    return(invisible(relation.df))
   }
   dsn <- osmapi_get_object_full(ref = ref, type = type, force = force)
   doc <- read_xml(dsn)
@@ -410,9 +411,9 @@ osmapi_get_tags <- function(ref = "11920346", type = "relation", force = FALSE) 
   }
   tags.df <- as_tibble(tags.list) %>%
     pivot_wider(names_from = k, values_from = v)
-  relation.df <- cbind(relation.df, tags.df) %>%
-    clean_names()
-  saveRDS(relation.df, dsn_rds)
+  relation.df <- cbind(relation.df, tags.df)
+  misc.ecrire(relation.df, dsn_rds)
+  return(invisible(relation.df))
 }
 
 # source("geo/scripts/transport.R"); osmapi_get_ways(ref = "8356872", force = TRUE)
@@ -594,6 +595,8 @@ osmapi_objects_get_tags <- function(dsn = "d:/web.var/TRANSPORT/STAR/OSM/node_78
   doc <- read_xml(osm)
   objects <- xml2::xml_children(doc)
   carp("objects nb: %s", length(objects))
+#  objects <- xml2::xml_find_all(doc, xpath = "//node")
+#  carp("objects nb: %s", length(objects))
   objects.df <- data.frame()
   if (length(objects) == 0) {
     return(invisible(objects.df))
@@ -604,10 +607,12 @@ osmapi_objects_get_tags <- function(dsn = "d:/web.var/TRANSPORT/STAR/OSM/node_78
 #
 # les attrs et tags
 osmapi_objects_tags <- function(objects) {
+  carp("objets : %s", length(objects))
   objects.df <- data.frame()
   for (object in objects) {
     object.df <- xml_attrs(object) %>%
-      as_tibble_row()
+      as_tibble_row() %>%
+      rename_with(.fn = function(.x){paste0("@", .x)})
     tags <- xml2::xml_find_all(object, "./tag")
     if (length(tags) > 0) {
 #    carp("tags nb: %s", length(tags))
@@ -620,6 +625,44 @@ osmapi_objects_tags <- function(objects) {
 #    glimpse(tags.df)
       object.df <- cbind(object.df, tags.df) %>%
       mutate(osm_type = xml_name(object))
+    }
+    objects.df <- bind_rows(objects.df, object.df)
+  }
+  return(invisible(objects.df))
+}
+#
+# les members, cas des relations route_master
+osmapi_objects_members <- function(objects) {
+  objects.df <- data.frame()
+  for (object in objects) {
+    object.df <- xml_attrs(object) %>%
+      as_tibble_row() %>%
+      rename_with(.fn = function(.x){paste0("@", .x)})
+    tags <- xml2::xml_find_all(object, "./tag")
+    if (length(tags) > 0) {
+#    carp("tags nb: %s", length(tags))
+      tags.list <- list()
+      for (attr in c("k", "v")) {
+        tags.list[[attr]] <- tags %>% xml_attr(attr)
+      }
+      tags.df <- as_tibble(tags.list) %>%
+        pivot_wider(names_from = k, values_from = v)
+#    glimpse(tags.df)
+      object.df <- cbind(object.df, tags.df) %>%
+      mutate(osm_type = xml_name(object))
+    }
+    members <- xml2::xml_find_all(object, "./member")
+    if (length(members) > 0) {
+#      carp("members nb: %s", length(members))
+      members.list <- list()
+      for (attr in c("type", "ref", "role")) {
+        members.list[[attr]] <- members %>% xml_attr(attr)
+      }
+      members.df <- as_tibble(members.list) %>%
+        rename_with(.fn = function(.x){paste0("M", .x)})
+
+      object.df <- cross_join(object.df, members.df) %>%
+        mutate(osm_type = xml_name(object))
     }
     objects.df <- bind_rows(objects.df, object.df)
   }
@@ -692,8 +735,8 @@ osmapi_api <- function(path, xml = '', methode = "PUT", debug = FALSE) {
       body = xml,
       authenticate(username, password, type = "basic"),
       content_type_xml(),
-      ua,
-      verbose()
+      ua
+#      verbose()
     )
   }
   if (methode == "POST") {
@@ -746,6 +789,7 @@ osmapi_get_object_xml <- function(id = "11920346", type = "relation", force = FA
   library(stringi)
   path <- "{type}/{id}"
   path <- str_glue(path)
+  carp("path: %s", path)
   xml <- osmapi_api(path, methode = "GET")
   xml <- str_split(xml, "\\n+", simplify = TRUE)
   xml <- head(xml[-1:-2], -2)
@@ -810,10 +854,15 @@ osmapi_put <- function(osmchange = "create", text = "osm", force = FALSE) {
   xml <- '<osm>
   <changeset>
     <tag k="created_by" v="R 0.6"/>
-    <tag k="comment" v="test"/>
-    <tag k="bot" v="yes"/>
+    <tag k="comment" v="maj gtfs %s"/>
   </changeset>
 </osm>'
+  xml <- sprintf(xml, Config_gtfs_source)
+  writeLines(text, sprintf("%s/osmapi_put_%s.txt", cfgDir, Reseau))
+  if (OsmChange != TRUE) {
+    return(invisible(-1))
+  }
+#  return(invisible(-2))
   changeset_id <- osmapi_api("changeset/create", xml, methode = "PUT")
   carp("changeset_id: %s", changeset_id)
   text <- osmapi_osmchange(changeset_id, change = osmchange, osm = text)
@@ -828,7 +877,7 @@ osmapi_put <- function(osmchange = "create", text = "osm", force = FALSE) {
 # source("geo/scripts/transport.R"); osmapi_osmchange()
 osmapi_osmchange <- function(changeset_id = 200, change = "create", osm = "<node>") {
   timestamp <- format(Sys.time(), "%Y-%m-%dT%H:%M:%S.0+02:00")
-  osm <- str_replace(osm, 'changeset="\\d+"', 'changeset="{changeset_id}"')
+  osm <- str_replace_all(osm, 'changeset="\\d+"', 'changeset="{changeset_id}"')
   text <- '<osmChange version="0.6" generator="R mga_geo">
 <{change}>
 {osm}
@@ -836,6 +885,7 @@ osmapi_osmchange <- function(changeset_id = 200, change = "create", osm = "<node
 </osmChange>'
   text <- str_glue(text)
   text <- str_glue(text)
+#  print(text);exit;
   return(text)
 }
 #

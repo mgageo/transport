@@ -411,6 +411,18 @@ escapeLatexSpecials <- function(x) {
 #  x <- gsub("<", "$<$", x)
   return(x)
 }
+tex_escape <- function(x) {
+  x <- gsub("#", "\\\\#", x)
+  x <- gsub("\\$", "\\\\$", x)
+  x <- gsub("%", "\\\\%", x)
+#  x <- gsub("&", "***", x)
+  x <- gsub("&", "\\\\&", x)
+  x <- gsub("~", "\\\\~", x)
+  x <- gsub("_", "\\\\_", x)
+#  x <- gsub("_", "\\\\\\\\_", x)
+  x <- gsub("%", "\\\\%", x)
+  return(x)
+}
 tex_regex_escape <- function(x, double_backslash = FALSE) {
   if (double_backslash) {
     x <- gsub("\\\\", "\\\\\\\\", x)
@@ -507,6 +519,10 @@ tex_df2tpl <- function(df, i, tpl) {
 # setwd('d:/web');source("geo/scripts/onc35.R");tex_pdflatex()
 tex_pdflatex <- function(dsn = "especes.tex") {
   library(tinytex)
+  if (Tex == FALSE) {
+    return(invisible(Tex))
+  }
+
   carp("dsn: %s", dsn)
   setwd(texDir)
   pdf <- str_replace(dsn , "tex$", "pdf")

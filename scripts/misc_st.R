@@ -149,6 +149,18 @@ all_tags=yes
   return(invisible(nc))
 }
 #
+# en direct de https://github.com/r-spatial/sf/blob/main/R/read.R
+st_set_utf8 = function(x) {
+	n = names(x)
+	Encoding(n) = "UTF-8"
+	to_utf8 = function(x) {
+		if (is.character(x))
+			Encoding(x) = "UTF-8"
+		x
+	}
+	structure(lapply(x, to_utf8), names = n)
+}
+#
 # conversion en format gpx compatble osm
 st_sf2gpx <- function(nc1, name) {
   library(lubridate)
@@ -178,5 +190,53 @@ st_sf2gpx <- function(nc1, name) {
     gpx <- append(gpx, '</trk>')
   }
   gpx <- append(gpx, '</gpx>')
+  return(invisible(gpx))
+}
+#
+# conversion en format gpx compatble osm
+st_sf2gpx <- function(nc, dsn, name = "sf2gpx") {
+  library(sf)
+  carp("début name: %s", name)
+  gpx <- '<?xml version="1.0"?>
+<gpx version="1.1" creator="sf2gpx" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ogr="http://osgeo.org/gdal" xmlns="http://www.topografix.com/GPX/1/1" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+'
+#
+# pour les point
+  nc1 <- nc %>%
+    filter(st_geometry_type(.) == "POINT") %>%
+    glimpse()
+  if (nrow(nc1) > 0) {
+    for (i in 1:nrow(nc1)) {
+      points <- st_cast(nc1[i, "geometry"], "POINT")
+      df <- as_tibble(st_coordinates(points))
+      wkpt <- sprintf('<wpt lat="%s" lon="%s">', df[1, "Y"], df[1, "X"])
+      gpx <- append(gpx, wkpt)
+      nom <- sprintf('  <name>%s</name>', nc1[[i, "name"]])
+      gpx <- append(gpx, nom)
+      gpx <- append(gpx, '</wpt>')
+    }
+  }
+#
+# pour les lignes
+  nc1 <- nc %>%
+    filter(st_geometry_type(.) == "LINESTRING") %>%
+    glimpse()
+  for (i in 1:nrow(nc1)) {
+    points <- st_cast(nc1[i, "geometry"], "POINT")
+    df <- as_tibble(st_coordinates(points))
+    gpx <- append(gpx, '<trk>')
+    name <- sprintf('<name>%s</name>', name)
+    gpx <- append(gpx, name)
+
+    gpx <- append(gpx, '<trkseg>')
+    for(i in 1:nrow(df)) {
+      trkpt <- sprintf('  <trkpt lat="%s" lon="%s"></trkpt>', df[i, "Y"], df[i, "X"])
+      gpx <- append(gpx, trkpt)
+    }
+    gpx <- append(gpx, '</trkseg>')
+    gpx <- append(gpx, '</trk>')
+  }
+  gpx <- append(gpx, '</gpx>')
+  writeLines(gpx, dsn)
   return(invisible(gpx))
 }

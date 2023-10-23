@@ -52,6 +52,7 @@ bretagne_relations_bus_network <- function(force = FALSE) {
 #
 # source("geo/scripts/transport.R");bretagne_nodes_bus()
 bretagne_nodes_bus <- function(fic = "bretagne_nodes_bus", force = FALSE, force_osm = FALSE) {
+  config_xls("bretagne")
   dsn_rds <- sprintf("%s/%s.rds", osmDir, fic)
   if (file.exists(dsn_rds) && force == FALSE) {
     rc <- readRDS(dsn_rds)
@@ -68,8 +69,9 @@ out meta;'
   dsn <- oapi_requete_get(requete, fic, force = force_osm)
   df <- osmapi_objects_get_tags(dsn) %>%
     glimpse()
-  saveRDS(df, dsn_rds)
+  transport_ecrire(df, fic)
 }
+
 #
 # source("geo/scripts/transport.R");bretagne_nodes_bus()
 bretagne_nodes_bus_valid <- function(fic = "bretagne_nodes_bus", force = FALSE, force_osm = FALSE) {
@@ -79,6 +81,76 @@ bretagne_nodes_bus_valid <- function(fic = "bretagne_nodes_bus", force = FALSE, 
     filter(! is.na(`train`)) %>%
     filter(! is.na(`public_transport`)) %>%
     glimpse()
+}
+#
+# source("geo/scripts/transport.R");bretagne_nodes_bus_platform()
+bretagne_nodes_bus_platform <- function(fic = "bretagne_nodes_bus_platform", force = FALSE, force_osm = FALSE) {
+  config_xls("bretagne")
+  df <- overpass_get(query = "nodes_bus_platform_area", format = "csv", force = force_osm) %>%
+    glimpse()
+  transport_ecrire(df, fic)
+}
+#
+# source("geo/scripts/transport.R");bretagne_nodes_bus_platform_proche()
+bretagne_nodes_bus_platform_proche <- function(fic = "bretagne_nodes_bus_platform") {
+  library(sf)
+  library(janitor)
+  config_xls("bretagne")
+  osm.df <- transport_lire(fic) %>%
+    clean_names()
+  carp("osm.df: %s", nrow(osm.df))
+  osm.sf <- st_as_sf(osm.df, coords = c("lon", "lat"), crs = 4326, remove = FALSE) %>%
+    dplyr::select(-highway, -public_transport, -type) %>%
+    st_transform(2154)
+  depuis <- as.Date("20231001", format = "%Y%m%d")
+  zoom <- "left=%0.5f&right=%0.5f&top=%0.5f&bottom=%0.5f"
+  df1 <- st_proches(osm.sf, osm.sf, k = 2) %>%
+    st_drop_geometry() %>%
+    filter(dist < 10) %>%
+    filter(timestamp > depuis) %>%
+    filter(timestamp.1 > depuis) %>%
+    filter(name == name.1) %>%
+    filter(version == 1) %>%
+    filter(user == "mga_geo") %>%
+    filter(version.1 != 1) %>%
+    filter(user.1 == "mga_geo") %>%
+    mutate(select = sprintf("node%s,node%s", id, id.1)) %>%
+    mutate(zoom = sprintf(zoom, `lon` - .002, `lon` + .002, `lat` + .001, `lat` - .001)) %>%
+    mutate(josm = sprintf("<a href='http://127.0.0.1:8111/load_and_zoom?%s&select=%s'>josm</a>", zoom, select)) %>%
+#    mutate(bash = sprintf("wget 'http://127.0.0.1:8111/load_and_zoom?%s&select=%s';sleep 2", zoom, select)) %>%
+    dplyr::select(-select, -zoom) %>%
+    glimpse()
+#  bash <- paste(df1$bash, "\n", collapse="")
+#  writeLines(bash, "d:/toto.sh")
+  html <- misc_html_titre(fic)
+#  h <- html_df2gt(df1)
+  html <- misc_html_append_df(html, df1)
+  transport_html_browse(html, fic)
+}
+#
+# source("geo/scripts/transport.R");bretagne_nodes_bus_platform_mga()
+bretagne_nodes_bus_platform_mga <- function(fic = "bretagne_nodes_bus_platform_mga", force = FALSE, force_osm = FALSE) {
+  config_xls("bretagne")
+  df <- overpass_get(query = "nodes_bus_platform_mga", format = "csv", force = force_osm) %>%
+    glimpse()
+  transport_ecrire(df, fic)
+}
+#
+# source("geo/scripts/transport.R");bretagne_nodes_bus_platform_mga_proche()
+bretagne_nodes_bus_platform_mga_proche <- function(fic = "bretagne_nodes_bus_platform_mga") {
+  library(sf)
+  library(janitor)
+  config_xls("bretagne")
+  depuis <- as.Date("20231010", format = "%Y%m%d")
+  df1 <- transport_lire(fic) %>%
+    clean_names() %>%
+    filter(timestamp > depuis) %>%
+    filter(version == 1) %>%
+    mutate(osm = sprintf('<node lat="%s" lon="%s" id="%s" changeset="%s" version="%s"></node>', lat, lon, id, changeset, version)) %>%
+    glimpse()
+  carp("df1: %s", nrow(df1))
+  osm <- paste(df1$osm, "\n", collapse = "")
+  changeset_id <- osmapi_put("delete", text = osm)
 }
 #
 # source("geo/scripts/transport.R");bretagne_relations_route_bus()

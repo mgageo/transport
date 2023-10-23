@@ -505,3 +505,29 @@ geocode_reverse_openls_point_parse <- function() {
     glimpse()
   return(invisible(lieudit))
 }
+#
+# géocodage direct avec ign geoservices
+geocode_direct_geoservices <- function(adresse, force = FALSE) {
+  library(httr2)
+  library(urltools)
+  library(sf)
+  library(tidyverse)
+  carp("adresse: %s", adresse)
+  httpheader = c(
+    Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/117.0"
+  )
+  geoservices_url <- "https://wxs.ign.fr/essentiels/geoportail/geocodage/rest/0.1/search?index=poi&q="
+  url <- sprintf("%s%s", geoservices_url, url_encode(as.character(adresse)))
+  carp("url: %s", url)
+  req <- httr2::request(url) %>%
+    req_user_agent(httpheader["User-Agent"]) %>%
+#    req_dry_run() %>%
+    req_perform(verbosity = 0)
+  response <- httr2::resp_body_string(req)
+  dsn <- sprintf("%s/geocode_direct_geoservices.json", varDir)
+  write(response, dsn, append = FALSE)
+  nc <- st_read(dsn, stringsAsFactors=FALSE, quiet = TRUE)
+  misc_print(nc)
+  return(invisible(nc))
+}

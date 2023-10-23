@@ -12,6 +12,7 @@
 # https://transport.data.gouv.fr/datasets/base-de-donnees-multimodale-transports-publics-en-bretagne-mobibreizh/
 # https://breizh.opendatasoft.com/explore/dataset/base-de-donnees-multimodale-transports-publics-en-bretagne-mobibreizh/table/
 # https://exs.breizgo.cityway.fr/ftp/GTFS/MOBIBREIZHBRET.gtfs.zip
+# https://breizh.opendatasoft.com/explore/dataset/base-de-donnees-multimodale-transports-publics-en-bretagne-mobibreizh/mobibreizh/ la carte
 #
 # le fichier doit avoir été téléchargé dans D:\web.var\TRANSPORT\MOBIBREIZH\
 # puis éclaté dans ce dossier

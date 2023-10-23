@@ -266,7 +266,7 @@ osmose_area_issues_html <- function(force = TRUE) {
   df3 <- df1 %>%
     filter(class == "21411") %>%
     dplyr::select(uuid, subtitle = subtitle.auto, elems.1.id,  elems.1.type,  elems.2.id,  elems.2.type
-      , tags.1.network, tags.2.network
+      , tags.1.network
     ) %>%
     glimpse()
   df4 <- df3 %>%
@@ -283,7 +283,7 @@ osmose_area_issues_html <- function(force = TRUE) {
   df3 <- df1 %>%
     filter(class == "21412") %>%
     dplyr::select(uuid, subtitle = subtitle.auto, elems.1.id,  elems.1.type,  elems.2.id,  elems.2.type
-      , tags.1.network, tags.2.network
+      , tags.1.network
     ) %>%
     glimpse()
   df4 <- df3 %>%
@@ -327,7 +327,7 @@ osmose_area_issues_html <- function(force = TRUE) {
   df3 <- df1 %>%
     filter(class == "5") %>%
     dplyr::select(uuid, subtitle = subtitle.auto, elems.1.id,  elems.1.type,  elems.2.id,  elems.2.type
-      , tags.1.network, tags.2.network
+      , tags.1.network
     ) %>%
     glimpse()
   df4 <- df3 %>%
@@ -465,7 +465,7 @@ osmose_area_issues_html <- function(force = TRUE) {
     mutate(josm = sprintf("<a href='http://127.0.0.1:8111/load_and_zoom?%s&select=%s'>josm</a>", zoom, select)) %>%
     dplyr::select(-select, -zoom) %>%
     dplyr::select(uuid, subtitle = subtitle.auto, elems.1.id,  elems.1.type,  elems.2.id,  elems.2.type
-      , tags.1.network, tags.2.network, josm
+      , tags.1.network, josm
     ) %>%
     glimpse()
   df4 <- df3 %>%

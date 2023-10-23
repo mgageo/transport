@@ -83,3 +83,11 @@ html_symbols <- data.frame(
 )
   stringi::stri_replace_all_fixed(x, c(">"), c("&gt;"))
 }
+html_df2gt <- function(df) {
+  library(gt)
+  html <- df %>%
+    glimpse() %>%
+    gt() %>%
+    as_raw_html()
+  return(invisible(gt))
+}

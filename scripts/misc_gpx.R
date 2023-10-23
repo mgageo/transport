@@ -45,17 +45,24 @@ gpx_write <- function(nc, dsn, name) {
 }
 #
 # conversion en format gpx compatble osm
+# cf st_sf2gpx
 gpx_write <- function(nc, dsn, name) {
   library(sf)
   carp("début name: %s", name)
-  points <- st_cast(nc, "POINT")
   gpx <- '<?xml version="1.0"?>
 <gpx version="1.1" creator="GDAL 3.4.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ogr="http://osgeo.org/gdal" xmlns="http://www.topografix.com/GPX/1/1" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
 '
   gpx <- append(gpx, '<trk>')
   name <- sprintf('<name>%s</name>', name)
   gpx <- append(gpx, name)
-
+  mga <<- nc
+#
+# pour les lignes
+  lines.sf <- nc %>%
+    filter(st_geometry_type(.) == "LINESTRING") %>%
+    glimpse()
+  points <- st_cast(lines.sf, "POINT") %>%
+    glimpse()
   gpx <- append(gpx, '<trkseg>')
   for(point in points) {
 #    glimpse(point);stop("****")
@@ -66,5 +73,6 @@ gpx_write <- function(nc, dsn, name) {
   gpx <- append(gpx, '</trk>')
   gpx <- append(gpx, '</gpx>')
   write(gpx, dsn)
+  stop("*****")
   return(invisible(gpx))
 }

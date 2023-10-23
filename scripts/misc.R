@@ -8,11 +8,13 @@
 #
 ## quelques options générales ------------------------------------
 #
+# https://delladata.fr/conflits-de-packages-r/
 library(conflicted)
 conflicts_prefer(dplyr::filter(), .quiet = TRUE)
 conflicts_prefer(dplyr::select(), .quiet = TRUE)
 conflicts_prefer(dplyr::first(), .quiet = TRUE)
 conflicts_prefer(dplyr::last(), .quiet = TRUE)
+conflicts_prefer(dplyr::recode, .quiet = TRUE)
 #conflicts_prefer(tidyr::extract(), .quiet = TRUE)
 library(tidyverse)
 library(janitor)
@@ -28,13 +30,14 @@ options(scipen=999) # pour désactiver l'écriture scientifique des nombres
 #options(OutDec= ",")
 # https://stackoverflow.com/questions/62140483/how-to-interpret-dplyr-message-summarise-regrouping-output-by-x-override
 options(dplyr.summarise.inform = F)
-# https://delladata.fr/conflits-de-packages-r/
-# library(conflicted)
-# conflict_prefer("filter", "dplyr")
-# conflict_prefer("select", "dplyr")
 # mes opérateurs
 '%!in%' <- function(x,y)!('%in%'(x,y))
 '%notin%' <- Negate('%in%')
+#
+# des flags globaux
+Tex <- TRUE
+Wiki <- TRUE
+OsmChange <- FALSE
 switch(Sys.info()[['sysname']],
   Windows= {baseDir <-"d:/web"},
   Linux  = {baseDir <- "/d/web"}
@@ -920,33 +923,74 @@ misc_dfclass <- function(obj) {
 ## fonctions utilitaires
 #
 # sauvegarde / restauration
-misc.list <<- list()
-misc_lire <- function(rds = 'lire', rds_dir = FALSE, force = FALSE) {
-#  carp("rds: %s", rds)
-  if (force == TRUE) {
-    return(invisible(FALSE))
+misc_list <<- list()
+misc_lire <- function(rds = 'lire', dir = FALSE, force = FALSE) {
+#  carp("rds: %s force: %s", rds, force)
+  if ( dir == FALSE) {
+    dir = varDir
   }
-  if ( rds_dir == FALSE) {
-    rds_dir = varDir
-  }
-  if ( ! exists(rds, where = misc.list) || force == TRUE) {
-    dsn <- sprintf("%s/%s.Rds", rds_dir, rds)
+  if ( ! exists(rds, where = misc_list) | force == TRUE) {
+    dsn <- sprintf("%s/%s.Rds", dir, rds)
     carp("dsn: %s", dsn)
     if (file.exists(dsn)) {
-      misc.list[[rds]] <<- readRDS(file = dsn)
+      misc_list[[rds]] <<- readRDS(file = dsn)
     } else {
+      carp("**** dsn: %s", dsn)
       return(invisible(FALSE))
     }
   }
-  return(invisible(misc.list[[rds]]))
+  return(invisible(misc_list[[rds]]))
 }
-misc_ecrire <- function(obj, rds = "sauve") {
-  misc.list[[rds]] <<- obj
-  dsn <- sprintf("%s/%s.Rds", varDir, rds)
+misc_ecrire <- function(obj, rds = "sauve", dir = FALSE) {
+  if ( dir == FALSE) {
+    dir <- varDir
+  }
+  misc_list[[rds]] <<- obj
+  dsn <- sprintf("%s/%s.Rds",dir, rds)
   carp("dsn: %s", dsn)
   saveRDS(obj, file = dsn)
   return(invisible(obj))
 }
+#
+# variante avec arrow/parquet
+misc.list <<- list()
+misc.lire <- function(parquet = 'lire', dir = FALSE, force = FALSE) {
+  library(arrow)
+#  carp("parquet: %s", parquet)
+  if (force == TRUE) {
+    return(invisible(FALSE))
+  }
+  if ( dir == FALSE) {
+    parquet_dir <- varDir
+  } else {
+    parquet_dir <- dir
+  }
+  if ( ! exists(parquet, where = misc.list) || force == TRUE) {
+    dsn <- sprintf("%s/%s.parquet", parquet_dir, parquet)
+    carp("dsn: %s", dsn)
+    if (file.exists(dsn)) {
+      misc.list[[parquet]] <<- read_parquet(file = dsn)
+    } else {
+      return(invisible(FALSE))
+    }
+  }
+  return(invisible(misc.list[[parquet]]))
+}
+misc.ecrire <- function(obj, parquet = "sauve", dir = FALSE) {
+  library(arrow)
+  if ( dir == FALSE) {
+    parquet_dir <- varDir
+  } else {
+    parquet_dir <- dir
+  }
+  misc.list[[parquet]] <<- obj
+  dsn <- sprintf("%s/%s.parquet", parquet_dir, parquet)
+  carp("dsn: %s", dsn)
+  write_parquet(obj, sink = dsn)
+  return(invisible(obj))
+}
+#
+#
 misc_sf2geojson <- function(nc, geojson = "sauve") {
   dsn <- sprintf("%s/%s.geojson", varDir, geojson)
   carp("dsn: %s", dsn)

@@ -173,7 +173,7 @@ carto_route_shape_mapsf <- function(id, shape, force = TRUE, force_osm = TRUE) {
   library(mapsf)
   carp("id: %s shape: %s", id, shape)
   osm.sf <- osmapi_get_ways(ref = id, force = force, force_osm = force_osm)
-
+#  glimpse(osm.sf);confess();
   if (nrow(osm.sf) < 1) {
     carp("***id: %s", id)
   }
@@ -184,9 +184,19 @@ carto_route_shape_mapsf <- function(id, shape, force = TRUE, force_osm = TRUE) {
   mf_map(x = osm.sf, col = "blue", lwd = 3, add = TRUE)
   osm_points.sf <- st_sf(st_cast(st_geometry(osm.sf), "POINT"))
   mf_annotation(osm_points.sf[1, ], txt = "Départ", col_txt = "blue", col_arrow = "blue")
-  dsn_shape <- sprintf("%s/shape_%s.gpx", josmDir, shape)
+  mf_title(sprintf("r%s %s", id, shape), inner = TRUE)
+  mf_legend_t(title = "", val = c("osm", "gtfs", "inter"), pal = c("blue", "green", "grey"))
+
+  dsn_shape <- sprintf("%s/shape_%s.gpx", josmDir, gsub("[$:]", "_", shape))
   if (! file.exists(dsn_shape)) {
     shape <- sprintf("%s absent", shape)
+    rc <- list(
+      "id" = id,
+      "ref" = osm.sf[[1, "ref"]],
+      "ref_network" = osm.sf[[1, "ref_network"]],
+      "shape" = shape,
+      "osm_lg" = st_length(osm.sf)
+    )
   } else {
     shape.sf <- st_read(dsn_shape, layer = "tracks", quiet = TRUE) %>%
       st_transform(2154)
@@ -197,18 +207,18 @@ carto_route_shape_mapsf <- function(id, shape, force = TRUE, force_osm = TRUE) {
     mf_annotation(shape_points.sf[1, ], txt = "Départ", col_txt = "green", col_arrow = "green")
     point1_distance <- st_distance(osm_points.sf[1, ], shape_points.sf[1, ], by_element = TRUE)
     point9_distance <- st_distance(last(osm_points.sf), last(shape_points.sf), by_element = TRUE)
+    rc <- list(
+      "id" = id,
+      "ref" = osm.sf[[1, "ref"]],
+      "ref_network" = osm.sf[[1, "ref_network"]],
+      "shape" = shape,
+      "point1_distance" = point1_distance,
+      "point9_distance" = point9_distance,
+      "osm_lg" = st_length(osm.sf),
+      "shape_lg" = st_length(shape.sf),
+      "inters_lg" = st_length(inters)
+    )
   }
-  mf_title(sprintf("r%s %s", id, shape), inner = TRUE)
-  mf_legend_t(title = "", val = c("osm", "gtfs", "inter"), pal = c("blue", "green", "grey"))
-  rc <- list(
-    "id" = id,
-    "shape" = shape,
-    "point1_distance" = point1_distance,
-    "point9_distance" = point9_distance,
-    "osm_lg" = st_length(osm.sf),
-    "shape_lg" = st_length(shape.sf),
-    "inters_lg" = st_length(inters)
-  )
   return(invisible(rc))
 }
 #

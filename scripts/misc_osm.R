@@ -541,9 +541,9 @@ osm_relations_route_parcours <- function(force = FALSE) {
 #  text(st_coordinates(st_centroid(nc)), labels = nc$ref.network, cex=1.2, col='black')
   return(invisible(res))
 }
-osm_relations_routes <- function(force = FALSE) {
+# source("geo/scripts/transport.R"); config_xls("star");osm_relations_route() %>% glimpse()
+osm_relations_route <- function(force = FALSE) {
   carp()
-  config_xls('tub');
   library(jsonlite)
   dsn <- sprintf("%s/relations_route.Rds", transportDir)
   if (file.exists(dsn) && force == FALSE) {

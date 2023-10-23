@@ -10,28 +10,10 @@
 #
 # les traitements journaliers
 
-# source("geo/scripts/transport.R");config_xls('star');osm_jour(routemaster = TRUE, route = TRUE, stop = TRUE)
-osm_jour_v1 <- function(routemaster = FALSE, route = TRUE, stop = TRUE, force = FALSE) {
+# source("geo/scripts/transport.R");config_xls('star');osm_jour()
+osm_jour <- function(force = TRUE) {
   carp()
-  if( routemaster == TRUE ) {
-    osm_relations_routemaster_bus_get()
-    osm_relations_routemaster_bus_save()
-    osm.sf <- osm_relations_routemaster_bus_read() %>%
-      glimpse()
-  }
-  if( route == TRUE ) {
-    osm_relations_route_bus_get(force = force)
-    osm_relations_route_bus_save()
-    osm.sf <- osm_relations_route_bus_read() %>%
-      glimpse()
-  }
-  if( stop == TRUE ) {
-    osm_nodes_stop_get()
-    osm_nodes_stop_save()
-    osm.sf <- osm_nodes_stop_read() %>%
-      glimpse()
-  }
-  osm_routes_refs()
+  osm_valid_jour(force = force)
 }
 # les routes
 #
@@ -221,32 +203,46 @@ osm_relations_routemaster_bus_read <- function(fic = 'relations_routemaster_bus'
   carp('dsn: %s', dsn)
   return(invisible(osm.sf$osm_multilines))
 }
-#
-#
-## pour les stops
-#
-# la partie osm
-#
-# source("geo/scripts/transport.R");reseau_osm_jour_stops(force = TRUE)
-osm_jour_stops <- function(reseau = "star", force = FALSE) {
-  library(tidyverse)
-  library(data.table)
-  library(janitor)
+# source("geo/scripts/transport.R"); df1 <- osm_relations_routemaster_bus_area(force = FALSE)
+osm_relations_routemaster_bus_area <- function(fic = 'relations_routemaster_bus_area', force = TRUE) {
   carp()
-  config_xls(reseau)
-  osm_stops_valid(force_osm = TRUE)
+  carp("osm: les relations")
+  doc <- overpass_get(query = "relations_routemaster_bus_area", format = "xml", force = force)
+  objects <- xml2::xml_find_all(doc, "//relation")
+  osm.df <- osmapi_objects_members(objects) %>%
+    glimpse()
+  carp("les networks")
+  df1 <- osm.df %>%
+    filter(! is.na(route_master)) %>%
+    group_by(network) %>%
+    summarize(nb = n())
+  misc_print(df1)
+#
+# les relations membres plusieurs fois
+  carp("les doublons")
+  df1 <- osm.df %>%
+    group_by(Mtype, Mrole) %>%
+    summarize(nb = n()) %>%
+    filter(nb > 1)
+  if (nrow(df1) > 1) {
+    misc_print(df1)
+  }
 }
+#
+#
 #
 ## les validations
 ###############################################################
 #
-# source("geo/scripts/transport.R");osm_valid_relations()
+# source("geo/scripts/transport.R");osm_valid_jour()
 osm_valid_jour <- function(force = TRUE) {
   carp()
   osm_valid_stops()
   osm_valid_relations(); # master # route
   osm_valid_relations_route_bus()
 }
+#
+# les route_master et les route
 # source("geo/scripts/transport.R");osm_valid_relations()
 osm_valid_relations <- function(force = TRUE) {
   carp()
@@ -287,15 +283,86 @@ osm_valid_relations <- function(force = TRUE) {
     html <- misc_html_append_df(html, df1)
   }
 
-  fic <- sprintf("%s.html", titre)
-  dsn <- sprintf("%s/%s", webDir, fic)
-  write(html, dsn)
-  carp("dsn: %s", dsn)
-  url <- sprintf("http://localhost/transport/%s", fic)
-  browseURL(
-    url,
-    browser = "C:/Program Files/Mozilla Firefox/firefox.exe"
-  )
+  transport_html_browse(html, titre)
+}
+#
+# les route_master et les route
+# source("geo/scripts/transport.R");osm_valid_relations_bus(force = FALSE)
+osm_valid_relations_bus <- function(force = TRUE) {
+  carp()
+  titre <- sprintf("osm_valid_relations_bus_%s", Config[1, "reseau"])
+  html <- misc_html_titre(titre)
+  html <- misc_html_append(html, sprintf("<h1>%s</h1>", titre))
+  rc <- objets_relations_bus(force)
+  routes.df <- rc[["relations.df"]] %>%
+    (function(.df){
+      cls <- c("disused:route", "disused:route_master")
+      .df[cls[!(cls %in% colnames(.df))]] = NA
+      return(.df)
+    }) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>", "r", id)) %>%
+    glimpse()
+  members.df <- rc[["members.df"]] %>%
+    rename_with( ~ paste0(.x, ".member"))
+  html <- misc_html_append(html, sprintf("<h3>%s%s</h3>", "les relations hors network: ", Config_network))
+  df11 <- routes.df %>%
+    filter(network != Config_network) %>%
+    dplyr::select(id, level0, ref, name) %>%
+    glimpse()
+  html <- misc_html_append_df(html, df11)
+  html <- misc_html_append(html, sprintf("<h3>%s</h3>", "les relations disused:route"))
+  df1 <- routes.df %>%
+    filter(!is.na(`disused:route`)) %>%
+    dplyr::select(id, level0, ref, name) %>%
+    glimpse()
+  html <- misc_html_append_df(html, df1)
+  html <- misc_html_append(html, sprintf("<h3>%s</h3>", "les relations disused:route_master"))
+  df2 <- routes.df %>%
+    filter(!is.na(`disused:route_master`)) %>%
+    dplyr::select(id, level0, ref, name) %>%
+    glimpse()
+  html <- misc_html_append_df(html, df2)
+  html <- misc_html_append(html, sprintf("<h3>%s</h3>", "les relations route hors route_master"))
+  df21 <- routes.df %>%
+    filter(route == "bus") %>%
+    left_join(members.df, by = c("id" = "ref.member")) %>%
+    glimpse()
+  df22 <- df21 %>%
+    filter(is.na(id.member)) %>%
+    dplyr::select(id, level0, ref, name) %>%
+    glimpse()
+  html <- misc_html_append_df(html, df22)
+#
+## pour valider les membres des route_master
+#
+  carp("les relations route=bus")
+  df31 <- routes.df %>%
+    filter(route == "bus") %>%
+    arrange(ref) %>%
+    dplyr::select(ref, id) %>%
+    rename_with( ~ paste0(.x, ".route")) %>%
+    glimpse()
+# pour retouver les membres des route_master
+  df32 <- routes.df %>%
+    filter(route_master == "bus") %>%
+    arrange(ref) %>%
+    dplyr::select(ref, id) %>%
+    left_join(members.df, by = c("id" = "id.member")) %>%
+    glimpse()
+  df33 <- df32 %>%
+    filter(is.na(type.member))
+  if(nrow(df33) > 0) {
+    confess("bug interrogation overpass")
+  }
+# la comparaison
+  df34 <- df32 %>%
+    full_join(df31, by = c("ref.member" = "id.route")) %>%
+    glimpse()
+  df35 <- df34 %>%
+    filter(ref != ref.route)
+  html <- misc_html_append(html, sprintf("<h3>%s</h3>", "les deltas"))
+  html <- misc_html_append_df(html, df35)
+  transport_html_browse(html, titre)
 }
 #
 ## *************************************************
@@ -353,25 +420,22 @@ osm_valid_relations_route_bus <- function(force = TRUE) {
     glimpse()
   html <- misc_html_append(html, sprintf("<h3>%s</h3>", "les relations route gtfs:shape_id # 1"))
   html <- misc_html_append_df(html, df6)
-  fic <- sprintf("%s.html", titre)
-  dsn <- sprintf("%s/%s", webDir, fic)
-  write(html, dsn)
-  carp("dsn: %s", dsn)
-  url <- sprintf("http://localhost/transport/%s", fic)
-  browseURL(
-    url,
-    browser = "C:/Program Files/Mozilla Firefox/firefox.exe"
-  )
+  transport_html_browse(html, titre)
   return(invisible())
 }
-# source("geo/scripts/transport.R");osm_valid_relations_route_bus_network()
+#
+## les relations route
+#
+# source("geo/scripts/transport.R"); df1 <- osm_valid_relations_route_bus_network(force = FALSE) %>% glimpse()
 osm_valid_relations_route_bus_network <- function(force = TRUE) {
-  carp("osm: les relations")
-  osm.df <- overpass_get(query = "relations_route_bus_network", format = "csv", force = force) %>%
-    mutate(kref = `gtfs:shape_id`) %>%
-    rename(ref_network = `ref:network`) %>%
-    glimpse()
+  doc <- overpass_get(query = "relations_route_bus_network", format = "xml", force = force)
+  objects <- xml2::xml_find_all(doc, "//relation")
   kref <- "gtfs:shape_id"
+  osm.df <- osmapi_objects_tags(objects) %>%
+    glimpse()
+  osm.df[, "kref"] <- osm.df[, "gtfs:shape_id"]
+  titre <- sprintf("osm_valid_relations_route_bus_network_%s", Reseau)
+  html <- misc_html_titre(titre)
   df1 <- osm.df %>%
     group_by(kref) %>%
     summarize(nb = n()) %>%
@@ -380,15 +444,86 @@ osm_valid_relations_route_bus_network <- function(force = TRUE) {
     glimpse(df1)
     df2 <- osm.df %>%
       filter(kref %in% df1$kref) %>%
-      arrange(kref) %>%
-      dplyr::select(kref, `@id`)
+      arrange(kref, `ref:network`) %>%
+      mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/relation/%s/full'>josm</a>", `@id`)) %>%
+      dplyr::select(kref, `@id`, josm, `ref:network`, from, to, name) %>%
+      mutate(`@id` = sprintf("<a href=http://level0.osmz.ru/?url=relation/%s>%s</a>", `@id`, `@id`))
+
     misc_print(df2)
-    carp("**** doublons nb: %s", nrow(df1))
-    stop("*****")
+    html <- misc_html_append(html, "<h2>Les doublons</h2>")
+    html <- misc_html_append_df(html, df2)
+    transport_html_browse(html, titre)
   }
-  carp(sprintf("pas de doublons kref: %s", kref))
-  return(invisible(osm.df))
+#
+# les tags définis dans agency.xls
+  tags <- c("operator", "website", "wikidata", "wikipedia", "operator:wikidata", "operator:wikipedia", "network:wikidata", "network:wikipedia")
+  for (tag in tags) {
+    col <- sprintf("Config_%s", tag)
+    col <- get(col)
+    carp("tag: %s col: %s", tag, col)
+    if(tag %notin% names(osm.df)) {
+      carp("\ttag absent")
+      next
+    }
+    df2 <- osm.df %>%
+      rename(tag = !!tag) %>%
+      dplyr::select(`@id`, tag, name) %>%
+      filter(tag != col)
+    if ( nrow(df2) > 0) {
+      misc_print(df2)
+#      stop("*****")
+    }
+  }
+
+  return(invisible())
 }
+#
+## les nodes platform
+#
+# source("geo/scripts/transport.R"); osm_valid_nodes_platform_kref(force = FALSE)
+osm_valid_nodes_platform_kref <- function(rds = "osm_valid_nodes_platform_kref", force = TRUE, force_osm = TRUE) {
+  if (force == TRUE) {
+    doc <- overpass_get(query = "nodes_platform_kref", format = "xml", force_osm = force_osm)
+    objects <- xml2::xml_find_all(doc, "//node")
+    osm.df <- osmapi_objects_tags(objects) %>%
+      glimpse()
+    transport_ecrire(osm.df, rds)
+  }
+  osm.df <- transport_read(rds)
+#
+# les tags potentiels
+  tags_delete <- c("source", "route_ref", "local_ref", "ref", "network", "not:network:wikidata", "operator", "network:wikidata")
+  tags_osm <- names(osm.df)
+  tags <- list()
+  for (tag in tags_delete) {
+    if(tag %notin% tags_osm) {
+      carp("\ttag absent")
+      next
+    }
+    tags <- append(tags, tag)
+  }
+  level0 <- list()
+  for (i in 1:nrow(osm.df)) {
+    carp("i: %s/%s", i, nrow(osm.df))
+    row.list <- purrr::transpose(osm.df[i, ])[[1]]
+    ok <- TRUE
+    for (tag in tags) {
+      if(! is.na(row.list[[tag]])) {
+        carp("\ttag présent: %s", tag)
+        ok <- FALSE
+        next
+      }
+    }
+    if (ok == FALSE) {
+      level0 <- append(level0, row.list[["@id"]])
+    }
+#    stop("****")
+  }
+  glimpse(level0)
+  level0 <- paste(level0, collapse = ",n")
+  print(level0)
+}
+
 #
 # lecture en csv
 # source("geo/scripts/transport.R");osm_valid_stops(force_osm = FALSE)
@@ -482,15 +617,7 @@ node,stop_position,,yes
   html <- misc_html_append_df(html, df2)
   html <- misc_html_append_df(html, df1)
 #
-#
-  dsn <- sprintf("%s/%s.html", webDir, titre)
-  write(html, dsn)
-  carp("dsn: %s", dsn)
-  url <- sprintf("http://localhost/transport/%s.html", titre)
-  browseURL(
-    url,
-    browser = "C:/Program Files/Mozilla Firefox/firefox.exe"
-  )
+  transport_html_browse(html, titre)
 }
 #
 # source("geo/scripts/transport.R"); od <- osm_bus_stop_network(force = TRUE) %>% glimpse
@@ -889,25 +1016,26 @@ osm_relation_route_members <- function(id, force = TRUE, force_osm = TRUE) {
   rc[["platforms.sf"]] <- platforms.sf
   rc[["stops.sf"]] <- stops.sf
 # pour récupérer les infos de l'objet
-  nc3 <- tibble()
+  rc$members.sf <- tibble()
   if (nrow(stops.sf) > 0) {
-    nc3 <- osm_relation_route_members_nodes(rc, role = "stop")
+    rc <- osm_relation_route_members_nodes(rc, role = "stop")
+    rc$members.sf <- rc$stops.sf
   }
   if (nrow(platforms.sf) > 0) {
+    rc <- osm_relation_route_members_nodes(rc, role = "platform")
+    if (nrow(stops.sf) > 0) {
+      rc$members.sf <- bind_rows(rc$members.sf, rc$platforms.sf)
+    } else {
+      rc$members.sf <- rc$platforms.sf
+  }
+# les départ/arrivée
     d <- as.integer(st_distance(platforms.sf[1, ], rc$ways.sf[1, ]))
     rc[["distance_depart"]] <- d
     n1 <- nrow(platforms.sf)
     n2 <- nrow(rc$ways.sf)
     d <- as.integer(st_distance(platforms.sf[n1, ], rc$ways.sf[n2, ]))
     rc[["distance_arrivee"]] <- d
-    nc2 <- osm_relation_route_members_nodes(rc, role = "platform")
-    if (nrow(nc3) > 0) {
-      nc3 <- bind_rows(nc3, nc2)
-    } else {
-      nc3 <- nc2
-    }
   }
-  rc[["members.sf"]] <- nc3
   saveRDS(rc, dsn_rds)
   return(invisible(rc))
 }
@@ -940,15 +1068,14 @@ osm_relation_route_members_mapsf <- function(rc) {
   mf_title(titre)
   mf_annotation(rc$ways_points.sf[1, ], txt = "Départ")
 }
-
 #
+# détermination de la distance et du segment le plus proche
 osm_relation_route_members_nodes <- function(rc, role = "stop") {
   carp()
-  if ( role == "stop") {
+  if (role == "stop") {
     nodes.sf <- rc$stops.sf
-    nodes.sf$couleur <- "green"
   }
-  if ( role == "platform") {
+  if (role == "platform") {
     nodes.sf <- rc$platforms.sf
     nodes.sf$couleur <- "blue"
   }
@@ -972,7 +1099,7 @@ osm_relation_route_members_nodes <- function(rc, role = "stop") {
     mutate(ordre = row_number()) %>%
     dplyr::select(type, ref, name, Id, ordre, public_transport, distance, way_id, way_no) %>%
     glimpse()
-  misc_print(nodes.df)
+#  misc_print(nodes.df)
   err.df <- tibble()
   if (role == "platform") {
     df1 <- nodes.df %>%
@@ -998,7 +1125,17 @@ osm_relation_route_members_nodes <- function(rc, role = "stop") {
     stops.df <<- bind_rows(stops.df, err.df)
 #    stop("****")
   }
-  return(invisible(nodes.sf))
+  if (role == "stop") {
+    nodes.sf$couleur <- "green"
+    rc$stops.df <- nodes.df
+    rc$stops.sf <- nodes.sf
+  }
+  if (role == "platform") {
+    nodes.sf$couleur <- "blue"
+    rc$platforms.df <- nodes.df
+    rc$platforms.sf <- nodes.sf
+  }
+  return(invisible(rc))
 }
 # liste des informations des ways de la relation
 # osmapi_get_transport ligne 290
@@ -1016,12 +1153,10 @@ osm_relation_route_members_ways <- function(rc) {
   return(invisible(rc))
 }
 # source("geo/scripts/transport.R");osm_relations_route_members_tex()
-osm_relations_route_members_tex <- function(reseau = Reseau, force = FALSE, force_osm = FALSE) {
+osm_relations_route_members_tex <- function(force = FALSE, force_osm = FALSE) {
   carp()
-  config_xls(reseau)
-  reseau_tpl_tex(reseau = reseau)
-  osm_relations_route_members(reseau = reseau, force = force, force_osm = force_osm)
-  tex_pdflatex(sprintf("%s_relations_route_members.tex", reseau))
+  osm_relations_route_members(force = force, force_osm = force_osm)
+  tex_pdflatex(sprintf("%s_relations_route_members.tex", Reseau))
 }
 #
 ## les arrêts qui ne sont plus en service
@@ -1078,9 +1213,34 @@ osm_platforms_untag <- function(force = FALSE, force_osm = FALSE) {
   return(invisible(df))
 }
 #
+## la recherche des relations bus existantes sur une zone
+#
+# source("geo/scripts/transport.R");osm_relations_bus()
+osm_relations_bus <- function(force = TRUE, force_osm = TRUE) {
+  library(tidyverse)
+  library(data.table)
+  library(janitor)
+  carp()
+  titre <- sprintf("osm_relations_bus_%s", Reseau)
+  html <- misc_html_titre(titre)
+  html <- misc_html_append(html, sprintf("<h1>%s</h1>", titre))
+  osm.df <- overpass_get(query = "relations_bus_area", format = "csv", force = force) %>%
+    glimpse()
+  df1 <- osm.df %>%
+    filter(network %notin% c("FR:STAR")) %>%
+    filter(route != "bus") %>%
+    dplyr::select("network", "@id", "name", "from", "to") %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=relation/%s' target='diff'>%s</a>", `@id`, `@id`))
+  html <- misc_html_append_df(html, "<h2>osm</h2>")
+  html <- misc_html_append_df(html, df1)
+  transport_html_browse(html, titre, Exit = FALSE)
+
+}
+#
 ## l'analyse fine d'une relation
 #
-# source("geo/scripts/transport.R");osm_relations_route_members_valid(force = FALSE, force_osm = FALSE)
+# source("geo/scripts/transport.R");Reseau <- "bordeaux";config_xls(Reseau);osm_relations_route_members_valid(force = FALSE, force_osm = FALSE)
+# source("geo/scripts/transport.R");osm_relations_route_members_valid()
 osm_relations_route_members_valid <- function(force = TRUE, force_osm = TRUE) {
   library(tidyverse)
   library(data.table)
@@ -1129,23 +1289,50 @@ osm_relations_route_members_valid_tex <- function(force = TRUE, force_osm = TRUE
     ~id,
     ~shape_id,
     ~distance_depart,
-    ~distance_arrivee)
+    ~distance_arrivee
+  )
+  err_role.df <- tibble()
+  platforms.df <- tibble()
   for (id in names(relations.list)) {
     carp("id: %s", id)
     relation <- relations.list[[id]]
+    if (nrow(relation$ways.sf) == 0) {
+      next
+    }
+#    glimpse(relation);stop("*****")
+    if (nrow(relation$err_role.df) > 0) {
+      err_role.df <- relation$err_role.df
+    }
     df <- add_row(df,
       id = id,
       shape_id = relation$relation[[1, "gtfs:shape_id"]],
       distance_depart = relation$distance_depart,
       distance_arrivee = relation$distance_arrivee,
     )
+    if (nrow(relation$platforms.sf) > 0) {
+      relation$platforms.df$relation <- id
+      relation$platforms.df$ref_network <- relation$relation[[1, "ref:network"]]
+#      glimpse(relation$platforms.df)
+      platforms.df <- bind_rows(platforms.df, relation$platforms.df)
+    }
 #    break
   }
+  carp("les erreurs de distance")
   df1 <- df %>%
     filter(distance_depart > 150 | distance_arrivee > 150) %>%
     arrange(shape_id) %>%
     glimpse()
   misc_print(df1)
+  carp("les erreurs de role")
+  misc_print(err_role.df)
+  df2 <- platforms.df %>%
+    filter(grepl("stop", public_transport)) %>%
+    filter(distance > 1) %>%
+    glimpse()
+  df3 <- platforms.df %>%
+    filter(grepl("platform", public_transport)) %>%
+    filter(distance > 100)
+  misc_print(df3)
 }
 
 # source("geo/scripts/transport.R"); osm_relation_route_members_valid(id = 4756509, force = TRUE, force_osm = TRUE)
@@ -1192,6 +1379,7 @@ osm_relation_route_members_valid <- function(rc, id = 3184038, force = FALSE, fo
     )) %>%
     mutate(member = sprintf("  %s %s %s", type, ref, role))
   rc$members_level0 <- paste(df2$member,  collapse = "\n")
+  rc$err_role.df <- df
   return(invisible(rc))
 }
 #
@@ -1280,7 +1468,6 @@ osm_relations_route_gap <- function(force = TRUE, force_osm = TRUE) {
   for (i in 1:nrow(df)) {
     osm_relation_route_gap(id = df[i, "id"], force = TRUE, force_osm = TRUE)
   }
-
 }
 
 #
@@ -1546,7 +1733,7 @@ osm_routes_refs <- function(reseau = "star", force = TRUE) {
     filter(is.na(ref_network)) %>%
     glimpse()
   tex_df2kable(df1, suffixe = "absent", longtable = TRUE)
-  gtfs.df <- tidytransit_lire("gtfs_routes_stops") %>%
+  gtfs.df <- transport_lire("gtfs_routes_stops") %>%
     glimpse()
   df2 <- df %>%
     filter(ref_network %notin% gtfs.df$ref_network) %>%

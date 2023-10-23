@@ -13,6 +13,9 @@
 # source("geo/scripts/transport.R"); osmchange_put()
 osmchange_put <- function(osmchange = "create", text = "osm", comment = "test", force = FALSE) {
   library(tidyverse)
+  if (OsmChange != TRUE) {
+    return(invisible(OsmChange))
+  }
   xml <- sprintf('<osm>
   <changeset>
     <tag k="created_by" v="R 0.6"/>
@@ -47,11 +50,58 @@ osmchange_osmchange <- function(changeset_id = 200, change = "create", osm = "<n
   return(text)
 }
 #
-# pour changer des tags
-osmchange_object_modify_tags <- function(id = "13400195", type = "relation", tags = list()) {
+# pour supprimer des tags
+osmchange_object_delete_tags <- function(id = "13400195", type = "relation", tags = list(), Change = TRUE) {
   library(stringi)
 #  library(textutils)
-  osm <<- osmapi_get_object_xml(id = id, type = type)
+  osm <- osmapi_get_object_xml(id = id, type = type)
+  if (! is_tibble(tags)) {
+    tags.df <- tags %>%
+      enframe() %>%
+      arrange(name)
+  } else {
+    tags.df <- tags
+  }
+
+#  misc_print(tags.df); stop("*****")
+  nb_modifs <- 0
+  for (i in 1:nrow(tags.df)) {
+    r <- sprintf('^(.*)(  <tag k="%s" v="[^"]*"/>)(.*$)', tags.df[[i, "osm"]])
+    re <- regex(r, dotall = TRUE)
+    matches <- str_match(osm, re)[1, ]
+    if (1 == 2) {
+      Carp("re: %s", re)
+      Carp("length: %s", length(matches))
+      glimpse(matches)
+#      stop("****")
+    }
+# le tag est présent ?
+    if (!is.na(matches[[3]])) {
+      carp("id: %s\n  osm : %s",id, matches[[3]])
+      osm <- sprintf("%s%s", matches[[2]], matches[[4]])
+      nb_modifs <- nb_modifs + 1
+      next
+    }
+# https://stackoverflow.com/questions/70486931/how-to-decode-strings-in-a-data-frame-using-r/70487386#70487386
+  }
+  carp("id: %s, nb_modifs: %s",id, nb_modifs)
+  if (nb_modifs > 0) {
+#    writeLines(osm)
+    if ( Change == TRUE) {
+      changeset_url <- osmchange_put("modify", text = osm, comment = sprintf("mise a jour du gtfs %s", Config_gtfs_source))
+      return(invisible(changeset_url))
+    } else {
+      return(invisible(osm))
+    }
+  }
+  return(invisible(nb_modifs))
+}
+#
+# pour changer des tags
+osmchange_object_modify_tags <- function(id = "13400195", type = "relation", tags = list(), Change = FALSE) {
+  library(stringi)
+#  library(textutils)
+  osm <- osmapi_get_object_xml(id = id, type = type)
   if (! is_tibble(tags)) {
     tags.df <- tags %>%
       enframe() %>%
@@ -65,42 +115,45 @@ osmchange_object_modify_tags <- function(id = "13400195", type = "relation", tag
   for (i in 1:nrow(tags.df)) {
     gtfs <- sprintf('  <tag k="%s" v="%s"/>', tags.df[[i, "name"]], tags.df[[i, "value"]])
 #    print(gtfs);
-    re <<- regex(sprintf('^(.*)(  <tag k="%s" v="[^"]*"/>)(.*$)', tags.df[[i, "name"]]), , dotall = TRUE)
-    matches <- str_match(osm, re)[1, ]
-    mga <<- matches
-    if (1 == 1) {
-      Carp("re: %s", re)
-      Carp("length: %s", length(matches))
-      glimpse(matches)
-#      stop("****")
-    }
+    re <- sprintf('^(.*)(  <tag k="\\Q%s\\E" v="[^"]*"/>)(.*$)', tags.df[[i, "name"]])
+#    Carp("\nid: %s\n  re : %s\n  gtfs: %s", id, re, gtfs)
+    re <- regex(re, dotall = TRUE)
+    matches1 <- str_match(osm, re)[1, ]
 # le tag est présent ?
-    if (!is.na(matches[[3]])) {
+    if (!is.na(matches1[[3]])) {
 # pas de modifs ?
-      if (gtfs == matches[[3]]) {
+      if (gtfs == matches1[[3]]) {
+#        Carp("\negal id: %s\n  osm : %s\n  gtfs: %s", id, matches1[[3]], gtfs)
         next
       }
-      carp("id: %s\n  osm : %s\n  gtfs: %s",id, matches[[3]], gtfs)
-      osm <- sprintf("%s%s%s", matches[[2]], gtfs, matches[[4]])
+#      Carp("\ndiff id: %s\n  osm : %s\n  gtfs: %s", id, matches1[[3]], gtfs)
+      osm <- sprintf("%s%s%s", matches1[[2]], gtfs, matches1[[4]])
       nb_modifs <- nb_modifs + 1
       next
     }
+#    Carp("\nabsent id: %s\n gtfs: %s", id, gtfs)
+#    next
 # non, on l'insère à la fin
     re <- regex('^(.*)(</(node|way|relation)>.*$)', , dotall = TRUE)
-    matches <- str_match(osm, re)[1, ] %>%
-      glimpse()
-    carp("id: %s\n  osm :\n  gtfs: %s",id, gtfs)
-    osm <- sprintf("%s%s\n%s", matches[[2]], gtfs, matches[[3]])
+    matches2 <- str_match(osm, re)[1, ]
+#    Carp("\najout id: %s\n  gtfs: %s",id, gtfs)
+    osm <- sprintf("%s%s\n%s", matches2[[2]], gtfs, matches2[[3]])
     nb_modifs <- nb_modifs + 1
+#    writeLines(osm);
 # https://stackoverflow.com/questions/70486931/how-to-decode-strings-in-a-data-frame-using-r/70487386#70487386
   }
+#  writeLines(osm);stop("********")
   carp("id: %s, nb_modifs: %s",id, nb_modifs)
   if (nb_modifs > 0) {
-    writeLines(osm)
-    changeset_url <- osmchange_put("modify", text = osm, comment = sprintf("mise a jour du gtfs %s", Config_gtfs_source))
-    return(invisible(changeset_url))
+#    writeLines(osm)
+    if ( Change == TRUE) {
+      changeset_url <- osmchange_put("modify", text = osm, comment = sprintf("mise a jour du gtfs %s", Config_gtfs_source))
+      return(invisible(changeset_url))
+    } else {
+      return(invisible(osm))
+    }
   }
-  return(invisible(nb_modifs))
+  return(invisible(""))
 }
 #
 ## tests

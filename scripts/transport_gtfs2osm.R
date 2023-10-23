@@ -9,13 +9,16 @@
 #
 # préparation des données gtfs pour comparaison avec osm
 #
+Config_tags <- c("operator", "website", "network:wikidata", "network:wikipedia", "operator:wikidata", "operator:wikipedia")
+
 # source("geo/scripts/transport.R");gtfs2osm_jour()
-gtfs2osm_jour <- function(reseau = Reseau, force = TRUE) {
+gtfs2osm_jour <- function(force = TRUE) {
   library(tidyverse)
   library(rio)
   library(sf)
   carp()
-  config_xls(reseau);
+# mise au format interne des fichiers gtfs pour les relations route_master
+  gtfs2osm_routemasters();
 # mise au format interne des fichiers gtfs pour les routes
   gtfs2osm_routes_stops(force = force)
 #  gtfs2osm_routes_wiki("gtfs2osm_routes_stops")
@@ -23,19 +26,6 @@ gtfs2osm_jour <- function(reseau = Reseau, force = TRUE) {
     gtfs2osm_routes_shapes_stops(force = force)
     gtfs2osm_routes_wiki("gtfs2osm_routes_shapes_stops")
   }
-}
-gtfs2osm_jour_v1 <- function(reseau = "bibus") {
-  library(tidyverse)
-  library(rio)
-  library(sf)
-  carp()
-  config_xls(reseau);
-# mise au format interne des fichiers gtfs
-  gtfs2mga_jour()
-# mise au format interne des fichiers osm
-  osm2mga_jour(force=FALSE)
-# comparaison
-  gtfs2osm_diff()
 }
 #
 # source("geo/scripts/transport.R");gtfs2osm_diff()
@@ -59,90 +49,7 @@ gtfs2osm_diff <- function() {
     glimpse()
 }
 #
-# pour les stops
-gtfs2osm_stops <- function(gtfs.sf, osm.sf) {
-  carp()
-  library(sf)
-  library(tidyverse)
-  library(knitr)
-  library(kableExtra)
-  gtfs.sf <- gtfs.sf %>%
-    st_transform(2154)
-  cc <- sf::st_coordinates(gtfs.sf)
-  gtfs.sf <- cbind(gtfs.sf, cc) %>%
-    glimpse()
-  osm.sf <- osm.sf %>%
-    st_transform(2154)
-  Encoding(osm.sf$name) = "UTF-8"
-  cc <- sf::st_coordinates(osm.sf)
-  osm.sf <- cbind(osm.sf, cc) %>%
-    glimpse()
-
-  df <- dplyr::full_join(gtfs.sf %>%  st_drop_geometry(), osm.sf %>%  st_drop_geometry(), by=c('stop_id'='stop_id')) %>%
-    arrange(stop_id) %>%
-    glimpse()
-  carp("les stops absents d'osm")
-  df1 <- df %>%
-    filter(! is.na(stop_id)) %>%
-    filter(is.na(name))
-  print(knitr::kable(df1[, c("stop_id", "stop_name")], format = "pipe"))
-  carp("les stops absents du gtfs")
-  df2 <- df %>%
-    filter(! is.na(ref)) %>%
-    filter(is.na(stop_name))
-  print(knitr::kable(df2[, c("ref", "stop_id", "name", "osm_id")], format = "pipe"))
-  df3 <- df %>%
-    filter(! is.na(stop_name)) %>%
-    filter(! is.na(name)) %>%
-    glimpse()
-  carp("différence de nom")
-  df4 <- df3 %>%
-    filter(stop_name != name) %>%
-    glimpse()
-  print(knitr::kable(df4[, c("stop_code", "stop_name", "name")], format = "pipe"))
-  carp("différence de position")
-  df4 <- df3 %>%
-    mutate(distance = round(sqrt((X.x - X.y)^2 + (Y.x - Y.y)^2), 0)) %>%
-    filter(distance > 50) %>%
-    glimpse()
-  print(knitr::kable(df4[, c("stop_code", "stop_name", "name", "distance")], format = "pipe"))
-#  return()
-#
-# pour trouver d'éventuels stops osm pour les stops solitaires du gtfs
-  carp("les stops gtfs solitaires")
-  nc11 <- gtfs.sf %>%
-    filter(stop_id %in% df1$stop_id) %>%
-    glimpse()
-  carp("les stops osm qui ne sont pas de ce réseau")
-  nc12 <- osm.sf %>%
-    filter(is.na(ref)) %>%
-    glimpse()
-  df11 <- nc11 %>%
-    st_join(nc12, join = st_nearest_feature) %>%
-    mutate(distance = round(sqrt((X.x - X.y)^2 + (Y.x - Y.y)^2), 0)) %>%
-    mutate(k_ref = Config[1, "k_ref"]) %>%
-    mutate(v_ref = sprintf("%s:%s", Config[1, "v_ref"], stop_id.x)) %>%
-    st_drop_geometry()
-  df12 <- df11 %>%
-    filter(distance < 50) %>%
-    arrange(name, stop_id.x)
-  print(knitr::kable(df12, format = "pipe"))
-#
-# le fichier de création des nodes osm
-#
-  df13 <- df11 %>%
-    filter(distance >= 50)
-  if (nrow(df13) > 0) {
-# le template level0
-    dsn <- sprintf("%s/transport_level0_node.txt", cfgDir)
-    carp("dsn: %s", dsn)
-    template <- readLines(dsn)
-    osm <- misc_df2tpl(df13, template)
-    dsn <- sprintf("%s/transport_level0_node.txt", transportDir)
-    carp("dsn: %s", dsn)
-    writeLines(osm, dsn)
-  }
-}
+#################################################################################
 #
 # pour les stops
 gtfs2osm_stops_create <- function(gtfs.sf) {
@@ -165,15 +72,149 @@ gtfs2osm_stops_create <- function(gtfs.sf) {
   writeLines(osm, dsn)
 }
 #
+#################################################################################
+#
+# pour les relations route_master
+#
+# la conversion pour perl, fichier tsv
+# source("geo/scripts/transport.R");gtfs2osm_routemasters()
+gtfs2osm_routemasters <- function(rds = "gtfs2osm_routemasters", force_osm = TRUE) {
+  library(tidyverse)
+  library(tidytransit)
+  carp()
+  tt <- tidytransit_lire("gtfs")
+  df <- tt$routes %>%
+    mutate(Route_color = sprintf("#%s", toupper(route_color))) %>%
+    mutate(Route_text_color = sprintf("#%s", toupper(route_text_color))) %>%
+    mutate(Route_color = ifelse(grepl("^#[0-9A-F]{6}$", Route_color), Route_color, "#000000")) %>%
+    mutate(Route_text_color = ifelse(grepl("^#[0-9A-F]{6}$", Route_text_color), Route_text_color, "#FFFFFF")) %>%
+    mutate(Name = str_glue('{Config_route_name} {route_short_name} {route_long_name}'))
+  if (grepl("breizhgo", Config_reseau)) {
+    df <- df %>%
+      mutate(Name = str_glue('{Config_route_name} {route_short_name} : {route_long_name}')) %>%
+      glimpse()
+  }
+  df <- df %>%
+    dplyr::select(
+      description = route_long_name,
+      colour = Route_color,
+      name = Name,
+      ref = route_short_name,
+      text_colour = Route_text_color,
+    ) %>%
+    mutate(`public_transport:version` = 2) %>%
+    mutate(`route_master` = "bus") %>%
+    mutate(`type` = "route_master")
+  tags <- c("network", "operator", "website", "network:wikidata", "network:wikipedia", "operator:wikidata", "operator:wikipedia")
+  for (tag in tags) {
+    col <- sprintf("Config_%s", tag)
+    col <- get(col)
+    if (! is.na(col)) {
+      df[[tag]] <- col
+    }
+  }
+  route_prefixe <- ""
+  if (!is.na(Config_route_prefixe)) {
+    route_prefixe <- Config_route_prefixe
+  }
+  df <- df %>%
+    mutate(`ref:network` = sprintf("%s%s", route_prefixe, ref)) %>%
+    glimpse()
+  misc.ecrire(df, rds, dir = transportDir)
+  dsn <- sprintf("%s/%s.csv", transportDir, rds)
+  readr::write_tsv(df, file = dsn)
+  carp("dsn: %s", dsn)
+  page <- sprintf("User:Mga_geo/Transports_publics/%s/%s", Config["wiki"], "gtfs2osm_routemasters")
+  wiki <- wiki_df2table(df)
+#  page <- append(page, wiki)
+  Wiki <<- TRUE
+  wiki_page_init(page = page, article = wiki, force = TRUE)
+}
+
+#
+# pour level0
+# source("geo/scripts/transport.R");gtfs2osm_relations_routemaster_level0()
+gtfs2osm_relations_routemaster_level0 <- function(rds = "gtfs2osm_routemasters", force_osm = TRUE) {
+  library(stringr); # pour str_glue
+  df <- misc.lire(rds, dir = transportDir) %>%
+    arrange(ref) %>%
+    glimpse()
+#  stop("******")
+  osm.df <- overpass_get(query = "relations_route_bus_network", format = "csv", force = force_osm) %>%
+    clean_names() %>%
+    mutate(id = sprintf("  rel %s", id)) %>%
+    glimpse()
+  cols <- colnames(df)
+  tpl <- "
+relation
+  on_demand = yes
+  contact:phone = +33 2 98 34 42 22
+  opening_hours = Mo-Fr 07:30-19:00; Sa 09:00-17:00
+"
+  tpl <- "
+relation
+  colour = {gtfs_colour}
+  name = {gtfs_name}
+  network = {Config_network}
+  public_transport:version = 2
+  ref = {gtfs_ref}
+  route_master = bus
+  text_colour = {gtfs_text_colour}
+  type = route_master"
+  tags <- Config_tags
+  for (tag in tags) {
+    col <- sprintf("Config_%s", tag)
+    val <- get(col)
+    if (! is.na(val)) {
+      tpl <- sprintf("%s
+  %s = %s", tpl, tag, val)
+    }
+  }
+  tpl <- sprintf("%s
+{routes}", tpl)
+#  writeLines(tpl); exit;
+  wiki <- stringr::str_glue('==relations route: les fichiers de configuration level0==')
+  for (i in 1:nrow(df)) {
+    routes.df <- osm.df %>%
+      filter(ref == df[[i, "ref"]])
+    routes <- paste(routes.df$id, collapse = "\n")
+#    carp("routes: %s", routes); stop("****")
+    for (j in 1:ncol(df)) {
+      col <- sprintf("gtfs_%s", cols[j])
+      assign(col, df[[i, j]])
+    }
+
+    level0 <- str_glue(tpl)
+    wiki <- stringr::str_glue('{wiki}
+==={gtfs_ref} {gtfs_name}===
+ <nowiki>
+{level0}
+</nowiki>')
+#    print(level0);stop("*****")
+    dsn <- sprintf("%s/reseau_relations_routemaster_level0_%s.txt", osmDir, gtfs_ref)
+    write(level0, dsn)
+    carp("dsn: %s", dsn)
+
+  }
+  page <- sprintf("User:Mga_geo/Transports_publics/%s/%s", Config["wiki"], "gtfs2osm_relations_routemaster_level0") %>%
+    glimpse()
+  wiki_page_init(page = page, article = wiki, force = TRUE)
+}
+#
+#################################################################################
+#
+# pour les relations route
+#
+#
 # la conversion
 # source("geo/scripts/transport.R");gtfs2osm_routes_stops()
 gtfs2osm_routes_stops <- function(rds = "gtfs2osm_routes_stops", force_osm = TRUE) {
   library(tidyverse)
   library(tidytransit)
-  carp()
+  carp("selection de la route avec le plus de stops/voyages")
   df1 <- tidytransit_lire(rds = "tidytransit_routes_stops") %>%
     group_by(ref_network) %>%
-    arrange(desc(nb)) %>%
+    arrange(desc(nb_stops), desc(nb)) %>%
     filter(row_number() == 1) %>%
     ungroup() %>%
     glimpse()
@@ -182,10 +223,10 @@ gtfs2osm_routes_stops <- function(rds = "gtfs2osm_routes_stops", force_osm = TRU
     glimpse()
   df2 <- df2 %>%
     dplyr::select(colour, description, from, name, network, operator,`public_transport:version`
-      ,ref, ref_network, shape_id, route_desc, route, text_colour, to, type, stops, stops_code, stop_names = names
+      ,ref, ref_network, shape_id, route, text_colour, to, type, stops, stops_code, stop_names = names
       ,stops_osm_id, stops_osm_name) %>%
     glimpse()
-  tidytransit_sauve(df2, rds)
+  transport_sauve(df2, rds)
   dsn <- sprintf("%s/%s.csv", transportDir, rds)
   readr::write_tsv(df2, file = dsn)
   carp("dsn: %s", dsn)
@@ -223,16 +264,18 @@ gtfs2osm_routes_shapes_stops <- function(rds = "gtfs2osm_routes_shapes_stops", f
   df4 <- gtfs2osm_routes_osm(df1, force_osm = force_osm)
   df4 <- df4 %>%
     dplyr::select(colour, description, from, name, network, operator,`public_transport:version`
-      ,ref, ref_network, shape_id, route_desc, route, text_colour, to, type, stops, stops_code, stop_names = names
+      ,ref, ref_network, shape_id, route, text_colour, to, type, stops, stops_code, stop_names = names
       ,stops_osm_id, stops_osm_name
     ) %>%
     select(order(colnames(.))) %>%
     glimpse()
-  tidytransit_sauve(df4, rds)
+  transport_sauve(df4, rds)
   dsn <- sprintf("%s/%s.csv", transportDir, rds)
   readr::write_tsv(df4, file = dsn)
   carp("dsn: %s", dsn)
 }
+#
+# les attributs de la relation route
 gtfs2osm_routes_osm <- function(df1, force_osm) {
   library(tidyverse)
   library(tidytransit)
@@ -277,7 +320,7 @@ gtfs2osm_routes_osm <- function(df1, force_osm) {
   }
   if (grepl("breizhgo", Config_reseau)) {
     df2 <- df2 %>%
-      mutate(name = str_glue('{Config_route_name} {route_long_name} : {first} -> {last}')) %>%
+      mutate(name = str_glue('{Config_route_name} {route_short_name} {route_long_name} : {from_city} -> {to_city}')) %>%
       glimpse()
   }
 #
@@ -308,6 +351,78 @@ gtfs2osm_routes_osm <- function(df1, force_osm) {
   return(invisible(df2))
 }
 #
+# production des fichiers pour level0
+# !!! ne prend pas le bon fichier en entrée
+# source("geo/scripts/transport.R");gtfs2osm_relations_route_level0()
+gtfs2osm_relations_route_level0 <- function(force_osm = FALSE) {
+  library(stringr); # pour str_glue
+  df <- transport_read("gtfs2osm_routes_stops") %>%
+    arrange(ref_network) %>%
+    glimpse()
+#  stop("******")
+  wiki <-  stringr::str_glue('==relations route: les fichiers de configuration level0==')
+  cols <- colnames(df)
+  tpl <- "
+relation
+  on_demand = yes
+  contact:phone = +33 2 98 34 42 22
+  opening_hours = Mo-Fr 07:30-19:00; Sa 09:00-17:00
+"
+  tpl <- "
+relation
+  colour = {relation_colour}
+  from = {relation_from}
+  gtfs:shape_id = {relation_shape_id}
+  name = {relation_name}
+  network = {relation_network}
+  public_transport:version = 2
+  ref = {relation_ref}
+  ref:network = {relation_ref_network}
+  route = bus
+  text_colour = {relation_text_colour}
+  to = {relation_to}
+  type = route
+"
+  tags <- Config_tags
+  for (tag in tags) {
+    col <- sprintf("Config_%s", tag)
+    val <- get(col)
+    if (! is.na(val)) {
+      tpl <- sprintf("%s
+  %s = %s", tpl, tag, val)
+    }
+  }
+  tpl <- sprintf("%s
+{nodes}", tpl)
+
+  for (i in 1:nrow(df)) {
+    for (j in 1:ncol(df)) {
+      col <- sprintf("relation_%s", cols[j])
+      assign(col, df[[i, j]])
+    }
+
+    nodes.df <- data.frame(node = unlist(str_split(df[[i, "stops_osm_id"]], ","))) %>%
+      mutate(level0 = sprintf("  nd %s platform", node))
+    nodes <-  paste(nodes.df$level0,  collapse = "\n")
+
+    level0 <- str_glue(tpl)
+    wiki <- stringr::str_glue('{wiki}
+==={relation_ref_network} {relation_name}===
+ <nowiki>
+{level0}
+</nowiki>')
+
+#    print(level0);stop("*****")
+    dsn <- sprintf("%s/gtfs2osm_relations_route_level0_%s.txt", osmDir, relation_shape_id)
+    dsn <- sprintf("%s/gtfs2osm_relations_route_level0_%s.txt", osmDir, relation_ref_network)
+    write(level0, dsn)
+    carp("dsn: %s", dsn)
+  }
+  page <- sprintf("User:Mga_geo/Transports_publics/%s/%s", Config["wiki"], "gtfs2osm_relations_route_level0") %>%
+    glimpse()
+  wiki_page_init(page = page, article = wiki, force = TRUE)
+}
+#
 # la production du fichier pour le wiki
 # source("geo/scripts/transport.R");gtfs2osm_routes_wiki()
 gtfs2osm_routes_wiki <- function(rds = "gtfs2osm_routes_stops") {
@@ -324,7 +439,7 @@ gtfs2osm_routes_wiki <- function(rds = "gtfs2osm_routes_stops") {
 {|class="wikitable sortable"
 |-', gtfs)
   for (col in colnames(df1)) {
-    wiki <-  stringr::str_glue('{wiki}
+    wiki <- stringr::str_glue('{wiki}
 !scope="col" class="sortable"| {col}')
   }
   for (i1 in 1:nrow(df1)) {

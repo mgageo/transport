@@ -43,8 +43,7 @@ ign_tidytransit_geocode <- function(tt) {
     glimpse()
   communes.sf <- ign_adminexpress_lire_sf() %>%
     filter(INSEE_DEP %in% territoire) %>%
-    dplyr::select(NOM) %>%
-    rename("city" = NOM) %>%
+    dplyr::select(city = NOM, dept = INSEE_DEP) %>%
     glimpse()
   stops.df <- tt$stops
   stops.sf <- st_as_sf(stops.df, coords = c("stop_lon", "stop_lat"), crs = 4326, remove = FALSE) %>%
@@ -55,9 +54,24 @@ ign_tidytransit_geocode <- function(tt) {
     glimpse()
   df2 <- df1 %>%
     filter(is.na(city))
-  if (nrow(df2) > 0) {
+# trop d'échecs
+  if (nrow(df2) > 5) {
     misc_print(df2)
     confess("échec geocode nb: %s", nrow(df2))
+  }
+# on est moins restrictif pour le rapprochement
+  if (nrow(df2) > 0) {
+    misc_print(df2)
+    df1 <- stops.sf %>%
+      st_join(communes.sf, join = st_nearest_feature) %>%
+      st_drop_geometry() %>%
+      glimpse()
+    df2 <- df1 %>%
+      filter(is.na(city))
+    if (nrow(df2) > 10) {
+      misc_print(df2)
+      confess("échec geocode nb: %s", nrow(df2))
+    }
   }
   tt$stops <- df1
   return(invisible(tt))

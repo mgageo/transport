@@ -11,39 +11,37 @@
 # le réseau est configuré en variable globale dans transport.R
 #
 # source("geo/scripts/transport.R");reseau_jour()
-reseau_jour <- function(reseau = Reseau, force = TRUE) {
+reseau_jour <- function(force = TRUE) {
   library(tidyverse)
   library(rio)
   library(sf)
   carp()
-  config_xls(reseau)
-  reseau_tpl_tex(reseau = reseau)
+  reseau_tpl_tex()
   if (grepl("MOBIBREIZH", Config[1, "gtfs_dir"])) {
-    mobibreizh_gtfs_reseaux(reseau = reseau)
+    mobibreizh_gtfs_reseaux(reseau = Reseau)
   }
-  reseau_osm_jour(reseau = reseau, force = force)
+  reseau_osm_jour(force = force)
   if (is.na(Config[1, "gtfs_dir"])) {
     return()
   }
-  reseau_gtfs_jour(reseau = reseau, force = force)
-  reseau_diff_jour(reseau = reseau, force = force)
+  reseau_gtfs_jour(force = force)
+  reseau_diff_jour(force = force)
 }
-reseau_toto <- function(reseau = Reseau, force = TRUE) {
+# source("geo/scripts/transport.R");reseau_toto()
+reseau_toto <- function(force = TRUE) {
   library(tidyverse)
   library(rio)
   library(sf)
   carp()
-  config_xls(reseau)
-  reseau_tpl_tex(reseau = reseau)
-  reseau_osm_routes_tag_shape(reseau = reseau, force = TRUE)
-  tex_pdflatex(sprintf("%s_diff.tex", reseau))
+  reseau_tpl_tex(reseau = Reseau)
+  reseau_osm_routes_shapes(force = TRUE)
+  tex_pdflatex(sprintf("%s_reseau_osm_routes_shapes.tex", Reseau))
 }
 #
 # recopie des templates tex
-# source("geo/scripts/transport.R");reseau_tpl_tex(reseau = Reseau)
-reseau_tpl_tex <- function(reseau = "star", force = FALSE) {
+# source("geo/scripts/transport.R");reseau_tpl_tex()
+reseau_tpl_tex <- function(force = TRUE) {
   carp()
-  config_xls(reseau)
   files <- list.files(tplDir, pattern = "reseau.*_tpl.tex$", full.names = TRUE, ignore.case = TRUE, recursive = FALSE)
   for (file in files) {
     tex <- readLines(file)
@@ -58,207 +56,54 @@ reseau_tpl_tex <- function(reseau = "star", force = FALSE) {
   file.copy(from = from, to = to, overwrite = TRUE)
 }
 # source("geo/scripts/transport.R");reseau_diff_jour(force = TRUE)
-reseau_diff_jour <- function(reseau = Reseau, force = FALSE) {
+reseau_diff_jour <- function(force = TRUE) {
   library(tidyverse)
   library(data.table)
   library(janitor)
-  carp("reseau: %s", reseau)
-  config_xls(reseau)
   if (Config[[1, "shapes"]] != "FALSE") {
-    reseau_tpl_tex(reseau = reseau)
-    reseau_osm_routes_tag_shape(reseau = reseau, force = force)
-    reseau_osm_routes_shapes(reseau = reseau, force = force)
+    reseau_osm_routes_tag_shape(force = force)
+    reseau_osm_routes_shapes(force = force)
     tex_pdflatex(sprintf("%s_diff.tex", reseau))
   }
 }
-# source("geo/scripts/transport.R");reseau_gtfs_jour(reseau = Reseau)
-reseau_gtfs_jour <- function(reseau = Reseau, force = TRUE) {
+# source("geo/scripts/transport.R");reseau_gtfs_jour()
+reseau_gtfs_jour <- function(force = TRUE) {
   library(tidyverse)
-  carp("reseau: %s", reseau)
-  config_xls(reseau)
-  reseau_tpl_tex(reseau = reseau)
-  tidytransit_jour(reseau = reseau, force = force)
+  reseau_tpl_tex()
+  tidytransit_jour(force = force)
 }
 # source("geo/scripts/transport.R");reseau_osm_jour(force = TRUE, force_members = TRUE)
 reseau_osm_jour <- function(force = TRUE, force_members = TRUE, force_osm = TRUE) {
   library(tidyverse)
   library(data.table)
   library(janitor)
-  osm_relations_route_bus_verif(force = force)
-  osm_relations_route_members(force = force_members, force_osm = force_osm, osrm = FALSE)
-  osm_relations_route_members_valid(force = force_members, force_osm = force_osm)
+  osm_jour(force = force)
   tex_pdflatex(sprintf("%s_osm.tex", Reseau))
 }
-# source("geo/scripts/transport.R");reseau_osm_routes_jour(force = TRUE)
-reseau_osm_routes_jour <- function(reseau = Reseau, force = TRUE) {
+# source("geo/scripts/transport.R");reseau_diff_jour(force = TRUE)
+reseau_diff_jour <- function(force = TRUE) {
   library(tidyverse)
   library(data.table)
   library(janitor)
-  carp("reseau: %s", reseau)
-  config_xls(reseau)
-  reseau_tpl_tex(reseau = reseau)
-  reseau_osm_routes_refs(reseau = Reseau, force = force)
-  tex_pdflatex(sprintf("%s_routes.tex", reseau))
-}
-
-
-#
-# comparaison à partir des routes osm
-# source("geo/scripts/transport.R");reseau_osm_routes_tag_shape(reseau = Reseau, force = TRUE)
-reseau_osm_routes_tag_shape <- function(reseau = "bibus", force = FALSE) {
-  library(tidyverse)
-  library(data.table)
-  library(sf)
-  library(janitor)
-  carp()
-  config_xls(reseau)
-  carp("le gtfs et les shapes")
-  dsn <- sprintf("%s/%s", texDir, "tidytransit_gtfs_routes_shapes_stops.csv")
-  shapes.df <- fread(dsn, encoding = "UTF-8") %>%
-    glimpse()
-#
-# le fichier est bien à jour ?
-  tt <- tidytransit_lire("gtfs")
-  s1.df <- shapes.df  %>%
-    dplyr::select(shape_id) %>%
-    mutate(source = "csv")
-  s2.df <- tt$shapes %>%
-    distinct(shape_id) %>%
-    mutate(source = "tt") %>%
-    glimpse()
-  s3 <- s1.df %>%
-    full_join(s2.df, by = c("shape_id"))  %>%
-    filter(is.na(source.x) | is.na(source.y)) %>%
-    glimpse()
-#  stop("****")
-
-
-  df <- overpass_get(query = "relations_route_bus_network", format = "csv", force = force) %>%
-    clean_names() %>%
-    glimpse()
-  carp("les shapes en double")
-  df1 <- df %>%
-    group_by(gtfs_shape_id) %>%
-    summarize(nb = n()) %>%
-    filter(nb > 1) %>%
-    glimpse()
-  df2 <- df %>%
-    filter(gtfs_shape_id %in% df1$gtfs_shape_id) %>%
-    dplyr::select(ref_network, id, name, from, to, ref, gtfs_shape_id) %>%
-    arrange(gtfs_shape_id) %>%
-    glimpse()
-  tex_df2kable(df2, suffixe = "doublon", longtable = TRUE)
-
-  s.df <- shapes.df %>%
-    distinct(shape_id) %>%
-    mutate(source = "gtfs") %>%
-    arrange(shape_id) %>%
-    glimpse()
-  df11 <- df %>%
-    filter(gtfs_shape_id != "") %>%
-    left_join(s.df, by = c("gtfs_shape_id" = "shape_id"), relationship = "many-to-many") %>%
-    arrange(gtfs_shape_id) %>%
-    glimpse()
-  df111 <- df11 %>%
-    filter(! is.na(source)) %>%
-    dplyr::select(gtfs_shape_id, ref_network, id, name, from, to, ref) %>%
-    arrange(gtfs_shape_id) %>%
-    mutate(INDEX = row_number()) %>%
-    glimpse()
-  df112 <- df111 %>%
-    mutate(id = as.character(id)) %>%
-    dplyr::select(INDEX, gtfs_shape_id, ref_network, id, name)
-  df113 <- df111 %>%
-    mutate(name = sprintf("%s => %s", from, to)) %>%
-    dplyr::select(INDEX, gtfs_shape_id, ref_network, id, name) %>%
-    mutate(gtfs_shape_id = "", ref_network = "", id = "") %>%
-    glimpse()
-  df114 <- df112 %>%
-    bind_rows(df113) %>%
-    arrange(INDEX) %>%
-    glimpse()
-  tex_df2kable(df114, suffixe = "connu", longtable = TRUE)
-#
-# le fichier pour perl
-  df31 <- shapes.df %>%
-    filter(shape_id %in% df$gtfs_shape_id)
-  dsn <- sprintf("%s/%s", texDir, "reseau_osm_routes_tag_shape.csv")
-  readr::write_tsv(df31, file = dsn)
-  carp("dsn: %s", dsn)
-#
-# on enlève les connus
-  df12 <- df11 %>%
-    filter(ref_network %notin% df111$ref_network) %>%
-    filter(is.na(source)) %>%
-    dplyr::select(gtfs_shape_id, ref_network, id, name, from, to, ref) %>%
-    arrange(gtfs_shape_id) %>%
-    mutate(INDEX = row_number()) %>%
-    glimpse()
-  df121 <- df12 %>%
-    mutate(id = as.character(id)) %>%
-    dplyr::select(INDEX, gtfs_shape_id, ref_network, id, name)
-  df122 <- df12 %>%
-    mutate(name = sprintf("%s => %s", from, to)) %>%
-    dplyr::select(INDEX, gtfs_shape_id, ref_network, id, name) %>%
-    mutate(gtfs_shape_id = "", ref_network = "", id = "") %>%
-    glimpse()
-  df123 <- df121 %>%
-    bind_rows(df122) %>%
-    arrange(INDEX) %>%
-    glimpse()
-#  stop("****")
-  tex_df2kable(df123, suffixe = "inconnu", longtable = TRUE)
-#
-# pour trouver le shape potentiel
-  df13 <- df12 %>%
-    dplyr::select(id, ref_network, gtfs_shape_id) %>%
-#    filter(! grepl("^2\\d\\d", ref)) %>%
-#    filter(! grepl("^08", gtfs_shape_id)) %>%
-    glimpse()
-
-  df14 <- df13 %>%
-    left_join(shapes.df, by = c("ref_network" = "ref_network")) %>%
-#    group_by(gtfs_shape_id, id, ref_network) %>%
-#    summarize(shapes = paste0(shape_id, collapse = ",")) %>%
-    arrange(gtfs_shape_id, desc(nb)) %>%
-    dplyr::select(id, ref_network, gtfs_shape_id, shape_id, nb) %>%
-    glimpse()
-  tex_df2kable(df14, suffixe = "potentiel", longtable = TRUE)
-  df15 <- df14 %>%
-    mutate(id = sprintf("<a href='http://level0.osmz.ru/?url=relation/%s' target='_blank'>%s</a>", id, id))
-  titre <- "reseau_osm_routes_tag_shape"
-  misc_html_df2fic(df15, titre)
-  misc_print(df14)
-  tidytransit_sauve(df14, "reseau_osm_routes_tag_shape")
-}
-
-#
-# pour changer en automatique
-#
-# source("geo/scripts/transport.R");reseau_modifiy_tags()
-reseau_modifiy_tags <- function(rds = "reseau_osm_routes_tag_shape") {
-  library(tidyverse)
-  carp()
-  df <- transport_read(rds)
-  for (i in 1:nrow(df)) {
-    tags <- list(
-#      "gtfs:shape_id" = df[[i, "shape_id"]]
-      "opening_hours" = "Jul 10-Sep 03 2023 off"
-    )
-    url <- osmchange_object_modify_tags(id = df[[i, "id"]], type= "relation", tags = tags)
-    carp("url: %s", url)
-#    next
-#    browseURL(
-#      url,
-#      browser = "C:/Program Files/Mozilla Firefox/firefox.exe"
-#    )
-#    stop("****")
+  gtfs2osm_jour(force = force)
+  if (Config[[1, "shapes"]] != "FALSE") {
+    reseau_osm_routes_tag_shape(force = force)
+    reseau_osm_routes_shapes(force = force)
+    tex_pdflatex(sprintf("%s_diff.tex", Reseau))
   }
-  return(invisible())
 }
 
+
+
+
 #
-# source("geo/scripts/transport.R");reseau_osm_routes_shapes(force = FALSE);tex_pdflatex(sprintf("%s_diff.tex", Reseau))
+########################################################################################
+#
+# pour les routes
+#
+# à partir des relations route=bus d'osm
+# avec la carto dont celle du gtfs si disponible
+# source("geo/scripts/transport.R");reseau_osm_routes_shapes(force = FALSE);tex_pdflatex(sprintf("%s_reseau_osm_routes_shapes.tex", Reseau))
 reseau_osm_routes_shapes <- function(force = TRUE) {
   library(tidyverse)
   library(data.table)
@@ -293,7 +138,7 @@ reseau_osm_routes_shapes <- function(force = TRUE) {
     dplyr::select(id, timestamp, user, ref_network, gtfs_shape_id) %>%
     arrange(gtfs_shape_id)
   tex_df2kable(df1, suffixe = "lst", longtable = TRUE)
-  lg.df <- tribble(~id, ~shape, ~osm_lg, ~shape_lg, ~inters_lg)
+  lg.df <- tribble(~id, ~ref, ~ref_network, ~shape, ~osm_lg, ~shape_lg, ~inters_lg)
   lg.df <- tribble()
   for (i in 1:nrow(df)) {
     carp("i: %s/%s", i, nrow(df))
@@ -302,7 +147,7 @@ reseau_osm_routes_shapes <- function(force = TRUE) {
     dsn <- sprintf("%s/reseau_osm_routes_shapes_%s.pdf", imagesDir, id)
     rc <- carto_route_shape_mapsf(id, shape)
     lg.df <- lg.df %>%
-      rbind(as_tibble(rc))
+      bind_rows(as_tibble(rc))
     dsn <- dev2pdf(suffixe = id, dossier = "images")
 # pour le latex
 #    tex <- append(tex, sprintf("\\mongraphique{images/reseau_routes_shapes_%s.pdf}", id))
@@ -327,89 +172,13 @@ reseau_osm_routes_shapes_tex <- function(force = TRUE) {
   library(janitor)
   carp()
   lg.df <- tidytransit_lire("reseau_osm_routes_shapes") %>%
-    mutate(across(3:7, as.integer)) %>%
-    filter(point1_distance > 500) %>%
+    mutate(across(5:9, as.integer)) %>%
+    filter(point1_distance > 150 | point9_distance > 150) %>%
     glimpse()
 }
 #
-# la comparaison des deux sources
+########################################################################################
 #
-# pour les routes
-# source("geo/scripts/transport.R");reseau_osm_routes_gtfs_shapes()
-reseau_osm_routes_gtfs_shapes <- function() {
-  carp()
-  transport_osm_routes_gtfs_shapes_df()
-  transport_osm_routes_gtfs_shapes_diff()
-}
-
-transport_osm_routes_gtfs_shapes_df <- function() {
-  library(tidyverse)
-  library(sf)
-  carp()
-  shapes.sf <- tidytransit_shapes_sf_lire() %>%
-    mutate(source='shapes') %>%
-    glimpse()
-  routes.sf <- osm_routes_read() %>%
-    dplyr::select(shape_id=ref.FR.STAR) %>%
-    filter(! is.na(shape_id)) %>%
-    glimpse()
-  names(routes.sf$geometry)=NULL
-  names(shapes.sf$geometry)=NULL
-
-# avec la géométrie
-  carp('jointure')
-  df <- dplyr::left_join(routes.sf %>% as.data.frame(), shapes.sf %>% as.data.frame(), by=c('shape_id'='shape_id')) %>%
-    glimpse()
-#
-# le tracé gtfs est inclus dans le buffer route osm
-  carp('passage en Lambert 93 et buffer')
-  nc1 <- st_transform(routes.sf, 2154) %>%
-    st_buffer(50)
-  nc2 <- st_transform(shapes.sf, 2154)
-  df <- dplyr::left_join(nc1 %>% as.data.frame(), nc2 %>% as.data.frame(), by=c('shape_id'='shape_id')) %>%
-    filter(! is.na(source)) %>%
-    glimpse()
-  transport_save(df, 'osm_routes_gtfs_shapes')
-}
-# source("geo/scripts/transport.R");transport_osm_routes_gtfs_shapes_diff()
-transport_osm_routes_gtfs_shapes_diff <- function() {
-  carp('contains')
-  library(sf)
-  library(tidyverse)
-  df <- transport_read('osm_routes_gtfs_shapes') %>%
-    arrange(shape_id)
-  nc <- st_as_sf(df, geom_routes=st_sfc(df$geometry.x))
-  nc$geom_shapes <- st_sfc(df$geometry.y)
-  for (i in 1:nrow(df)) {
-    nc1 <- nc[i, ]
-    plot(st_geometry(nc1$geom_routes))
-    plot(st_geometry(nc1$geom_shapes), add=TRUE)
-    inters <- st_intersection(nc1$geom_shapes, nc1$geom_routes)
-    plot(st_geometry(inters), add=TRUE, col='blue', lwd=3)
-#    carp('inters')
-#    glimpse(inters)
-#    carp('shapes')
-#    glimpse(nc1$geom_shapes)
-    diff.sfc <<- st_difference(nc1$geom_shapes, inters)
-    if (length(diff.sfc) >= 1 ) {
-      carp('shape_id: %s', nc[[i, 'shape_id']])
-      plot(st_geometry(diff.sfc), add=TRUE, col='red', lwd=3)
- #     break
-    }
-  }
-}
-transport_save <- function(obj, fic='objets_stop') {
-  dsn <- sprintf("%s/%s.Rds", transportDir, fic)
-  saveRDS(obj, dsn)
-  carp("dsn: %s", dsn)
-  return(invisible(obj))
-}
-transport_read <- function(fic='objets_stop') {
-  dsn <- sprintf("%s/%s.Rds", transportDir, fic)
-  obj <- readRDS(dsn)
-  carp("dsn: %s", dsn)
-  return(invisible(obj))
-}
 #
 ## pour les stops
 #
@@ -572,68 +341,7 @@ reseau_toto_html <- function() {
     arrange(k_ref, osm_id)
   html <- misc_html_append_df(html, df2)
 }
-# source("geo/scripts/transport.R");reseau_relations_route_level0()
-reseau_relations_route_level0 <- function(force_osm = FALSE) {
-  library(stringr); # pour str_glue
-  df <- transport_read("tidytransit_routes_shapes_stops") %>%
-    group_by(ref_network) %>%
-    arrange(ref_network, desc(nb), desc(nb_stops)) %>%
-    filter(row_number()==1) %>%
-    glimpse()
-#  stop("******")
-  osm_stops.df <- overpass_get(query = "bus_stop_kref", format = "csv", force = force_osm) %>%
-    rename(k_ref = Config[1, 'k_ref']) %>%
-    filter(public_transport == "platform") %>%
-    clean_names() %>%
-    mutate(type = dplyr::recode(type,
-      "way" = "wy",
-      "node" = "nd"
-    )) %>%
-    mutate(member = sprintf("  %s %s %s", type, id, "platform"))
-  cols <- colnames(df)
-  for (i in 1:nrow(df)) {
-    stops.df <- tibble(stop = unlist(str_split(df[i, "stops"], ";")))
-    stops.df <- stops.df %>%
-      left_join(osm_stops.df, by = c("stop" = "k_ref"))
-    platforms <- paste(stops.df$member, collapse = "\n")
-    for (j in 1:ncol(df)) {
-      col <- sprintf("relation_%s", cols[j])
-      assign(col, df[[i, j]])
-    }
-    tpl <- "
-relation
-  on_demand = yes
-  contact:phone = +33 2 98 34 42 22
-  opening_hours = Mo-Fr 07:30-19:00; Sa 09:00-17:00
-"
-    tpl <- "
-relation
-  colour = {relation_Route_color}
-  from = {relation_first_name}
-  gtfs:shape_id = {relation_shape_id}
-  name = {Config_route_name} {relation_route_short_name} : {relation_first_name} - {relation_last_name}
-  network = {Config_network}
-  network:wikidata = {Config_wikidata}
-  network:wikipedia = {Config_wikipedia}
-  operator = {Config_operator}
-  public_transport:version = 2
-  ref = {relation_route_short_name}
-  ref:network = {relation_ref_network}
-  route = bus
-  text_colour = {relation_Route_text_color}
-  to = {relation_last_name}
-  type = route
-  website = {Config_website}
-{platforms}
-"
-    level0 <- str_glue(tpl)
-#    print(level0);stop("*****")
-    dsn <- sprintf("%s/reseau_relations_route_level0_%s.txt", osmDir, relation_shape_id)
-    dsn <- sprintf("%s/reseau_relations_route_level0_%s.txt", osmDir, relation_ref_network)
-    write(level0, dsn)
-    carp("dsn: %s", dsn)
-  }
-}
+
 
 #
 ## les relations route
@@ -688,58 +396,7 @@ reseau_relations_route_valid <- function(force = TRUE) {
 #
 ## les relations route_master
 #
-# source("geo/scripts/transport.R");reseau_relations_routemaster_level0()
-reseau_relations_routemaster_level0 <- function(force_osm = TRUE) {
-  library(stringr); # pour str_glue
-  tt <- tidytransit_lire("gtfs") %>%
-    glimpse()
-  df <- tt$routes %>%
-    glimpse()
-#  stop("******")
-  osm.df <- overpass_get(query = "relations_route_bus_network", format = "csv", force = force_osm) %>%
-    clean_names() %>%
-    mutate(id = sprintf("  rel %s", id)) %>%
-    glimpse()
-  cols <- colnames(df)
-  for (i in 1:nrow(df)) {
-    routes.df <- osm.df %>%
-      filter(ref == df[[i, "route_id"]])
-    routes <- paste(routes.df$id, collapse = "\n")
-#    carp("routes: %s", routes); stop("****")
-    for (j in 1:ncol(df)) {
-      col <- sprintf("relation_%s", cols[j])
-      assign(col, df[[i, j]])
-    }
-    tpl <- "
-relation
-  on_demand = yes
-  contact:phone = +33 2 98 34 42 22
-  opening_hours = Mo-Fr 07:30-19:00; Sa 09:00-17:00
-"
-    tpl <- "
-relation
-  colour = {relation_Route_color}
-  name = {Config_route_name} {relation_route_short_name} : {relation_route_long_name}
-  network = {Config_network}
-  network:wikidata = {Config_wikidata}
-  network:wikipedia = {Config_wikipedia}
-  operator = {Config_operator}
-  public_transport:version = 2
-  ref = {relation_route_id}
-  ref:network = {relation_route_id}
-  route_master = bus
-  text_colour = {relation_Route_text_color}
-  type = route_master
-  website = {Config_website}
-{routes}
-"
-    level0 <- str_glue(tpl)
-#    print(level0);stop("*****")
-    dsn <- sprintf("%s/reseau_relations_routemaster_level0_%s.txt", osmDir, relation_route_id)
-    write(level0, dsn)
-    carp("dsn: %s", dsn)
-  }
-}
+
 # source("geo/scripts/transport.R"); df1 <- reseau_relations_routemaster_valid(force = FALSE) %>% glimpse()
 reseau_relations_routemaster_valid <- function(force = TRUE) {
   doc <- overpass_get(query = "relations_routemaster_bus_network", format = "xml", force = force) %>%

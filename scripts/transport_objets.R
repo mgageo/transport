@@ -24,7 +24,7 @@ objets_relations_route <- function(force = TRUE) {
   return(invisible(df))
 }
 #
-# les relation route master_avec le tag network
+# les relation route_master avec le tag network
 # source("geo/scripts/transport.R");config_xls('bibus');df <- objets_relations_route_master() %>% glimpse()
 objets_relations_route_master <- function(force = TRUE) {
   carp()
@@ -34,6 +34,23 @@ objets_relations_route_master <- function(force = TRUE) {
     return(invisible(df))
   }
   doc <- overpass_get(query = "relations_routemaster_bus_network", format = "xml", force = force) %>%
+    glimpse()
+# les relations
+  df <- objects_relations_df(doc)
+  saveRDS(df, file = dsn)
+  return(invisible(df))
+}
+#
+# les relation bus avec le tag network
+# source("geo/scripts/transport.R");df <- objets_relations_bus() %>% glimpse()
+objets_relations_bus <- function(force = TRUE) {
+  carp()
+  dsn <- sprintf("%s/objets_relations_bus.Rds", transportDir)
+  if (file.exists(dsn) && force == FALSE) {
+    df <- readRDS(dsn)
+    return(invisible(df))
+  }
+  doc <- overpass_get(query = "relations_bus_network", format = "xml", force = force) %>%
     glimpse()
 # les relations
   df <- objects_relations_df(doc)

@@ -47,13 +47,14 @@ source("geo/scripts/misc_ssh.R")
 source("geo/scripts/misc_st.R"); # ajout de fonctions à sf dans st_proches
 source("geo/scripts/misc_tex.R")
 source("geo/scripts/misc_tidytransit.R")
+source("geo/scripts/misc_transport.R")
 source("geo/scripts/misc_unicode.R")
 source("geo/scripts/transport_carto.R"); # production des cartes
 source("geo/scripts/transport_config.R"); # lecture du fichier excel
 source("geo/scripts/transport_diff.R"); # différence entre gtfs et osm
 # source("geo/scripts/transport_gtfs.R")
 source("geo/scripts/transport_gtfs2mga.R")
-source("geo/scripts/transport_gtfs2osm.R")
+source("geo/scripts/transport_gtfs2osm.R"); # mise en format compatible perl
 source("geo/scripts/transport_ign.R"); # pour la détermination des communes des arrêts
 source("geo/scripts/transport_menu.R")
 source("geo/scripts/transport_mapbox.R")
@@ -105,30 +106,43 @@ source("geo/scripts/transport_tudbus.R")
 
 Reseau <- "concarneau"
 Reseau <- "kiceo"; # Vannes
-Reseau <- "qub"; # Quimper
 Reseau <- "morlaix"; # LinéoTim
 Reseau <- "breizhgo35"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
 Reseau <- "ter"; # pseudo-réseau pour BreizhGo SNCF
 Reseau <- "landerneau"
 Reseau <- "breizhgo56"; # Morbihan
 Reseau <- "vitobus"; # Vitré/Chateaubourg
-Reseau <- "dinan"; # Dinan / Côtes d'Armor
 Reseau <- "gironde"; # les lignes régionales
-Reseau <- "bibus"; # Brest
 Reseau <- "arcachon"; # Arcachon
 Reseau <- "toulouse"; # Toulouse Métropole
 Reseau <- "bretagne"; # pseudo-réseau pour la Bretagne
 Reseau <- "bibus"; # Brest
-Reseau <- "qub"; # Quimper
 Reseau <- "douarnenez"; # Douarnenez
-Reseau <- "breizhgo35"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
-Reseau <- "breizhgo22"; # pseudo-réseau pour BreizhGo en Côtes d'Armor
-Reseau <- "breizhgo56"; # pseudo-réseau pour BreizhGo en Morbihan
-Reseau <- "breizhgo29"; # pseudo-réseau pour BreizhGo en Finistère
-Reseau <- "dinan"
+Reseau <- "limoges"; # Limoges Métropole
 Reseau <- "bordeaux"; # Bordeaux Métropole
+Reseau <- "qub"; # Quimper
+Reseau <- "vannes"
+Reseau <- "rmat"; # Saint-Malo
+Reseau <- "surf"; # Fougères
+Reseau <- "breizhgo"; # BreizhGo en Bretagne, les lignes régionales
+Reseau <- "bibusM"; # Brest avec les données de MobiBreizh
+Reseau <- "bibus"; # Brest
+Reseau <- "ploermel"
+Reseau <- "breizhgo56"; # pseudo-réseau pour BreizhGo en Morbihan
+Reseau <- "breizhgo22"; # pseudo-réseau pour BreizhGo en Côtes d'Armor
+Reseau <- "qub"; # Quimper
 Reseau <- "star"; # Rennes
-  config_xls(Reseau)
+Reseau <- "morlaix"; #
+Reseau <- "dinan"; # Dinan / Côtes d'Armor
+Reseau <- "distribus"; # Lamballe / Côtes d'Armor
+Reseau <- "breizhgo35"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
+Reseau <- "breizhgo29"; # pseudo-réseau pour BreizhGo en Finistère
+Reseau <- "semo"; # SEMO (pour Seine-Eure MObilités)
+config_xls(Reseau)
+Tex <- TRUE
+Wiki <- TRUE
+HtmlBrowse <- FALSE
+OsmChange <- FALSE
 if ( interactive() ) {
   DEBUG <- TRUE
   graphics.off()

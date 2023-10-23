@@ -19,6 +19,9 @@ wiki_host <- 'https://wiki.openstreetmap.org';
 wiki_connect <- function(force = TRUE) {
   library(tidyverse)
   library(rvest)
+  if (Wiki == FALSE) {
+    return(invisible(wiki_session))
+  }
   carp()
   if ( wiki_session != FALSE & force == FALSE) {
     return(invisible(wiki_session))
@@ -37,6 +40,9 @@ wiki_connect <- function(force = TRUE) {
 wiki_page_init <- function(page = "User:Mga_geo/Transports_publics/toto", article = 'titi', force = FALSE) {
   library(tidyverse)
   library(rvest)
+  if (Wiki == FALSE) {
+    return(invisible(wiki_session))
+  }
   url <- sprintf("%s/w/index.php?title=%s&action=edit", wiki_host, URLencode(page));
   carp("url: %s", url)
 #  return()
@@ -66,10 +72,12 @@ wiki_page_init <- function(page = "User:Mga_geo/Transports_publics/toto", articl
   carp("dsn: %s", dsn)
 }
 # source("geo/scripts/transport.R");config_xls('arcachon');wiki_pages_init()
+# source("geo/scripts/transport.R");config_xls('semo');wiki_pages_init()
 wiki_pages_init <- function() {
   if (is.na(Config[1, "wiki"])) {
      stop("*****")
   }
+  Wiki <<- TRUE
   wiki_page <- Config[[1, "wiki"]]
   article <- '
 ==Liens==

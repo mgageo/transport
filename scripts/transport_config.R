@@ -8,13 +8,43 @@
 #
 #
 #
+#
+## lecture du fichier excel
+# source("geo/scripts/transport.R");config_jour()
+config_jour <- function() {
+  df <- config_agency_lire() %>%
+    filter(!is.na(reseau)) %>%
+    filter(!is.na(network)) %>%
+    filter(!is.na(gtfs_dir)) %>%
+    filter(!is.na(route_ref)) %>%
+    filter(!is.na(territoire)) %>%
+#    filter(!is.na(`network:wikidata`)) %>%
+    dplyr::select(reseau, name, )
+  misc_print(df)
+#  stop("****")
+  for (i in 1:nrow(df)) {
+    carp("i: %s reseau: %s", i, df[i, "reseau"])
+    gc()
+    config_xls(df[i, "reseau"])
+#  tidytransit_jour()
+#  gtfs2osm_routemasters()
+  diff_relations_bus_tags(force = TRUE, OsmChange = FALSE)
+#    tidytransit_jour()
+#    dsn <- sprintf("%s/shapes.txt", gtfsDir)
+#    if (file.exists(dsn)) {
+#      carp("reseau: %s shapes.txt Config_shapes: %s", Reseau, Config_shapes)
+#    }
+  }
+}
+#
 ## lecture du fichier excel
 # source("geo/scripts/transport.R");config_agency_lire()
 config_agency_lire <- function() {
   library(rio)
   library(tidyverse)
   dsn <- sprintf("%s/%s.xls", cfgDir, "agency")
-  df <- rio::import(dsn)
+  df <- rio::import(dsn) %>%
+    replace_na(list(shapes = "FALSE"))
   return(invisible(df))
 }
 ## lecture du fichier excel et filtrage
@@ -28,7 +58,8 @@ config_xls <- function(res = "star", xls = "agency") {
     Config <<- config_xls_init()
   } else {
     carp("import dsn: %s reseau: %s", dsn, res)
-    Config.df <<- import(dsn)
+    Config.df <<- rio::import(dsn) %>%
+      replace_na(list(shapes = "FALSE"))
     Config <<- Config.df %>%
       filter(reseau == res) %>%
       mutate(route_prefixe = replace_na(route_prefixe, ""))
