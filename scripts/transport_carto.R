@@ -148,13 +148,16 @@ carto_ref_shapes_stops_mapsf <- function(df, force = TRUE) {
   }
   shapes.sf <- df %>%
     st_as_sf(sf_column_name = "geometry") %>%
-    st_transform(2154)
+    st_transform(2154) %>%
+    mutate(id = n() - row_number() + 2)
   bouts.sf <- bind_rows(departs.df, arrivees.df) %>%
     st_as_sf(sf_column_name = "geometry") %>%
     st_transform(2154) %>%
     glimpse()
   mf_init(shapes.sf, expandBB = c(0.1, 0.1, 0.1, 0.1))
-  mf_map(x = shapes.sf, col = "blue", lwd = 3, add = TRUE)
+  pal <- hcl.colors(n = nrow(shapes.sf), palette = "Cividis")
+  mf_map(x = shapes.sf, col = pal, lwd = shapes.sf$id, add = TRUE)
+  mf_legend_t(title = "", val = shapes.sf$shape_id, pal = pal)
   mf_label(x = bouts.sf,
     var = "name",
     cex = 0.8,

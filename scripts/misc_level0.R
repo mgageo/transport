@@ -38,4 +38,5 @@ level0_get <- function(type = "relation", id = "4754448", force = TRUE) {
     html_element("textarea")%>%
     html_text() %>%
     glimpse()
+  writeLines(data)
 }

@@ -76,12 +76,24 @@ tidytransit_zip_lire <- function(rds = 'gtfs') {
   carp("dsn: %s", dsn)
   options(encoding = "UTF-8")
   tt <<- tidytransit::read_gtfs(dsn, quiet = FALSE)
-
-  Encoding(tt$stops$stop_name) <- "UTF-8"
-  Encoding(tt$stops$stop_desc) <- "UTF-8"
-  Encoding(tt$routes$route_long_name) <- "UTF-8"
-  Encoding(tt$routes$route_short_name) <- "UTF-8"
-  Encoding(tt$routes$route_desc) <- "UTF-8"
+  tt$stops <- tt$stops %>%
+    (function(.df){
+      cls <- c("stop_desc") # columns I need
+    # adding cls columns with NAs if not present in the piped data.frame
+      .df[cls[!(cls %in% colnames(.df))]] = NA
+      return(.df)
+    }) %>%
+    glimpse()
+  tt$routes <- tt$routes %>%
+    (function(.df){
+      cls <- c("route_desc", "route_url") # columns I need
+    # adding cls columns with NAs if not present in the piped data.frame
+      .df[cls[!(cls %in% colnames(.df))]] = NA
+      return(.df)
+    }) %>%
+    glimpse()
+  dplyr::mutate_if(tt$stops, is.character, .funs = function(x){return(`Encoding<-`(x, "UTF-8"))})
+  dplyr::mutate_if(tt$routes, is.character, .funs = function(x){return(`Encoding<-`(x, "UTF-8"))})
   Encoding(tt$trips$trip_headsign) <- "UTF-8"
   if (grepl("breizhgo", Reseau)) {
     tt$stops <- tt$stops %>%
@@ -363,7 +375,7 @@ tidytransit_shapes_stops_valid <- function() {
 #
 ## les shapes avec les routes
 # source("geo/scripts/transport.R");nc <- tidytransit_routes_shapes_stops()
-tidytransit_routes_shapes_stops <- function(rds = 'gtfs_routes_shapes') {
+tidytransit_routes_shapes_stops_v0 <- function(rds = 'gtfs_routes_shapes') {
   library(tidyverse)
   library(tidytransit)
   carp()
@@ -464,6 +476,7 @@ tidytransit_routes_shapes_stops <- function(rds = "tidytransit_routes_shapes_sto
   tidytransit_sauve(df, rds)
   return(invisible(df))
 }
+# source("geo/scripts/transport.R"); tidytransit_toto()
 tidytransit_toto <- function(force = TRUE) {
   library(tidytransit)
   library(archive)
@@ -519,6 +532,7 @@ tidytransit_refs_shapes_stops_carto <- function(force = TRUE) {
   library(tidytransit)
   carp()
   df1 <- tidytransit_lire(rds = "tidytransit_routes_stops") %>%
+    filter(! grepl("^S", ref_network)) %>%
     group_by(ref_network, shape_id) %>%
     arrange(desc(nb), desc(nb_stops)) %>%
     filter(row_number() == 1) %>%
@@ -1177,7 +1191,7 @@ tidytransit_routes_shapes_fiche <- function() {
     dplyr::select(route_id, d = direction_id, ref = route_short_name, nb, name = route_long_name, shape_id) %>%
     filter(shape_id != "") %>%
     glimpse()
-#  tex_df2kable(df1, num = TRUE)
+  tex_df2kable(df1, num = TRUE)
   return(invisible())
 }
 #

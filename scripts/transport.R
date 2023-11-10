@@ -30,7 +30,7 @@ source("geo/scripts/mga.R")
 source("geo/scripts/misc.R")
 source("geo/scripts/misc_datagouv.R")
 source("geo/scripts/misc_geocode.R")
-source("geo/scripts/misc_gpx.R")
+#source("geo/scripts/misc_gpx.R")
 source("geo/scripts/misc_gtfs.R")
 source("geo/scripts/misc_html.R")
 source("geo/scripts/misc_ign.R")
@@ -58,6 +58,7 @@ source("geo/scripts/transport_gtfs2osm.R"); # mise en format compatible perl
 source("geo/scripts/transport_ign.R"); # pour la détermination des communes des arrêts
 source("geo/scripts/transport_menu.R")
 source("geo/scripts/transport_mapbox.R")
+source("geo/scripts/transport_mapmatching.R")
 source("geo/scripts/transport_misc.R")
 source("geo/scripts/transport_mobibreizh.R"); # pour le gtfs de la région
 source("geo/scripts/transport_oapi.R")
@@ -71,6 +72,7 @@ source("geo/scripts/transport_routes.R"); # cohérence route route_master
 source("geo/scripts/transport_tidytransit.R"); # lecture du fichier gtfs.zip
 source("geo/scripts/transport_train.R");# les réseaux de train
 source("geo/scripts/transport_txt.R")
+source("geo/scripts/transport_valhalla.R")
 source("geo/scripts/transport_wiki.R")
 source("geo/scripts/transport_zone.R")
 #
@@ -117,10 +119,9 @@ Reseau <- "arcachon"; # Arcachon
 Reseau <- "toulouse"; # Toulouse Métropole
 Reseau <- "bretagne"; # pseudo-réseau pour la Bretagne
 Reseau <- "bibus"; # Brest
-Reseau <- "douarnenez"; # Douarnenez
+
 Reseau <- "limoges"; # Limoges Métropole
 Reseau <- "bordeaux"; # Bordeaux Métropole
-Reseau <- "qub"; # Quimper
 Reseau <- "vannes"
 Reseau <- "rmat"; # Saint-Malo
 Reseau <- "surf"; # Fougères
@@ -131,13 +132,16 @@ Reseau <- "ploermel"
 Reseau <- "breizhgo56"; # pseudo-réseau pour BreizhGo en Morbihan
 Reseau <- "breizhgo22"; # pseudo-réseau pour BreizhGo en Côtes d'Armor
 Reseau <- "qub"; # Quimper
-Reseau <- "star"; # Rennes
 Reseau <- "morlaix"; #
 Reseau <- "dinan"; # Dinan / Côtes d'Armor
 Reseau <- "distribus"; # Lamballe / Côtes d'Armor
 Reseau <- "breizhgo35"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
 Reseau <- "breizhgo29"; # pseudo-réseau pour BreizhGo en Finistère
+Reseau <- "star"; # Rennes
+Reseau <- "qub"; # Quimper
+Reseau <- "angers"; # Angers Irigo
 Reseau <- "semo"; # SEMO (pour Seine-Eure MObilités)
+Reseau <- "douarnenez"; # Douarnenez Tudbus
 config_xls(Reseau)
 Tex <- TRUE
 Wiki <- TRUE

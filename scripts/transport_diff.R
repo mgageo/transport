@@ -18,6 +18,7 @@ diff_jour <- function(force = TRUE) {
   carp()
 #  tidytransit_jour(force = force)
   tidytransit_routes_stops(force = FALSE)
+  diff_routemasters(force = force)
   gtfs2osm_routes_stops(force = force)
   diff_routes_shapes_tags(force = force)
 }
@@ -320,10 +321,11 @@ diff_stops_creation_gtfs <- function(nc1) {
 #
 # comparaison à partir des routes gtfs
 # source("geo/scripts/transport.R");diff_relations_routemaster_bus(force = FALSE)
-diff_relations_routemaster_bus <- function(force = TRUE) {
+diff_relations_routemaster_bus <- function(force = TRUE, ForceChange = FALSE) {
   library(tidyverse)
   library(janitor)
   carp()
+  ForceChange <<- ForceChange
 # osm
   carp("osm: les relations")
   doc <- overpass_get(query = "relations_routemaster_bus_network", format = "xml", force = force)
@@ -361,7 +363,7 @@ diff_relations_routemaster_bus <- function(force = TRUE) {
   carp("gtfs: les routes")
   gtfs0.df <- misc.lire("gtfs2osm_routemasters", dir = transportDir)
   gtfs.df <- gtfs0.df %>%
-    rename_with( ~ paste0(.x, ".gtfs"))
+    rename_with(~ paste0(.x, ".gtfs"))
   carp("osm et gtfs: fusion par ref_network")
   df1 <- osm.df %>%
     full_join(gtfs.df, by = c("ref:network.osm" = "ref:network.gtfs"))
@@ -377,27 +379,10 @@ diff_relations_routemaster_bus <- function(force = TRUE) {
   df1 <- df1 %>%
     filter(!is.na(name.gtfs)) %>%
     filter(!is.na(name.osm)) %>%
+    mutate(`ref:network.gtfs` = `ref:network.osm`) %>%
     select(order(colnames(.)))
-  carp("osm et gtfs: tri par ref")
-  df2 <- df1 %>%
-    dplyr::rename(kref = `ref:network.osm`) %>%
-    arrange(kref) %>%
-    glimpse()
-#  misc_print(df2)
-  for (col in names(gtfs0.df)) {
-    carp("col: %s", col)
-    if (col == "ref:network") {
-      next
-    }
-    gtfs <- sprintf("%s.gtfs", col)
-    osm <- sprintf("%s.osm", col)
-    df3 <- df2 %>%
-      dplyr::select(kref, `@id.osm`, gtfs = !!gtfs, osm = !!osm) %>%
-      filter(gtfs != osm) %>%
-      arrange(kref)
-    if (nrow(df3) > 0) {
-      misc_print(df3)
-    }
+  if (nrow(df1) > 0) {
+    diff_objects_tags(df1, type = "master")
   }
 }
 #
@@ -970,10 +955,10 @@ diff_relations_bus_tags <- function(force = TRUE, OsmChange = FALSE) {
     diff_objects_tags(df4)
   }
 }
-diff_objects_tags <- function(df1, Change = TRUE) {
+diff_objects_tags <- function(df1, type = "route", Change = TRUE) {
   champs.df <- tribble(
     ~attribut,
-#    "name"
+      "name",
       "description",
       "ref:network",
       "from",
@@ -983,14 +968,29 @@ diff_objects_tags <- function(df1, Change = TRUE) {
       "colour",
       "text_colour",
 #      "network:wikidata",
-    ) %>%
+    )
+  if (type == "master") {
+    champs.df <- tribble(
+      ~attribut,
+      "name",
+#      "description",
+      "ref:network",
+      "network",
+      "operator",
+      "colour",
+      "text_colour",
+#       "network:wikidata",
+    )
+  }
+  champs.df <- champs.df %>%
     mutate(gtfs = sprintf("%s.gtfs", attribut)) %>%
     mutate(osm = sprintf("%s.osm", attribut)) %>%
     glimpse()
   osm <- ""
   for (i1 in 1:nrow(df1)) {
     id <- df1[[i1, "@id.osm"]]
-    if (id != "12861877") {
+# pour l'encodage <>
+    if (id != "16540516") {
 #      next
     }
 #    glimpse(df1[i1, ]); stop("*****")
@@ -1000,6 +1000,8 @@ diff_objects_tags <- function(df1, Change = TRUE) {
     tags.df <- champs.df
     tags.df$OSM <- NA
     tags.df$GTFS <- NA
+    tags.df$egal <- TRUE
+    nb_diff <- 0
     for (ic in 1:nrow(champs.df)) {
       if (tags.df[[ic, "osm"]] %in% names(df1)) {
         tags.df[ic, "OSM"] <- df1[[i1, tags.df[[ic, "osm"]]]]
@@ -1008,10 +1010,19 @@ diff_objects_tags <- function(df1, Change = TRUE) {
 #        confess("tag non configuré dans gtfs2osm: %s", tags.df[[ic, "gtfs"]])
         tags.df[ic, "GTFS"] <- df1[[i1, tags.df[[ic, "gtfs"]]]]
       }
+      if (tags.df[ic, "OSM"] != tags.df[ic, "OSM"]) {
+        tags.df[ic, "egal"] <- FALSE
+        nb_diff <- nb_diff + 1
+      }
     }
     if (identical(tags.df$OSM, tags.df$GTFS)) {
       next
     }
+    if (nb_diff == 0) {
+      next
+    }
+    setdiff(tags.df$OSM, tags.df$GTFS) %>%
+      glimpse()
     misc_print(tags.df)
     if (Change == TRUE) {
       tags.df <- tags.df %>%

@@ -136,7 +136,7 @@ osmchange_object_modify_tags <- function(id = "13400195", type = "relation", tag
 # non, on l'insère à la fin
     re <- regex('^(.*)(</(node|way|relation)>.*$)', , dotall = TRUE)
     matches2 <- str_match(osm, re)[1, ]
-#    Carp("\najout id: %s\n  gtfs: %s",id, gtfs)
+    Carp("\najout id: %s\n  gtfs: %s",id, gtfs)
     osm <- sprintf("%s%s\n%s", matches2[[2]], gtfs, matches2[[3]])
     nb_modifs <- nb_modifs + 1
 #    writeLines(osm);

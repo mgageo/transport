@@ -82,6 +82,7 @@ html_symbols <- data.frame(
     stringsAsFactors = FALSE
 )
   stringi::stri_replace_all_fixed(x, c(">"), c("&gt;"))
+  stringi::stri_replace_all_fixed(x, c("<"), c("&lt;"))
 }
 html_df2gt <- function(df) {
   library(gt)
@@ -90,4 +91,16 @@ html_df2gt <- function(df) {
     gt() %>%
     as_raw_html()
   return(invisible(gt))
+}
+html_browse <- function(dsn, titre) {
+  dsn <- sprintf("%s/%s.html", webDir, titre)
+  write(html, dsn)
+  carp("dsn: %s", dsn)
+  if (HtmlBrowse != FALSE) {
+    url <- sprintf("http://localhost/%s/%s.html", WebDir, titre)
+    browseURL(
+      url,
+      browser = "C:/Program Files/Mozilla Firefox/firefox.exe"
+    )
+  }
 }

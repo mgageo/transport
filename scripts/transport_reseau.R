@@ -60,10 +60,12 @@ reseau_diff_jour <- function(force = TRUE) {
   library(tidyverse)
   library(data.table)
   library(janitor)
+  gtfs2osm_jour(force = force)
   if (Config[[1, "shapes"]] != "FALSE") {
-    reseau_osm_routes_tag_shape(force = force)
+#    reseau_osm_routes_tag_shape(force = force)
+#    tex_pdflatex(sprintf("%s_diff.tex", Reseau))
     reseau_osm_routes_shapes(force = force)
-    tex_pdflatex(sprintf("%s_diff.tex", reseau))
+    tex_pdflatex(sprintf("%s_reseau_osm_routes_shapes.tex", Reseau))
   }
 }
 # source("geo/scripts/transport.R");reseau_gtfs_jour()
@@ -79,18 +81,6 @@ reseau_osm_jour <- function(force = TRUE, force_members = TRUE, force_osm = TRUE
   library(janitor)
   osm_jour(force = force)
   tex_pdflatex(sprintf("%s_osm.tex", Reseau))
-}
-# source("geo/scripts/transport.R");reseau_diff_jour(force = TRUE)
-reseau_diff_jour <- function(force = TRUE) {
-  library(tidyverse)
-  library(data.table)
-  library(janitor)
-  gtfs2osm_jour(force = force)
-  if (Config[[1, "shapes"]] != "FALSE") {
-    reseau_osm_routes_tag_shape(force = force)
-    reseau_osm_routes_shapes(force = force)
-    tex_pdflatex(sprintf("%s_diff.tex", Reseau))
-  }
 }
 
 
@@ -144,6 +134,10 @@ reseau_osm_routes_shapes <- function(force = TRUE) {
     carp("i: %s/%s", i, nrow(df))
     id <-  df[[i, "id"]]
     shape <- df[[i, "gtfs_shape_id"]]
+    if (is.na(shape)) {
+      carp("**** id: %s pas de shape", id)
+      next
+    }
     dsn <- sprintf("%s/reseau_osm_routes_shapes_%s.pdf", imagesDir, id)
     rc <- carto_route_shape_mapsf(id, shape)
     lg.df <- lg.df %>%
