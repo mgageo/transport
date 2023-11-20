@@ -101,15 +101,10 @@ tidytransit_zip_lire <- function(rds = 'gtfs') {
       mutate(stop_lon = ifelse(stop_name == "Kerberennez", -4.127847, stop_lon))
 #    glimpse(tt$stops); stop("****")
   }
-  if (Reseau == "qub_") {
-    tt$stops <- tt$stops %>%
-      mutate(stop_id = gsub("^ARCOM@", "", stop_id)) %>%
-      mutate(stop_code = gsub("^ARCOM@", "", stop_code)) %>%
-      glimpse()
-  }
+
   tt <- tidytransit_donnees_utiles(tt)
   if (nrow(tt$stops) == 0) {
-    confess("bug donnees_utiles")
+    confess("bug donnees_utiles tt$stops")
   }
   if (Reseau == "bordeaux") {
     tt$stops %>%
@@ -120,7 +115,9 @@ tidytransit_zip_lire <- function(rds = 'gtfs') {
     tt$routes <- tt$routes %>%
       mutate(route_short_name = gsub("^0", "", route_short_name))
   }
-
+  if (Reseau == "quimper") {
+    tt$stops <- quimper_stops(tt$stops)
+  }
 # https://stackoverflow.com/questions/45857787/adding-column-if-it-does-not-exist
   tt$trips <- tt$trips %>%
     (function(.df){
@@ -1327,6 +1324,7 @@ bordeaux_arrets_utils <- function(force = TRUE) {
 tidytransit_donnees_utiles <- function(tt, force = TRUE) {
   library(tidyverse)
   carp("le gtfs")
+  shapes.df <- tt$shapes
 #
 # gtfs avec plusieurs "agency"
   if (grepl("(breizhgo)", Reseau)) {
@@ -1336,15 +1334,30 @@ tidytransit_donnees_utiles <- function(tt, force = TRUE) {
   routes.df <- tt$routes %>%
     filter(route_type == 3) %>%
     glimpse()
+  carp("les stops")
+  stops.df <- tt$stops %>%
+    glimpse()
 # que les routes "bus"
   if (grepl("(star)", Reseau)) {
     routes.df <- routes.df %>%
       filter(!grepl("^(Transport scolaire|Métro)$", route_desc))
   }
+# Lorient, pas les bateaux
+  if (grepl("lorient", Reseau)) {
+    routes.df <- routes.df %>%
+      filter(! grepl("^B", route_short_name))
+  }
 # le téléphérique
-  if (grepl("(bibus)", Reseau)) {
+  if (grepl("(brest)", Reseau)) {
     routes.df <- routes.df %>%
       filter(route_short_name != "C")
+  }
+  if (Reseau == "quimper_") {
+    stops.df <- stops.df %>%
+      mutate(stop_id = gsub("^ARCOM@", "", stop_id)) %>%
+      mutate(stop_code = gsub("^ARCOM@", "", stop_code)) %>%
+      glimpse()
+    stop("****")
   }
   carp("les voyages")
   trips.df <- tt$trips %>%
@@ -1357,12 +1370,18 @@ tidytransit_donnees_utiles <- function(tt, force = TRUE) {
   carp("les arrêts utilisés")
   df1 <- stop_times.df %>%
     distinct(stop_id) %>%
+    arrange(stop_id) %>%
     glimpse()
   carp("les arrêts configurés")
-  stops.df <- tt$stops
-  if (Reseau != "qub") {
+  if (Reseau != "quimper") {
     stops.df <- stops.df %>%
       filter(location_type == 0)
+  }
+  if (Reseau == "breizhgo") {
+    stops.df <- stops.df %>%
+      filter(!grepl("^SNCF", stop_id))
+    shapes.df <- shapes.df %>%
+      filter(grepl("^LRR", shape_id))
   }
   carp("les arrêts non utilisés")
   stops.df %>%
@@ -1372,9 +1391,11 @@ tidytransit_donnees_utiles <- function(tt, force = TRUE) {
   stops.df <- stops.df %>%
     filter(stop_id %in% df1$stop_id) %>%
     glimpse()
+  carp("les shapes configurés")
   tt$routes <- routes.df
   tt$stops <- stops.df
   tt$trips <- trips.df
   tt$stop_times <- stop_times.df
+  tt$shapes <- shapes.df
   return(invisible(tt))
 }

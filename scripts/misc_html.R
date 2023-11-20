@@ -9,11 +9,12 @@
 html_df2kable <- function(
     df,
     dsn = FALSE,
-    suffixe="", dossier="",
+    suffixe = "",
+    dossier = "",
     nb_lignes = 0,
     num = FALSE,
     digits = 1,
-    font_size = 9,
+#    font_size = 9,
     extra = FALSE,
     escape = TRUE
   ) {
@@ -47,7 +48,7 @@ html_df2kable <- function(
       ) %>%
       kable_styling(
         position = "left",
-        font_size = font_size,
+#        font_size = font_size,
         repeat_header_text = repeat_header_text
       )
     if (extra != FALSE) {
@@ -64,6 +65,7 @@ TABLEAU VIDE
   f <- file(dsn, open="w")
   writeLines(html, f)
   close(f)
+  return(invisible(html))
 }
 html_replace <- function(x) {
 html_symbols <- data.frame(
@@ -103,4 +105,83 @@ html_browse <- function(dsn, titre) {
       browser = "C:/Program Files/Mozilla Firefox/firefox.exe"
     )
   }
+}
+html_entete <- function(title = "titre") {
+  html <- sprintf('<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>%s</title>
+    <meta name="author" content="Marc Gauthier" />
+    <meta name="copyright" content="©CC BY-NC-SA 4.0 Marc Gauthier" />
+    <meta name="robots" content="noindex,nofollow"/>
+    <meta http-equiv="expires" content="43200"/>
+  </head>
+  <body>', title)
+  return(invisible(html))
+}
+html_titre <- function(titre = "titre") {
+  html <- '<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>%s</title>
+    <meta name="author" content="Marc Gauthier" />
+    <meta name="copyright" content="©CC BY-NC-SA 4.0 Marc Gauthier" />
+    <meta name="robots" content="noindex,nofollow"/>
+    <meta http-equiv="expires" content="43200"/>
+  </head>
+  <body>
+'
+  sprintf(html, titre)
+}
+html_pied <- function() {
+  html <- sprintf('  </body>
+</html>')
+  return(invisible(html))
+}
+html_pied_sort <- function(html1) {
+  html <- '
+    <script src="/js/sorttable/sorttable.js"></script>
+  </body>
+</html>
+'
+  html1 <- append(html1, html)
+}
+html_append <- function(html1, html2) {
+  html1 <- append(html1, as.character(html2))
+}
+html_append_df <- function(html, df) {
+  glimpse(df)
+  rownames(df) <- NULL
+  htm <- df %>%
+    kbl(escape = F) %>%
+#    kable_minimal() %>%
+    kable_styling(bootstrap_options = "striped", full_width = F, position = "left", fixed_thead = T)
+  html <- append(html, htm)
+}
+html_df2fic <- function(df, titre = "titre", dsn = FALSE, suffixe = "", dossier = "") {
+  html <-  html_titre(titre = titre)
+  rownames(df) <- NULL
+  htm <- df %>%
+    kbl(escape = F) %>%
+#    kable_minimal() %>%
+    kable_styling(bootstrap_options = "striped", full_width = F, position = "left", fixed_thead = T)
+  html <- append(html, htm)
+  html <- html_pied(html)
+  if ( dsn == FALSE ) {
+    curcall <- as.character(deparse(sys.call(-1)))[1]
+    curcall <- gsub('\\(.*$', '', curcall)
+    if ( suffixe != "" ) {
+      suffixe <- sprintf("_%s", suffixe)
+    }
+    if ( dossier != "" ) {
+      dossier <- sprintf("%s/", dossier)
+      d <- sprintf("%s/%s", texDir, dossier)
+      dir.create(d, showWarnings = FALSE, recursive = TRUE)
+    }
+    dsn <- sprintf("%s/%s%s%s.html", webDir, dossier, curcall, suffixe)
+  }
+  write(html, dsn)
+  carp("dsn: %s", dsn)
 }

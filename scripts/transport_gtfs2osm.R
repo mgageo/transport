@@ -29,6 +29,7 @@ gtfs2osm_jour <- function(force = TRUE, force_osm = TRUE) {
     gtfs2osm_relations_route_shape_stops(force_osm = force_osm)
 #    gtfs2osm_relations_route_shape_wiki("gtfs2osm_routes_shapes_stops")
   }
+  return(invisible())
 }
 #
 # source("geo/scripts/transport.R");gtfs2osm_diff()
@@ -232,6 +233,14 @@ gtfs2osm_relations_route_stops <- function(rds = "gtfs2osm_routes_stops", force_
       ,ref, ref_network, shape_id, route, text_colour, to, type, stops, stops_code, stop_names = names
       ,stops_osm_id, stops_osm_name) %>%
     glimpse()
+  tags <- Config_tags
+  for (tag in tags) {
+    col <- sprintf("Config_%s", tag)
+    val <- get(col)
+    if (! is.na(val)) {
+      df2[, tag] <- val
+    }
+  }
   transport_sauve(df2, rds)
   dsn <- sprintf("%s/%s.csv", transportDir, rds)
   readr::write_tsv(df2, file = dsn)
@@ -272,7 +281,16 @@ gtfs2osm_relations_route_shape_stops <- function(rds = "gtfs2osm_routes_shapes_s
     dplyr::select(colour, description, from, name, network, operator,`public_transport:version`
       ,ref, ref_network, shape_id, route, text_colour, to, type, stops, stops_code, stop_names = names
       ,stops_osm_id, stops_osm_name
-    ) %>%
+    )
+  tags <- Config_tags
+  for (tag in tags) {
+    col <- sprintf("Config_%s", tag)
+    val <- get(col)
+    if (! is.na(val)) {
+      df4[, tag] <- val
+    }
+  }
+  df4 <- df4 %>%
     select(order(colnames(.))) %>%
     glimpse()
   transport_sauve(df4, rds)

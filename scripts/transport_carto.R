@@ -84,7 +84,7 @@ carto_route_shapes_stops_mapsf <- function(df, nc1) {
 # la carte de la ligne
 # l'id de la relation et l'identification du shape
 # source("geo/scripts/transport.R");carto_route_shape(id = "10554878", shape = "Din1R1AL10")
-# source("geo/scripts/transport.R");carto_route_shape_mapsf(id = "7711144", shape = "0122-B-1065-1090")
+# source("geo/scripts/transport.R");carto_route_shape(id = "7711144", shape = "0122-B-1065-1090")
 carto_route_shape <- function(id, shape, force = TRUE) {
   library(tidyverse)
   library(sf)
@@ -178,7 +178,8 @@ carto_route_shape_mapsf <- function(id, shape, force = TRUE, force_osm = TRUE) {
   osm.sf <- osmapi_get_ways(ref = id, force = force, force_osm = force_osm)
 #  glimpse(osm.sf);confess();
   if (nrow(osm.sf) < 1) {
-    carp("***id: %s", id)
+    carp("***pas de ways *** id: %s", id)
+    return(invisible(FALSE))
   }
   point1_distance <- -1
   osm.sf <- osm.sf %>%

@@ -38,9 +38,11 @@ transport_lire <- function(rds = 'objets_stop') {
   return(invisible(obj))
 }
 transport_html_browse <- function(html, titre, HtmlBrowse = TRUE, Exit = FALSE) {
-  dsn <- sprintf("%s/%s.html", webDir, titre)
-  write(html, dsn)
-  carp("dsn: %s", dsn)
+#  if (html != "") {
+    dsn <- sprintf("%s/%s.html", webDir, titre)
+    write(html, dsn)
+    carp("dsn: %s", dsn)
+#  }
   if (HtmlBrowse != FALSE) {
     url <- sprintf("http://localhost/transport/%s.html", titre)
     browseURL(

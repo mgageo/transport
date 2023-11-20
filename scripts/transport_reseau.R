@@ -27,14 +27,14 @@ reseau_jour <- function(force = TRUE) {
   reseau_gtfs_jour(force = force)
   reseau_diff_jour(force = force)
 }
-# source("geo/scripts/transport.R");reseau_toto()
+# source("geo/scripts/transport.R");reseau_toto(force = FALSE)
 reseau_toto <- function(force = TRUE) {
   library(tidyverse)
   library(rio)
   library(sf)
   carp()
-  reseau_tpl_tex(reseau = Reseau)
-  reseau_osm_routes_shapes(force = TRUE)
+  reseau_tpl_tex()
+  reseau_osm_routes_shapes(force = force)
   tex_pdflatex(sprintf("%s_reseau_osm_routes_shapes.tex", Reseau))
 }
 #
@@ -126,7 +126,7 @@ reseau_osm_routes_shapes <- function(force = TRUE) {
 #  stop("****")
   df1 <- df %>%
     dplyr::select(id, timestamp, user, ref_network, gtfs_shape_id) %>%
-    arrange(gtfs_shape_id)
+    arrange(ref_network)
   tex_df2kable(df1, suffixe = "lst", longtable = TRUE)
   lg.df <- tribble(~id, ~ref, ~ref_network, ~shape, ~osm_lg, ~shape_lg, ~inters_lg)
   lg.df <- tribble()
@@ -166,8 +166,10 @@ reseau_osm_routes_shapes_tex <- function(force = TRUE) {
   library(janitor)
   carp()
   lg.df <- tidytransit_lire("reseau_osm_routes_shapes") %>%
+    glimpse() %>%
     mutate(across(5:9, as.integer)) %>%
-    filter(point1_distance > 150 | point9_distance > 150) %>%
+    filter(point1_distance > 1500 & point9_distance > 1500) %>%
+    arrange(ref, ref_network) %>%
     glimpse()
 }
 #

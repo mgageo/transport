@@ -523,6 +523,7 @@ osm_valid_nodes_platform_kref <- function(rds = "osm_valid_nodes_platform_kref",
   level0 <- paste(level0, collapse = ",n")
   print(level0)
 }
+# https://forum.openstreetmap.fr/t/comment-optimiser-une-ligne-de-car-pour-affichage-sur-carte-osm-et-traitement-automatique-des-donnees/2418
 
 #
 # lecture en csv
@@ -536,6 +537,9 @@ osm_valid_stops <- function(force_osm = TRUE) {
   titre <- sprintf("osm_valid_stops_%s", Config[1, 'reseau'])
   html <- misc_html_titre(titre)
   html <- misc_html_append(html, "<h1>OSM</h1>")
+  html <- misc_html_append(html, "<h2>PTv2</h2>")
+  html <- misc_html_append(html, "<h3>public_transport=platform + highway=bus_stop</h3>")
+  html <- misc_html_append(html, "<h3>public_transport=stop_position + bus=yes</h3>")
 #
 #
   html <- misc_html_append(html, "<h2>Les stops du réseau</h2>")
