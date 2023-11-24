@@ -1556,6 +1556,8 @@ osm_relations_level0 <- function(force = TRUE, force_osm = TRUE) {
 # source("geo/scripts/transport.R");osm_relation_route_gap(id = 4260060, force = FALSE, force_osm = FALSE)
 # source("geo/scripts/transport.R");osm_relation_route_gap(id = 14632216, force = FALSE, force_osm = FALSE)
 # source("geo/scripts/transport.R");osm_relation_route_gap(id = 8319385, force = FALSE, force_osm = FALSE)
+# en erreur dans osmose
+# source("geo/scripts/transport.R");osm_relation_route_gap(id = 14194690, force = FALSE, force_osm = FALSE)
 # oneway:bus = no
 osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE) {
   library(tidyverse)
@@ -1599,7 +1601,7 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
     mutate(wOW = ifelse(grepl("yes", oneway_bus), TRUE, FALSE)) %>%
     mutate(name = ifelse(is.na(name), ref_y, name)) %>%
     mutate(name = sprintf("%s(%s)", name, nb_nodes)) %>%
-    dplyr::select(no, id, node1, node9, wRP, wOW, name, nodes)
+    dplyr::select(no, id, node1, node9, wRP, wOW, name, nodes, wkt)
 #    filter(! is.na(junction)) %>%
 #    glimpse()
   nAvant <- "-1"
@@ -1716,7 +1718,17 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
   if (nrow(gaps.df) > 0) {
 #    misc_print(gaps.df)
   }
-  carp("fin id: %s nrow: %s", id, nrow(gaps.df))
+  carp("fin id: %s gaps.df nrow: %s", id, nrow(gaps.df))
+  glimpse(ways.df)
+#
+# pour savoir si les stations sont du bon côté
+# https://github.com/r-spatial/sf/issues/1001
+  ways.sf <- st_as_sf(ways.df, geometry = st_as_sfc(ways.df$wkt, crs = st_crs(4326))) %>%
+    st_transform(2154)
+  b50.sf <- ways.sf %>%
+    st_buffer(50, singleSide = T)
+  plot(st_geometry(ways.sf))
+  plot(st_geometry(b50.sf), add = TRUE, border = "red")
   return(invisible(gaps.df))
 }
 #

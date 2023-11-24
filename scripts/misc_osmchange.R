@@ -156,6 +156,20 @@ osmchange_object_modify_tags <- function(id = "13400195", type = "relation", tag
   return(invisible(""))
 }
 #
+# pour changer les coordonnées
+# source("geo/scripts/transport.R");osmchange_object_modify_latlon()
+osmchange_object_modify_latlon <- function(id = "34973740", type = "node", lat = 48, lon = -2, Change = FALSE) {
+  library(stringi)
+  carp("id: %s type: %s lat: %s lon: %s", id, type, lat, lon)
+  osm <- osmapi_get_object_xml(id = id, type = type)
+  lat <- sprintf(' lat="%.6f"', lat)
+  lon <- sprintf(' lon="%.6f"', lon)
+  osm <- stri_replace(osm, lat, regex = ' lat="[^"]+"')
+  osm <- stri_replace(osm, lon, regex = ' lon="[^"]+"')
+#  writeLines(osm)
+  return(invisible(osm))
+}
+#
 ## tests
 #####################################################################
 #

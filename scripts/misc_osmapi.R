@@ -464,6 +464,9 @@ osmapi_get_node_ways <- function(node, force = FALSE) {
 # version xml
 # https://rdrr.io/github/mdlincoln/bigosm/src/R/parse.R
 # source("geo/scripts/transport.R"); rc <- osmapi_get_transport(ref = "2422224", force = TRUE)
+#
+# bug
+# source("geo/scripts/transport.R"); rc <- osmapi_get_transport(ref = "14194690", force = TRUE)
 osmapi_get_transport <- function(ref = "11920346", force = FALSE, force_osm = FALSE) {
   library(readr)
   library(tidyverse)
@@ -490,7 +493,7 @@ osmapi_get_transport <- function(ref = "11920346", force = FALSE, force_osm = FA
   nodes.df <- osmapi_objects_tags(nodes) %>%
 # pas de tag name, public_transport
     dplyr::bind_rows(dplyr::tibble(name = character(), public_transport = character())) %>%
-    dplyr::select(id, lat, lon, name, public_transport, matches("^(bus|ref)")) %>%
+    dplyr::select(id = "@id", lat = "@lat", lon = "@lon", name, public_transport, matches("^(bus|ref)")) %>%
     mutate(lat = as.numeric(lat)) %>%
     mutate(lon = as.numeric(lon)) %>%
     glimpse()
@@ -500,7 +503,8 @@ osmapi_get_transport <- function(ref = "11920346", force = FALSE, force_osm = FA
   ways.df <- osmapi_objects_tags(ways)
   if (nrow(ways.df) > 0) {
     ways.df <- ways.df %>%
-      dplyr::select(id, matches("^(name|highway|junction|oneway|oneway\\:bus|ref)")) %>%
+      dplyr::select(id = "@id", matches("^(name|highway|junction|oneway|oneway\\:bus|ref)")) %>%
+      glimpse() %>%
       (function(.df){
         cls <- c("name", "highway", "junction", "oneway", "oneway:bus", "ref")
         .df[cls[!(cls %in% colnames(.df))]] = NA
@@ -613,6 +617,7 @@ osmapi_objects_tags <- function(objects) {
     object.df <- xml_attrs(object) %>%
       as_tibble_row() %>%
       rename_with(.fn = function(.x){paste0("@", .x)})
+#    Carp("id: %s", object.df[[1, "@id"]])
     tags <- xml2::xml_find_all(object, "./tag")
     if (length(tags) > 0) {
 #    carp("tags nb: %s", length(tags))
@@ -628,6 +633,7 @@ osmapi_objects_tags <- function(objects) {
     }
     objects.df <- bind_rows(objects.df, object.df)
   }
+  carp("objets.df : %s", length(objects.df))
   return(invisible(objects.df))
 }
 #
@@ -752,8 +758,9 @@ osmapi_api <- function(path, xml = '', methode = "PUT", debug = FALSE) {
     resp <- httr::GET(
       url,
       authenticate(username, password, type = "basic"),
+      accept(".xml"),
+#      verbose(),
       ua
- #     verbose()
     )
   }
   if (http_error(resp)) {
@@ -788,6 +795,18 @@ osmapi_api <- function(path, xml = '', methode = "PUT", debug = FALSE) {
 osmapi_get_object_xml <- function(id = "11920346", type = "relation", force = FALSE) {
   library(stringi)
   path <- "{type}/{id}"
+  path <- str_glue(path)
+  carp("path: %s", path)
+  xml <- osmapi_api(path, methode = "GET")
+  xml <- str_split(xml, "\\n+", simplify = TRUE)
+  xml <- head(xml[-1:-2], -2)
+  xml <- paste(xml, collapse = "\n")
+  return(invisible(xml))
+}
+# source("geo/scripts/transport.R"); res <- osmapi_get_object_version_xml(); print(res)
+osmapi_get_object_version_xml <- function(id = "11920346", type = "relation", version = 1, force = FALSE) {
+  library(stringi)
+  path <- "{type}/{id}/{version}"
   path <- str_glue(path)
   carp("path: %s", path)
   xml <- osmapi_api(path, methode = "GET")

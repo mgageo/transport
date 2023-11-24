@@ -146,7 +146,7 @@ reseau_osm_routes_shapes <- function(force = TRUE) {
 # pour le latex
 #    tex <- append(tex, sprintf("\\mongraphique{images/reseau_routes_shapes_%s.pdf}", id))
     df[i, "shape"] <- shape
-    df[i, "dsn_shape"] <- shape
+    df[i, "dsn_shape"] <- sprintf("%s/shape_stops_%s.gpx", josmDir, shape)
     tpl <- tex_df2tpl(df, i, template)
     tpl <- escapeLatexSpecials(tpl)
     tex <- append(tex, tpl)
@@ -166,10 +166,18 @@ reseau_osm_routes_shapes_tex <- function(force = TRUE) {
   library(janitor)
   carp()
   lg.df <- tidytransit_lire("reseau_osm_routes_shapes") %>%
-    glimpse() %>%
-    mutate(across(5:9, as.integer)) %>%
+    mutate(across(5:11, as.integer)) %>%
+    glimpse()
+  carp("distance départ et arrivée")
+  df1 <- lg.df  %>%
     filter(point1_distance > 1500 & point9_distance > 1500) %>%
     arrange(ref, ref_network) %>%
+    glimpse()
+  carp("longueur en commun")
+  df1 <- lg.df  %>%
+    mutate(taux = (inters_lg * 100) /shape_lg) %>%
+    filter(taux < 80) %>%
+    arrange(taux, ref, ref_network) %>%
     glimpse()
 }
 #

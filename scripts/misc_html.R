@@ -149,6 +149,7 @@ html_pied_sort <- function(html1) {
   html1 <- append(html1, html)
 }
 html_append <- function(html1, html2) {
+  writeLines(html2)
   html1 <- append(html1, as.character(html2))
 }
 html_append_df <- function(html, df) {
@@ -159,6 +160,7 @@ html_append_df <- function(html, df) {
 #    kable_minimal() %>%
     kable_styling(bootstrap_options = "striped", full_width = F, position = "left", fixed_thead = T)
   html <- append(html, htm)
+  return(invisible(html))
 }
 html_df2fic <- function(df, titre = "titre", dsn = FALSE, suffixe = "", dossier = "") {
   html <-  html_titre(titre = titre)

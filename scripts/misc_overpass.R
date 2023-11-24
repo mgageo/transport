@@ -232,6 +232,25 @@ foreach(
   dsn <- overpass_query(query = requete, fic = dsn, force = force)
   return(invisible(dsn))
 }
+# source("geo/scripts/transport.R");overpass_object_get_history()
+overpass_object_get_history <- function(id = "4294292361", type = "node", force = TRUE) {
+  library(tidyverse)
+#  type <- substr(type, 1, 3)
+  dsn <- sprintf("overpass_object_get_history_%s_%s", type, id)
+  carp("dsn: %s", dsn)
+  requete <- sprintf('
+timeline(%s, %s);
+foreach(
+  retro(u(t["created"]))
+  (
+    (%s(%s);>>;);
+    out meta;
+
+  );
+);', type, id, type, id)
+  dsn <- overpass_query(query = requete, fic = dsn, force = force)
+  return(invisible(dsn))
+}
 #
 ## recherche des arrêts proches
 #

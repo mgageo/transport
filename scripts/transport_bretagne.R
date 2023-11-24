@@ -252,6 +252,8 @@ bretagne_jour_osmose <- function () {
 # https://www.data.gouv.fr/fr/datasets/contours-des-communes-de-france-simplifie-avec-regions-et-departement-doutre-mer-rapproches/
 # https://www.icem7.fr/cartographie/un-fond-de-carte-france-par-commune-optimise-pour-le-web-et-lanalyse-statistique/
 #
+# https://github.com/osm-fr/osmose-backend/blob/master/analysers/analyser_osmosis_relation_public_transport.py#L579
+#
 # données ign
 # source("geo/scripts/transport.R");bretagne_communes()
 bretagne_communes <- function() {

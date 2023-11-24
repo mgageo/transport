@@ -28,6 +28,7 @@ tidytransit_jour <- function(force = TRUE) {
   tidytransit_stops_sf()
   gtfs_stops_geocode()
 #  glimpse(tt); stop("****")
+  tidytransit_routes_fiche()
   tidytransit_routes_stops()
   tidytransit_routes_stops_tex()
   tidytransit_routes_trips_stops()
@@ -46,6 +47,13 @@ tidytransit_jour <- function(force = TRUE) {
     tex_pdflatex(sprintf("%s_tidytransit_routes_shapes_stops_carto.tex", Reseau))
     tex_pdflatex(sprintf("%s_tidytransit_shapes.tex", Reseau))
   }
+}
+#
+# source("geo/scripts/transport.R");tidytransit_tutu()
+tidytransit_tutu <- function(force = TRUE) {
+  library(tidytransit)
+  reseau_tpl_tex()
+  tex_pdflatex(sprintf("%s_gtfs.tex", Reseau))
 }
 #
 # source("geo/scripts/transport.R");tidytransit_jour_shapes()
@@ -1170,6 +1178,27 @@ arrêts: {{arrets}}
 }
 #
 # V2 en tex pur et dur
+# source("geo/scripts/transport.R");tidytransit_routes_fiche()
+tidytransit_routes_fiche <- function() {
+  library(tidyverse)
+  dsn <- sprintf("%s/stop_times.txt", gtfsDir)
+  mtime <- file.info(dsn)$mtime
+  carp("dsn: %s %s", dsn, mtime)
+  tt <- tidytransit_lire("gtfs") %>%
+    glimpse()
+  df1 <- tt$trips %>%
+    glimpse() %>%
+    dplyr::select(trip_id, route_id, direction_id) %>%
+    group_by(route_id, direction_id) %>%
+    summarize(nb = n()) %>%
+    left_join(tt$routes, by = c("route_id")) %>%
+    arrange(route_id, direction_id, nb) %>%
+    dplyr::select(route_short_name, route_id, d = direction_id,  nb, route_long_name) %>%
+    arrange(route_short_name, route_id) %>%
+    glimpse()
+  tex_df2kable(df1, num = TRUE)
+  return(invisible())
+}
 # source("geo/scripts/transport.R");tidytransit_routes_shapes_fiche()
 tidytransit_routes_shapes_fiche <- function() {
   library(tidyverse)
@@ -1291,32 +1320,7 @@ tidytransit_routes_trips_stops <- function() {
 %s", wiki, wiki_df2table(df5))
   wiki_page_init(page = page, article = wiki, force = TRUE)
 }
-#
-# les arrêts effectivement utilisés
-#
-# source("geo/scripts/transport.R");bordeaux_arrets_utils()
-bordeaux_arrets_utils <- function(force = TRUE) {
-  library(tidyverse)
-  library(sf)
-  carp("le gtfs")
-  tt <- tidytransit_lire()
-  routes.df <- tt$routes %>%
-    filter(route_type == 3)
-  trips.df <- tt$trips %>%
-    filter(route_id %in% routes.df$route_id) %>%
-    glimpse()
-  stop_times.df <- tt$stop_times %>%
-    filter(trip_id %in% trips.df$trip_id) %>%
-    distinct(stop_id) %>%
-    glimpse()
-  stops.df <- tt$stops %>%
-    filter(location_type == 0) %>%
-    glimpse() %>%
-    filter(stop_id %in% stop_times.df$stop_id) %>%
-    glimpse()
 
-  return(invisible(stops.df))
-}
 #
 ## les données effectivement utilisées
 #
@@ -1373,7 +1377,7 @@ tidytransit_donnees_utiles <- function(tt, force = TRUE) {
     arrange(stop_id) %>%
     glimpse()
   carp("les arrêts configurés")
-  if (Reseau != "quimper") {
+  if (!grepl("(quimper|strasbourg)", Reseau)) {
     stops.df <- stops.df %>%
       filter(location_type == 0)
   }

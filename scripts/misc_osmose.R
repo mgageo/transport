@@ -27,12 +27,13 @@ osmose_host <- "http://osmose.openstreetmap.fr/api/0.3"
 # 2140 : Jungle Bus – validation ruleset
 # https://github.com/Jungle-Bus/transport_mapcss/blob/master/transport.validator.mapcss
 #
-# source("geo/scripts/transport.R");  config_xls("bordeaux"); osmose_area_jour(force = TRUE)
+# source("geo/scripts/transport.R"); config_xls("bordeaux"); osmose_area_jour(force = TRUE)
+# source("geo/scripts/transport.R"); config_xls("bretagne"); osmose_area_jour(force = TRUE)
 osmose_area_jour <- function(force = TRUE) {
 #  osmose_area_get(force = FALSE)
-  osmose_country_get(country = Config[1, "zone_osmose"], force = TRUE)
-  osmose_area_issues()
-  osmose_area_issues_html()
+  osmose_country_get(country = Config[1, "zone_osmose"], force = force)
+  osmose_issues_get(get = "country")
+  osmose_issues_html(get = "country")
 }
 #
 # source("geo/scripts/transport.R"); json <- osmose_area_get(force = FALSE)
@@ -77,11 +78,45 @@ out ids bb;', Config[1, 'zone_relation'])
   dsn_rds <- sprintf("%s/%s_%s.rds", varDir, "osmose_area", Config[1, "reseau"])
   saveRDS(df1, dsn_rds)
 }
-# source("geo/scripts/transport.R");osmose_area_issues()
-osmose_area_issues <- function() {
-  dsn_rds <- sprintf("%s/%s_%s.rds", varDir, "osmose_area", Config[1, "reseau"])
+# source("geo/scripts/transport.R");bretagne_communes_osmose()
+osmose_communes_get <- function() {
+  dsn_rds <- sprintf("%s/%s.rds", varDir, "bretagne_communes")
+  communes.sf <- readRDS(dsn_rds)
+  df1 <- data.frame()
+  for (i in 1:nrow(communes.sf)) {
+    carp("i: %s/%s", i, nrow(communes.sf))
+    issues <- osmose_bbox_get(communes.sf[[i, "lon1"]], communes.sf[[i, "lat1"]], communes.sf[[i, "lon2"]], communes.sf[[i, "lat2"]])
+    if (length(issues) == 0) {
+      next;
+    }
+    issues.df <- issues %>%
+      rbindlist()
+    df1 <- rbind(df1, issues.df)
+  }
+  glimpse(df1)
+  dsn_rds <- sprintf("%s/%s_%s.rds", varDir, "osmose_communes", Config[1, "reseau"])
+  saveRDS(df1, dsn_rds)
+}
+#
+# pour le cache
+# https://blog.r-hub.io/2021/07/30/cache/
+# source("geo/scripts/transport.R"); config_xls("bretagne");osmose_issues_get()
+# source("geo/scripts/transport.R"); config_xls("bretagne");osmose_issues_get(get = "communes")
+osmose_issues_get <- function(get = "country") {
+  cache_rds <- sprintf("%s/osmose_issues.rds", varDir)
+  carp("cache_rds: %s", cache_rds)
+  if (file.exists(cache_rds)) {
+    cache.list <- readRDS(cache_rds)
+  } else {
+    cache.list <- list()
+  }
+  dsn_rds <- sprintf("%s/osmose_%s_%s.rds", varDir, get, Config[1, "reseau"])
+  carp("dsn_rds: %s", dsn_rds)
   df1 <- readRDS(dsn_rds)
   df2 <- df1 %>%
+    glimpse() %>%
+    group_by(item, id) %>%
+    summarize(nb = n()) %>%
     group_by(item) %>%
     summarize(nb = n()) %>%
     glimpse()
@@ -89,13 +124,25 @@ osmose_area_issues <- function() {
   df1 <- df1 %>%
     distinct(id)
   df3 <- data.frame()
-  for (i in 1:nrow(df1)) {
-    carp("i: %s/%s", i, nrow(df1))
-    df2 <- osmose_issue_parse(id = df1[[i, "id"]])
-    df3 <- bind_rows(df3, df2)
+  j1 <- 0
+  for (i1 in 1:nrow(df1)) {
+    carp("i1: %s/%s", i1, nrow(df1))
+    id <- df1[[i1, "id"]]
+    if (is.null(cache.list[[id]])) {
+      cache.list[[id]] <- osmose_issue_parse(id = id)
+      j1 <- j1 + 1
+      if ( j1 %% 100 == 0) {
+        saveRDS(cache.list, cache_rds)
+        carp("i1: %s j1: %s", i1, j1)
+      }
+    }
+    df3 <- bind_rows(df3, cache.list[[id]])
+#    break
   }
-  dsn_rds <- sprintf("%s/%s_%s.rds", varDir, "osmose_area_issues", Config[1, "reseau"])
+  saveRDS(cache.list, cache_rds)
+  dsn_rds <- sprintf("%s/osmose_%s_issues_%s.rds", varDir, get, Config[1, "reseau"])
   saveRDS(df3, dsn_rds)
+  carp("dsn_rds: %s nrow: %s", dsn_rds, nrow(df3))
 #  glimpse(df3);misc_print(df3)
 }
 # source("geo/scripts/transport.R"); osmose_issue_get(id, force = TRUE)
@@ -171,11 +218,11 @@ osmose_issue_parse <- function(id) {
 #    glimpse(df2);stop("*****")
   return(invisible(df2))
 }
-# source("geo/scripts/transport.R");df <- osmose_area_issues_html()
-osmose_area_issues_html <- function(force = TRUE) {
+# source("geo/scripts/transport.R");config_xls("bretagne"); osmose_issues_html()
+osmose_issues_html <- function(get = "country", force = TRUE) {
   library(knitr)
   library(kableExtra)
-  titre <- sprintf("osmose_area_issues_%s", Config[1, "reseau"])
+  titre <- sprintf("osmose_%s_issues_%s", get, Config[1, "reseau"])
   html <- misc_html_titre(titre)
   dsn_rds <- sprintf("%s/%s.rds", varDir, titre)
   issues.df <- readRDS(dsn_rds) %>%
@@ -188,11 +235,11 @@ osmose_area_issues_html <- function(force = TRUE) {
     summarize(nb = n()) %>%
     glimpse()
   misc_print(df2)
-  html <- misc_html_append(html, sprintf("<h1>%s</h1>", titre))
-  html <- misc_html_append_df(html, df2)
+  html <- html_append(html, sprintf("<h1>%s</h1>", titre))
+  html <- html_append_df(html, df2)
 #
 ## les items 2140
-  html <- misc_html_append(html, sprintf("<h1>2140</h1>"))
+  html <- html_append(html, sprintf("<h1>2140</h1>"))
   df1 <- issues.df %>%
     filter(item == "2140")
 # 21401 	Missing public_transport:version tag on a public_transport route relation
@@ -209,8 +256,8 @@ osmose_area_issues_html <- function(force = TRUE) {
       , str_sub(elems.1.type,1, 1),  elems.1.id
     )) %>%
     glimpse()
-  html <- misc_html_append(html, "<h2>21401 	Missing public_transport:version tag on a public_transport route relation</h2>")
-  html <- misc_html_append_df(html, df4)
+  html <- html_append(html, "<h2>21401 	Missing public_transport:version tag on a public_transport route relation</h2>")
+  html <- html_append_df(html, df4)
 # 21402 	Missing network tag on a public_transport relation
   df3 <- df1 %>%
     filter(class == "21402") %>%
@@ -225,8 +272,8 @@ osmose_area_issues_html <- function(force = TRUE) {
       , str_sub(elems.1.type,1, 1),  elems.1.id
     )) %>%
     glimpse()
-  html <- misc_html_append(html, "<h2>21402 	Missing network tag on a public_transport relation</h2>")
-  html <- misc_html_append_df(html, df4)
+  html <- html_append(html, "<h2>21402 	Missing network tag on a public_transport relation</h2>")
+  html <- html_append_df(html, df4)
 # 21403 	Missing operator tag on a public_transport relation
   df3 <- df1 %>%
     filter(class == "21403") %>%
@@ -241,8 +288,8 @@ osmose_area_issues_html <- function(force = TRUE) {
       , str_sub(elems.1.type,1, 1),  elems.1.id
     )) %>%
     glimpse()
-  html <- misc_html_append(html, "<h2>21403 	Missing operator tag on a public_transport relation</h2>")
-  html <- misc_html_append_df(html, df4)
+  html <- html_append(html, "<h2>21403 	Missing operator tag on a public_transport relation</h2>")
+  html <- html_append_df(html, df4)
   dsn_rds <- sprintf("%s/%s_21403.rds", varDir, titre)
   saveRDS(df4, dsn_rds)
 # 21405 	Missing from/to tag on a public_transport route relation
@@ -260,30 +307,30 @@ osmose_area_issues_html <- function(force = TRUE) {
       , str_sub(elems.1.type,1, 1),  elems.1.id
     )) %>%
     glimpse()
-  html <- misc_html_append(html, "<h2>21405 	Missing from/to tag on a public_transport route relation</h2>")
-  html <- misc_html_append_df(html, df4)
+  html <- html_append(html, "<h2>21405 	Missing from/to tag on a public_transport route relation</h2>")
+  html <- html_append_df(html, df4)
 # 21411 	Missing public_transport tag on a public transport stop
   df3 <- df1 %>%
     filter(class == "21411") %>%
-    dplyr::select(uuid, subtitle = subtitle.auto, elems.1.id,  elems.1.type,  elems.2.id,  elems.2.type
-      , tags.1.network
+#    glimpse() %>%
+    dplyr::select(uuid, subtitle = subtitle.auto, elems.1.id, elems.1.type, tags.1.network
     ) %>%
     glimpse()
+#  stop("****###")
   df4 <- df3 %>%
     mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
     mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
     mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
     mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>"
-      , str_sub(elems.1.type,1, 1),  elems.1.id
+      , str_sub(elems.1.type,1, 1), elems.1.id
     )) %>%
     glimpse()
-  html <- misc_html_append(html, "<h2>21411 	Missing public_transport tag on a public transport stop</h2>")
-  html <- misc_html_append_df(html, df4)
+  html <- html_append(html, "<h2>21411 	Missing public_transport tag on a public transport stop</h2>")
+  html <- html_append_df(html, df4)
 # 21412 	Missing legacy tag on a public transport stop
   df3 <- df1 %>%
     filter(class == "21412") %>%
-    dplyr::select(uuid, subtitle = subtitle.auto, elems.1.id,  elems.1.type,  elems.2.id,  elems.2.type
-      , tags.1.network
+    dplyr::select(uuid, subtitle = subtitle.auto, elems.1.id,  elems.1.type, tags.1.network
     ) %>%
     glimpse()
   df4 <- df3 %>%
@@ -294,14 +341,14 @@ osmose_area_issues_html <- function(force = TRUE) {
       , str_sub(elems.1.type,1, 1),  elems.1.id
     )) %>%
     glimpse()
-  html <- misc_html_append(html, "<h2>21412 	Missing legacy tag on a public transport stop</h2>")
-  html <- misc_html_append_df(html, df4)
+  html <- html_append(html, "<h2>21412 	Missing legacy tag on a public transport stop</h2>")
+  html <- html_append_df(html, df4)
   dsn_rds <- sprintf("%s/%s_21412.rds", varDir, titre)
   saveRDS(df4, dsn_rds)
 #
 ## les items 1260
 #
-  html <- misc_html_append(html, sprintf("<h1>1260</h1>"))
+  html <- html_append(html, sprintf("<h1>1260</h1>"))
   df1 <- issues.df %>%
     filter(item == "1260")
 #
@@ -320,8 +367,8 @@ osmose_area_issues_html <- function(force = TRUE) {
       , str_sub(elems.1.type,1, 1),  elems.1.id
     )) %>%
     glimpse()
-  html <- misc_html_append(html, "<h2>Non route relation member in route_master relation</h2>")
-  html <- misc_html_append_df(html, df4)
+  html <- html_append(html, "<h2>Non route relation member in route_master relation</h2>")
+  html <- html_append_df(html, df4)
 #
 # 5 Diff route route_master
   df3 <- df1 %>%
@@ -340,8 +387,8 @@ osmose_area_issues_html <- function(force = TRUE) {
     )) %>%
     glimpse()
 # https://sebastien-foulle.github.io/hebdor_mise_forme_tables.html
-  html <- misc_html_append(html, "<h2>Diff route route_master</h2>")
-  html <- misc_html_append_df(html, df4)
+  html <- html_append(html, "<h2>Diff route route_master</h2>")
+  html <- html_append_df(html, df4)
 #
 # 4 Diff route route_master
   df3 <- df1 %>%
@@ -359,8 +406,8 @@ osmose_area_issues_html <- function(force = TRUE) {
       , str_sub(elems.1.type,1, 1),  elems.1.id
     )) %>%
     glimpse()
-  html <- misc_html_append(html, "<h2>Diff route sans route_master</h2>")
-  html <- misc_html_append_df(html, df4)
+  html <- html_append(html, "<h2>Diff route sans route_master</h2>")
+  html <- html_append_df(html, df4)
   df3 <- df1 %>%
     filter(class == "11") %>%
     dplyr::select(uuid, subtitle = subtitle.auto, elems.1.id,  elems.1.type
@@ -374,8 +421,8 @@ osmose_area_issues_html <- function(force = TRUE) {
     mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>", str_sub(elems.1.type,1, 1), elems.1.id)) %>%
     mutate(PTNA = sprintf("<a href='https://ptna.openstreetmap.de/relation.php?id=%s&lang=fr'>PTNA</a>", elems.1.id)) %>%
     glimpse()
-  html <- misc_html_append(html, "<h2>Diff ordre des stops</h2>")
-#  html <- misc_html_append_df(html, df4)
+  html <- html_append(html, "<h2>Diff ordre des stops</h2>")
+#  html <- html_append_df(html, df4)
 #
 # 1 Diff gap
   df3 <- df1 %>%
@@ -392,8 +439,8 @@ osmose_area_issues_html <- function(force = TRUE) {
     mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>", str_sub(elems.1.type,1, 1), elems.1.id)) %>%
     mutate(PTNA = sprintf("<a href='https://ptna.openstreetmap.de/relation.php?id=%s&lang=fr'>PTNA</a>", elems.1.id)) %>%
     glimpse()
-  html <- misc_html_append(html, "<h2>Diff gap</h2>")
-  html <- misc_html_append_df(html, df4)
+  html <- html_append(html, "<h2>Diff gap</h2>")
+  html <- html_append_df(html, df4)
   dsn_rds <- sprintf("%s/%s_gap.rds", varDir, titre)
   saveRDS(df4, dsn_rds)
 #
@@ -413,11 +460,11 @@ osmose_area_issues_html <- function(force = TRUE) {
   df4 <- df3 %>%
     mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
     mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>"
-      , str_sub(elems.1.type,1, 1),  elems.1.id
+      , str_sub(elems.1.type,1, 1), elems.1.id
     )) %>%
     glimpse()
-  html <- misc_html_append(html, "<h2>The bus stop is part of a way</h2>")
-  html <- misc_html_append_df(html, df4)
+  html <- html_append(html, "<h2>The bus stop is part of a way</h2>")
+  html <- html_append_df(html, df4)
 #
 # 10 Stop position without platform nor bus stop
   df3 <- df1 %>%
@@ -431,11 +478,11 @@ osmose_area_issues_html <- function(force = TRUE) {
     mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
     mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
     mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>"
-      , str_sub(elems.1.type,1, 1),  elems.1.id
+      , str_sub(elems.1.type,1, 1), elems.1.id
     )) %>%
     glimpse()
-  html <- misc_html_append(html, "<h2>Stop position without platform nor bus stop</h2>")
-  html <- misc_html_append_df(html, df4)
+  html <- html_append(html, "<h2>Stop position without platform nor bus stop</h2>")
+  html <- html_append_df(html, df4)
 #
 # 7 The stop_position is not part of a way
   df3 <- df1 %>%
@@ -449,11 +496,11 @@ osmose_area_issues_html <- function(force = TRUE) {
     mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
     mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
     mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>"
-      , str_sub(elems.1.type,1, 1),  elems.1.id
+      , str_sub(elems.1.type,1, 1), elems.1.id
     )) %>%
     glimpse()
-  html <- misc_html_append(html, "<h2>Le stop_position ne fait pas partie d'un chemin</h2>")
-  html <- misc_html_append_df(html, df4)
+  html <- html_append(html, "<h2>Le stop_position ne fait pas partie d'un chemin</h2>")
+  html <- html_append_df(html, df4)
 #
 # 8 The platform is part of a way, it should have the role stop
   zoom <- "left=%0.5f&right=%0.5f&top=%0.5f&bottom=%0.5f"
@@ -473,13 +520,56 @@ osmose_area_issues_html <- function(force = TRUE) {
 #    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
     mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
     mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s, %s%s'>level0</a>"
-      , str_sub(elems.1.type,1, 1),  elems.1.id
-      , str_sub(elems.2.type,1, 1),  elems.2.id
+      , str_sub(elems.1.type,1, 1), elems.1.id
+      , str_sub(elems.2.type,1, 1), elems.2.id
     )) %>%
     glimpse()
-  html <- misc_html_append(html, "<h2>L'arrêt fait partie d'un chemin, il devrait avoir le rôle 'stop'</h2>")
-  html <- misc_html_append_df(html, df4)
-
+  html <- html_append(html, "<h2>L'arrêt fait partie d'un chemin, il devrait avoir le rôle 'stop'</h2>")
+  html <- html_append_df(html, df4)
+# 12 The platform is not on the right side of the road
+  df3 <- df1 %>%
+    filter(class %in% c("12")) %>%
+    dplyr::select(uuid, subtitle = subtitle.auto, elems.1.id,  elems.1.type,  elems.2.id,  elems.2.type
+      , tags.1.network) %>%
+    glimpse()
+  df4 <- df3 %>%
+    filter(tags.1.network == "FR:TUB") %>%
+    glimpse() %>%
+    mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
+    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
+    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>"
+      , str_sub(elems.1.type,1, 1), elems.1.id
+    )) %>%
+    glimpse()
+  html <- html_append(html, "<h1>The platform is not on the right side of the road</h1>")
+  html <- html_append_df(html, df4)
+  dsn_rds <- sprintf("%s/%s_1260_12.rds", varDir, titre)
+  saveRDS(df4, dsn_rds)
+  carp("dsn_rds: %s", dsn_rds)
+# 2 The stop or platform is too far from the track of this route
+  df3 <- df1 %>%
+    filter(class %in% c("2")) %>%
+    dplyr::select(uuid, subtitle = subtitle.auto, elems.1.id,  elems.1.type,  elems.2.id,  elems.2.type
+      , tags.1.network) %>%
+    glimpse()
+  df4 <- df3 %>%
+    filter(tags.1.network == "FR:TUB") %>%
+    glimpse() %>%
+    mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
+    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
+    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>"
+      , str_sub(elems.1.type,1, 1), elems.1.id
+    )) %>%
+    glimpse()
+  html <- html_append(html, "<h1>The stop or platform is too far from the track of this route</h1>")
+  html <- html_append_df(html, df4)
+  dsn_rds <- sprintf("%s/%s_1260_2.rds", varDir, titre)
+  saveRDS(df4, dsn_rds)
+  carp("dsn_rds: %s", dsn_rds)
+#
+# écriture et visualisation
   fic <- sprintf("%s.html", titre)
   dsn <- sprintf("%s/%s", webDir, fic)
   write(html, dsn)
@@ -515,22 +605,20 @@ osmose_bbox_get <- function(lon1 = -2.87, lat1 = 47.58,lon2 = -2.66,lat2 = 47.68
 # source("geo/scripts/transport.R"); osmose_country_get(country = "france_bretagne*", force = TRUE)
 osmose_country_get <- function(country, force = TRUE) {
   library(tidyverse)
-  df1 <- osmose_country_items_get(country = country, item = 1260, force = TRUE) %>%
-    glimpse()
-  issues <- osmose_country_item_get(country = country, item = 2140, force = TRUE) %>%
-    glimpse()
+  df1 <- osmose_country_items_get(country = country, item = 1260, force = TRUE)
+  issues <- osmose_country_item_get(country = country, item = 2140, force = TRUE)
   issues.df <- issues %>%
       rbindlist()
   df1 <- rbind(df1, issues.df)
-  dsn_rds <- sprintf("%s/%s_%s.rds", varDir, "osmose_area", Config[1, "reseau"])
+  dsn_rds <- sprintf("%s/osmose_%s_%s.rds", varDir, "country", Config[1, "reseau"])
   saveRDS(df1, dsn_rds)
-  carp("dsn_rds: %s", dsn_rds)
+  carp("dsn_rds: %s nrow: %s", dsn_rds, nrow(df1))
   return(invisible(df1))
 }
 # source("geo/scripts/transport.R"); df1 <- osmose_country_lire(country = "france_bretagne*", force = TRUE) %>% glimpse()
 osmose_country_lire <- function(country, force = TRUE) {
   library(tidyverse)
-  dsn_rds <- sprintf("%s/%s_%s.rds", varDir, "osmose_area", Config[1, "reseau"])
+  dsn_rds <- sprintf("%s/osmose_%s_%s.rds", varDir, "country", Config[1, "reseau"])
   df1 <- readRDS(dsn_rds)
   carp("dsn_rds: %s", dsn_rds)
   return(invisible(df1))
@@ -541,8 +629,8 @@ osmose_country_items_get <- function(country, item, force = TRUE) {
   library(tidyverse)
   df1 <- data.frame()
   for (class in seq(1, 12)) {
-    if ( class %in% c(2, 11, 12)) {
-      next
+    if ( class %in% c(2, 11)) {
+#      next
     }
     issues <- osmose_country_item_class_get(country = country, item = item, class = class, force = force)
     if (length(issues) == 0) {
@@ -551,6 +639,7 @@ osmose_country_items_get <- function(country, item, force = TRUE) {
     issues.df <- issues %>%
       rbindlist()
     df1 <- rbind(df1, issues.df)
+#    break
   }
   return(invisible(df1))
 }
@@ -561,14 +650,14 @@ osmose_country_item_get <- function(country, item, force = TRUE) {
   library(jsonlite)
   library(httr)
   library(data.table)
-  url <- sprintf("%s/issues?country=%s&item=%s&limit=500", osmose_host, country, item)
+  url <- sprintf("%s/issues?country=%s&item=%s&limit=2000", osmose_host, country, item)
   carp("url: %s", url)
   resp <- GET(url)
   stop_for_status(resp)
   json <- content(resp, as = "parsed")
 #  glimpse(json$issues)
   carp("issues nb: %s", length(json$issues))
-  if (length(json$issues) >= 500) {
+  if (length(json$issues) >= 2000) {
 #    carp("url: %s", url);stop("****")
   }
 
@@ -580,20 +669,20 @@ osmose_country_item_class_get <- function(country, item, class, force = TRUE) {
   library(jsonlite)
   library(httr)
   library(data.table)
-  url <- sprintf("%s/issues?country=%s&item=%s&class=%s&limit=500", osmose_host, country, item, class)
+  url <- sprintf("%s/issues?country=%s&item=%s&class=%s&limit=2000", osmose_host, country, item, class)
   carp("url: %s", url)
   resp <- GET(url)
   stop_for_status(resp)
   json <- content(resp, as = "parsed")
 #  glimpse(json$issues)
   carp("issues nb: %s", length(json$issues))
-  if (length(json$issues) >= 500) {
+  if (length(json$issues) >= 2000) {
 #    carp("url: %s", url);stop("****")
   }
   return(invisible(json$issues))
 }
 # source("geo/scripts/transport.R"); osmose_issues_get(json, force = TRUE)
-osmose_issues_get <- function(issues, force = TRUE) {
+osmose_issues_get_ <- function(issues, force = TRUE) {
   library(tidyverse)
   library(jsonlite)
   library(httr)

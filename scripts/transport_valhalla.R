@@ -36,7 +36,7 @@ valhalla_shapes <- function(force = TRUE) {
 }
 #
 # source("geo/scripts/transport.R");valhalla_shape()
-valhalla_shape <- function(shape = "1236_3a0010_7", force = TRUE) {
+valhalla_shape <- function(shape = "18573", force = TRUE) {
   library(httr2)
   library(sf)
   library(jsonlite)
@@ -56,7 +56,7 @@ valhalla_shape <- function(shape = "1236_3a0010_7", force = TRUE) {
 #  coord <- '{"lat":48.124908,"lon":-1.591601},{"lat":48.118285,"lon":-1.605576}'
   body_tpl <- r"({"shape": [%s],"costing":"auto","directions_options":{"units":"meters"}, "verbose": true})"
   body.str <- sprintf(body_tpl, coord)
-
+# pour test
   body_str <- '{"shape": [{"lat":48.124908,"lon":-1.591601},{"lat":48.118285,"lon":-1.605576}],"costing":"auto","directions_options":{"units":"meters"}, "verbose": true}'
   body_str <- body.str
   writeLines(body_str, "d:/valhalla_shape.txt")

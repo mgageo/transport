@@ -169,6 +169,7 @@ carto_ref_shapes_stops_mapsf <- function(df, force = TRUE) {
 #
 # la carte de la ligne
 # l'id de la relation et l'identification du shape
+# source("geo/scripts/transport.R");reseau_osm_routes_shapes(force = FALSE)
 # source("geo/scripts/transport.R");carto_route_shape_mapsf(id = "10554878", shape = "Din1R1AL10")
 carto_route_shape_mapsf <- function(id, shape, force = TRUE, force_osm = TRUE) {
   library(tidyverse)
@@ -210,7 +211,9 @@ carto_route_shape_mapsf <- function(id, shape, force = TRUE, force_osm = TRUE) {
     shape_points.sf <- st_sf(st_cast(st_geometry(shape.sf), "POINT"))
     mf_annotation(shape_points.sf[1, ], txt = "Départ", col_txt = "green", col_arrow = "green")
     point1_distance <- st_distance(osm_points.sf[1, ], shape_points.sf[1, ], by_element = TRUE)
+    point19_distance <- st_distance(osm_points.sf[1, ], last(shape_points.sf), by_element = TRUE)
     point9_distance <- st_distance(last(osm_points.sf), last(shape_points.sf), by_element = TRUE)
+    point91_distance <- st_distance(last(osm_points.sf), shape_points.sf[1, ], by_element = TRUE)
     rc <- list(
       "id" = id,
       "ref" = osm.sf[[1, "ref"]],
@@ -218,6 +221,8 @@ carto_route_shape_mapsf <- function(id, shape, force = TRUE, force_osm = TRUE) {
       "shape" = shape,
       "point1_distance" = point1_distance,
       "point9_distance" = point9_distance,
+      "point19_distance" = point19_distance,
+      "point91_distance" = point91_distance,
       "osm_lg" = st_length(osm.sf),
       "shape_lg" = st_length(shape.sf),
       "inters_lg" = st_length(inters)

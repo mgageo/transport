@@ -72,7 +72,7 @@ wiki_page_init <- function(page = "User:Mga_geo/Transports_publics/toto", articl
   carp("dsn: %s", dsn)
 }
 # source("geo/scripts/transport.R");config_xls('arcachon');wiki_pages_init()
-# source("geo/scripts/transport.R");config_xls('angers');wiki_pages_init()
+# source("geo/scripts/transport.R");config_xls('strasbourg');wiki_pages_init()
 wiki_pages_init <- function() {
   if (is.na(Config[1, "wiki"])) {
      stop("*****")

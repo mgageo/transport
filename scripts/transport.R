@@ -28,6 +28,7 @@ dir.create(imagesDir, showWarnings = FALSE, recursive = TRUE)
 DEBUG <- FALSE
 source("geo/scripts/mga.R")
 source("geo/scripts/misc.R")
+source("geo/scripts/misc_docker.R")
 source("geo/scripts/misc_datagouv.R")
 source("geo/scripts/misc_geocode.R")
 #source("geo/scripts/misc_gpx.R")
@@ -66,6 +67,7 @@ source("geo/scripts/transport_osm.R"); # les interrogations osm soit via l'api s
 source("geo/scripts/transport_osmar.R")
 source("geo/scripts/transport_osmose.R")
 source("geo/scripts/transport_osm2mga.R")
+source("geo/scripts/transport_postgis.R"); # avec importation par osm2pgsql
 source("geo/scripts/transport_reseau.R"); # les comparaisons osm gtfs
 source("geo/scripts/transport_route.R")
 source("geo/scripts/transport_routes.R"); # cohérence route route_master
@@ -118,7 +120,6 @@ Reseau <- "vitobus"; # Vitré/Chateaubourg
 Reseau <- "gironde"; # les lignes régionales
 Reseau <- "arcachon"; # Arcachon
 Reseau <- "toulouse"; # Toulouse Métropole
-Reseau <- "bretagne"; # pseudo-réseau pour la Bretagne
 Reseau <- "bibus"; # Brest
 Reseau <- "limoges"; # Limoges Métropole
 Reseau <- "bordeaux"; # Bordeaux Métropole
@@ -143,6 +144,8 @@ Reseau <- "guingamp"; # Guingamp AXEOBUS
 Reseau <- "breizhgo56"; # pseudo-réseau pour BreizhGo en Morbihan
 Reseau <- "breizhgo"; # BreizhGo en Bretagne, les lignes régionales
 Reseau <- "quimper"; # Quimper QUB
+Reseau <- "bretagne"; # pseudo-réseau pour la Bretagne
+Reseau <- "strasbourg"; # Strasbourg CTS
 Reseau <- "saintbrieuc"; # Saint-Brieuc TUB
 config_xls(Reseau)
 Tex <- TRUE
