@@ -710,8 +710,8 @@ diff_relations_route_bus_tags <- function(force = TRUE, OsmChange = FALSE) {
     filter(! is.na(name.gtfs)) %>%
     glimpse()
   if (nrow(df4) > 0) {
-#    diff_objects_tags(df4, type = "route")
-    diff_objects_members(df4)
+    diff_objects_tags(df4, type = "route")
+#    diff_objects_members(df4)
   }
 }
 #

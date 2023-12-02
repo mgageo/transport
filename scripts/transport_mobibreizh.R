@@ -9,6 +9,43 @@
 #
 ## validation des fichiers gtfs de la région
 #
+# la version avec un fichier zip par agence, novembre 2023
+# Depuis lundi 23 octobre, mobibreizh.bzh est remplacé par KorriGo.bzh
+# https://www.korrigo.bzh/ftp/OPENDATA/MobiBreizh_OpenData.gtfs.zip
+
+# source("geo/scripts/transport.R");mobibreizh_zip()
+mobibreizh_zip <- function() {
+  library(tidyverse)
+  library(rio)
+  library(httr)
+  library(readr)
+  library(archive)
+  carp()
+  url <- "https://www.korrigo.bzh/ftp/OPENDATA/MobiBreizh_OpenData.gtfs.zip"
+  aaaammjj <- format(Sys.time(),"%Y%m%d")
+  dsn <- sprintf("%s/gtfs_%s.zip", odDir, aaaammjj)
+  if (! file.exists(dsn)) {
+    download.file(url, dsn)
+  }
+  carp("dsn: %s", dsn)
+  df <- unzip(zipfile = dsn, list = TRUE) %>%
+    mutate(reseau = gsub(".zip$", "", Name)) %>%
+    glimpse()
+  for (i in 1:nrow(df)) {
+    dest_dir <- sprintf("%s/%s", odDir, df[[i, "reseau"]])
+    dest_file <- sprintf("%s/%s", dest_dir, df[[i, "Name"]])
+    gtfs_file <- sprintf("%s/%s", dest_dir, "gtfs.zip")
+    dir.create(dest_dir, showWarnings = FALSE)
+    unzip(zipfile = dsn, files = c(df[[i, "Name"]]), list = FALSE, exdir = dest_dir, overwrite = TRUE, setTimes = TRUE)
+    unzip(zipfile = dest_file, list = FALSE, exdir = dest_dir, overwrite = TRUE, setTimes = TRUE)
+    file.copy(dest_file, gtfs_file, copy.date = TRUE, overwrite = TRUE)
+  }
+#  setwd(odDir)
+#  archive::archive_extract("gtfs.zip", dir = ".")
+  setwd(baseDir)
+}
+## la version avec un fichier gtfs unique
+#
 # https://transport.data.gouv.fr/datasets/base-de-donnees-multimodale-transports-publics-en-bretagne-mobibreizh/
 # https://breizh.opendatasoft.com/explore/dataset/base-de-donnees-multimodale-transports-publics-en-bretagne-mobibreizh/table/
 # https://exs.breizgo.cityway.fr/ftp/GTFS/MOBIBREIZHBRET.gtfs.zip
@@ -17,8 +54,8 @@
 # le fichier doit avoir été téléchargé dans D:\web.var\TRANSPORT\MOBIBREIZH\
 # puis éclaté dans ce dossier
 #
-# source("geo/scripts/transport.R");mobibreizh_jour()
-mobibreizh_jour <- function() {
+# source("geo/scripts/transport.R");mobibreizh_v1()
+mobibreizh_v1 <- function() {
   library(tidyverse)
   library(rio)
   library(httr)

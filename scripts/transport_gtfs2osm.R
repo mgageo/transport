@@ -339,6 +339,7 @@ gtfs2osm_routes_osm <- function(df1, force_osm = TRUE) {
   if (Config_city == "STAR") {
     carp("Config_city == STAR")
     df2 <- df2 %>%
+      mutate(description = str_glue('{route_long_name}')) %>%
       mutate(name = str_glue('{Config_route_name} {route_short_name} Direction {to_city}')) %>%
       glimpse()
   }

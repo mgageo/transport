@@ -394,9 +394,11 @@ overpass_get <- function(query, format = "xml", force_osm = TRUE) {
   carp("2 fic: %s", fic)
   if (format == "csv") {
     carp("fic: %s", fic)
+#    query <- gsub(';true;"\t"', ';true;"µ"', query)
     dsn <- overpass_query_csv(query = query, fic = fic, force = force_osm)
 # , sep = "\t"
-    res <- fread(dsn, encoding = "UTF-8", header = TRUE, sep = "|") %>%
+#    res <- fread(dsn, encoding = "UTF-8", header = TRUE, sep = "|") %>%
+    res <- fread(dsn, encoding = "UTF-8", header = TRUE, sep = "\t") %>%
       replace(is.na(.), "")
     return(invisible(res))
   }
@@ -492,7 +494,7 @@ overpass_query_geojson_get <- function(data, dsn) {
 ## les requêtes pour les "name" de la zone
 #
 overpass_query_name_area_csv <- function() {
-  requete <- sprintf('[out:csv(name;true;"|")];
+  requete <- sprintf('[out:csv(name;true;"\t")];
 relation(%s);map_to_area->.a;
 (
   nwr(area.a)[name];
@@ -504,7 +506,7 @@ out center meta;', Config[1, 'zone_relation'])
 ## les requêtes pour les arrêts
 #
 overpass_query_bus_stop_kref_csv <- function() {
-  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::changeset,::user,::lat,::lon,name,highway,public_transport,aerialway,bus,ferry,rail,train,tram,railway,walking_bus,"%s";true;"|")];
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::changeset,::user,::lat,::lon,name,highway,public_transport,aerialway,bus,ferry,rail,train,tram,railway,walking_bus,"%s";true;"\t")];
 (
   nwr[highway=bus_stop]["%s"];
   nwr[public_transport=platform][railway!=platform]["%s"];
@@ -524,7 +526,7 @@ out meta;', Config[1, 'network'])
   return(invisible(requete))
 }
 overpass_query_bus_stop_network_csv <- function() {
-  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,::lat,::lon,name,highway,public_transport,aerialway,bus,ferry,rail,train,tram,railway,walking_bus,"%s";true;"|")];
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,::lat,::lon,name,highway,public_transport,aerialway,bus,ferry,rail,train,tram,railway,walking_bus,"%s";true;"\t")];
 relation[type=route][route=bus][network="%s"]->.a;
 (
   nwr[highway=bus_stop](r.a);
@@ -545,7 +547,7 @@ out center meta;', Config[1, 'zone_relation'])
   return(invisible(requete))
 }
 overpass_query_bus_stop_area_csv <- function() {
-  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,::lat,::lon,name,highway,public_transport,aerialway,bus,ferry,rail,train,tram,railway,walking_bus,"%s";true;"|")];
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,::lat,::lon,name,highway,public_transport,aerialway,bus,ferry,rail,train,tram,railway,walking_bus,"%s";true;"\t")];
 relation(%s);map_to_area->.a;
 (
   nwr(area.a)[highway=bus_stop];
@@ -555,7 +557,7 @@ out center meta;', Config[1, 'k_ref'], Config[1, 'zone_relation'])
   return(invisible(requete))
 }
 overpass_query_bus_stop_bbox_csv <- function() {
-  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,::lat,::lon,name,highway,public_transport,aerialway,bus,ferry,rail,train,tram,railway,walking_bus,"%s";true;"|")];
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,::lat,::lon,name,highway,public_transport,aerialway,bus,ferry,rail,train,tram,railway,walking_bus,"%s";true;"\t")];
 (
   nwr[highway=bus_stop](%s);
   nwr[public_transport](%s);
@@ -564,7 +566,7 @@ out center meta;', Config[1, 'k_ref'], Config_bbox, Config_bbox)
   return(invisible(requete))
 }
 overpass_query_nodes_bus_platform_area_csv <- function() {
-  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,::lat,::lon,name,highway,public_transport;true;"|")];
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,::lat,::lon,name,highway,public_transport;true;"\t")];
 relation(%s);map_to_area->.a;
 nwr(area.a)[highway=bus_stop][public_transport=platform];
 out center meta;', Config[1, 'zone_relation'])
@@ -604,14 +606,14 @@ out meta;', Config[1, 'zone'], Config[1, 'network'])
   return(invisible(requete))
 }
 overpass_query_relations_route_bus_network_csv <- function() {
-  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,type,route,"disused:route",operator,name,description,ref,"ref:network","gtfs:shape_id",from,to,colour,text_colour,"network:wikidata","network:wikipedia";true;"|")];
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,type,route,"disused:route",operator,name,description,ref,"ref:network","gtfs:shape_id",from,to,colour,text_colour,"network:wikidata","network:wikipedia";true;"\t")];
 area[name="%s"]->.a;
 relation(area.a)[type=route][route=bus][network="%s"];
 out meta;', Config[1, 'zone'], Config[1, 'network'])
   return(invisible(requete))
 }
 overpass_query_relations_bus_area_csv <- function() {
-  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,type,route,"disused:route",name,ref,"ref:network","gtfs:shape_id",from,to;true;"|")];
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,type,route,"disused:route",name,ref,"ref:network","gtfs:shape_id",from,to;true;"\t")];
 relation(%s);map_to_area->.a;
 relation(area.a)[type=route][~"route"~"bus"];
 out meta;', Config[1, 'zone_relation'])
@@ -626,7 +628,7 @@ out meta;', Config[1, 'network'])
   return(invisible(requete))
 }
 overpass_query_relations_routemaster_bus_network_csv <- function() {
-  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,name,ref;true;"|")];
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,name,ref;true;"\t")];
 relation[type=route_master][route_master=bus][network="%s"];
 out meta;', Config[1, 'network'])
   return(invisible(requete))
@@ -642,7 +644,7 @@ out meta;', Config[1, 'zone'])
 }
 #
 overpass_query_relations_bus_network_csv <- function() {
-  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,type,route,route_master,network,name,ref,operator,colour,text_colour,"network:wikidata","network:wikipedia";true;"|")];
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,type,route,route_master,network,name,ref,operator,colour,text_colour,"network:wikidata","network:wikipedia";true;"\t")];
 area[name="%s"]->.a;
 (
 relation(area.a)[type=route][route=bus][network="%s"];

@@ -382,7 +382,9 @@ osm_valid_relations_route_bus <- function(force = TRUE) {
     glimpse()
   df10 <- df %>%
     dplyr::select(id, gtfs_shape_id, ref, ref_network, from, to, name) %>%
-    arrange(gtfs_shape_id)
+    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/relation/%s/full'>josm</a>", id)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>", "r", id)) %>%
+    arrange(ref, ref_network, gtfs_shape_id)
   html <- misc_html_append(html, sprintf("<h3>%s</h3>", "les relations route"))
   html <- misc_html_append_df(html, df10)
   df11 <- df %>%
@@ -1559,10 +1561,16 @@ osm_relations_level0 <- function(force = TRUE, force_osm = TRUE) {
 # en erreur dans osmose
 # source("geo/scripts/transport.R");osm_relation_route_gap(id = 14194690, force = FALSE, force_osm = FALSE)
 # oneway:bus = no
+# ligne courte
+# le deuxième est un rond-point
+# source("geo/scripts/transport.R");osm_relation_route_gap(id = 6528783, force = FALSE, force_osm = FALSE)
 osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE) {
   library(tidyverse)
+  library(rlist)
+  DEBUG <<- TRUE
   gaps.df <- data.frame()
-  rc <- osm_relation_route_members(id = id, force = force, force_osm = force_osm)
+  rc <- osm_relation_route_members(id = id, force = force, force_osm = force_osm) %>%
+    glimpse()
   if ("note:mga_geo" %in% names(rc$relation)) {
     carp("note:mga_geo id: %s", id)
 #    return(invisible(gaps.df))
@@ -1607,100 +1615,150 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
   nAvant <- "-1"
   carp("****id: %s", id)
   for (i in 2:nrow(ways.df)) {
-#    carp("***i: %s %s", i, ways.df[i, "name"])
+    if (i > 2) {
+      glimpse(nodes.list)
+      if (anyNA(nodes.list) > 0) {
+        confess("na")
+      }
+    }
+    if (i > 30) {
+#      break
+    }
+    Carp("***i: %s %s wRP: %s nAvant: %s", i, ways.df[i, "name"], ways.df[i, "wRP"], nAvant)
+    x <- unname(unlist(ways.df[i, "nodes"]))
+    x1 <- x[2:length(x)]
+    x9 <- rev(x[1:(length(x)-1)])
+
 #    misc_print(ways.df[c(i -1, i), ])
-# c'est un rond-point ?
-    if (ways.df[i , "wRP"] == TRUE) {
-# précédé d'un rond-point ?
-      if (ways.df[i - 1 , "wRP"] == TRUE) {
+
+# le début du tracé
+    if (i == 2) {
+      y <- unname(unlist(ways.df[i - 1, "nodes"]))
+      if (ways.df[i, "wRP"] == TRUE) {
+        Carp("rond-point i=2")
+        xn <- x[1:length(x)-1]
+        j <- match(ways.df[i - 1 , "node9"], xn)
+        if (! is.na(j)) {
+          Carp("node9 j: %s xn: %s", j, length(xn))
+          nodes.list <- y
+          if (j < length(xn)) {
+            nodes <- c(xn[(j + 1):length(xn)], xn)
+          } else {
+            nodes <- xn
+          }
+          next
+        }
+        j <- match(ways.df[i - 1 , "node1"], xn)
+        if (! is.na(j)) {
+          Carp("node1 j: %s xn: %s", j, length(xn))
+          nodes.list <- list.reverse(y)
+          if (j < length(xn)) {
+            nodes <- c(xn[(j + 1):length(xn)], xn)
+          } else {
+            nodes <- xn
+          }
+          next
+        }
+        Carp( "gap avant rond-point")
         gaps.df <- ways.df[c(i -1, i), ]
         gaps.df$r_id <- id
-        gaps.df$err <- "deux ronds-points"
+        gaps.df$err <- "un rond-point avant"
         break
       }
-      next
-    }
-# le début du chemin
-    if (i == 2) {
       if (ways.df[i - 1 , "node1"] == ways.df[i , "node1"] ) {
         if (ways.df[i - 1, "wOW"]  == TRUE) {
+          Carp( "sens unique i-1")
           gaps.df <- ways.df[c(i -1, i), ]
           gaps.df$r_id <- id
           gaps.df$err <- "sens unique i-1"
           break
         }
         nAvant <- ways.df[i , "node9"]
+        Carp("**** 9-1 1-9")
+        nodes.list <- append(list.reverse(y), x1)
         next;
       }
       if (ways.df[i - 1 , "node1"] == ways.df[i , "node9"] ) {
         if (ways.df[i, "wOW"]  == TRUE) {
+          Carp( "sens unique i")
           gaps.df <- ways.df[c(i -1, i), ]
           gaps.df$r_id <- id
           gaps.df$err <- "sens unique i"
           break
         }
         nAvant <- ways.df[i , "node1"]
+        Carp("**** 9-1 9-1")
+        nodes.list <- append(list.reverse(y), x9)
         next;
       }
       if (ways.df[i - 1 , "node9"] == ways.df[i , "node1"]) {
         nAvant <- ways.df[i , "node9"]
+        Carp("**** 1-9 1-9")
+        nodes.list <- c(y, x1)
         next;
       }
       if (ways.df[i - 1 , "node9"] == ways.df[i , "node9"]) {
-       if (ways.df[i, "wOW"]  == TRUE) {
+        if (ways.df[i, "wOW"]  == TRUE) {
+          Carp( "sens unique i-1")
           gaps.df <- ways.df[c(i -1, i), ]
           gaps.df$r_id <- id
           gaps.df$err <- "sens unique i-1"
           break
         }
         nAvant <- ways.df[i , "node1"]
+        Carp("**** 1-9 9-1")
+        nodes.list <- append(y, x9)
         next;
-      }
-# précédé d'un rond-point ?
-      if (ways.df[i - 1 , "wRP"] == TRUE) {
-        nodes <- unlist(ways.df[i - 1 , "nodes"])
-        if (ways.df[i , "node1"] %in% nodes) {
-          nAvant <- ways.df[i , "node9"]
-          next;
-        }
-        if (ways.df[i , "node9"] %in% nodes) {
-          nAvant <- ways.df[i , "node1"]
-          next;
-        }
-        gaps.df <- ways.df[c(i -1, i), ]
-        gaps.df$r_id <- id
-        gaps.df$err <- "un rond-point avant"
-        break
       }
       gaps.df <- ways.df[c(i -1, i), ]
       gaps.df$r_id <- id
       gaps.df$err <- "gap"
       break
     }
+
 # la suite
     if (i > 2) {
-      if (nAvant == ways.df[i , "node1"]) {
-        nAvant <- ways.df[i , "node9"]
-        next;
-      }
-      if (nAvant == ways.df[i , "node9"]) {
-        if (ways.df[i, "wOW"]  == TRUE) {
+# c'est un rond-point ?
+      if (ways.df[i , "wRP"] == TRUE) {
+# précédé d'un rond-point ?
+        if (ways.df[i - 1 , "wRP"] == TRUE) {
+          Carp("deux ronds-points")
           gaps.df <- ways.df[c(i -1, i), ]
           gaps.df$r_id <- id
-          gaps.df$err <- "sens unique"
+          gaps.df$err <- "deux ronds-points"
           break
         }
-        nAvant <- ways.df[i , "node1"]
-        next;
+        Carp("rond-point")
+        xn <- x[1:length(x)-1]
+        j <- match(nAvant, xn)
+        if (is.na(j)) {
+          Carp( "gap avant rond-point")
+          next
+        }
+        Carp("rond-point j: %s xn: %s", j, length(xn))
+        if (j < length(xn)) {
+          nodes <- c(xn[(j + 1):length(xn)], xn)
+        } else {
+          nodes <- xn
+        }
+        next
       }
 # précédé d'un rond-point ?
       if (ways.df[i - 1 , "wRP"] == TRUE) {
-        nodes <- unlist(ways.df[i - 1 , "nodes"])
-        if (ways.df[i , "node1"] %in% nodes) {
+        Carp("rond-point i-1")
+        j <- match(ways.df[i , "node1"], nodes)
+        if (! is.na(j)) {
+          Carp("node1")
+          nodes <- nodes[1:j]
+          nodes.list <- c(nodes.list, nodes)
           nAvant <- ways.df[i , "node9"]
           next;
         }
-        if (ways.df[i , "node9"] %in% nodes) {
+        j <- match(ways.df[i , "node9"], nodes)
+        if (! is.na(j)) {
+          Carp("node9")
+          nodes <- nodes[1:j]
+          nodes.list <- c(nodes.list, nodes, x9)
           nAvant <- ways.df[i , "node1"]
           next;
         }
@@ -1709,6 +1767,26 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
         gaps.df$err <- "un rond-point avant"
         break
       }
+      if (nAvant == ways.df[i , "node1"]) {
+        nAvant <- ways.df[i , "node9"]
+        Carp("**** 1-9")
+        nodes.list <- c(nodes.list, x1)
+        next;
+      }
+      if (nAvant == ways.df[i , "node9"]) {
+        if (ways.df[i, "wOW"]  == TRUE) {
+          Carp("sens unique i")
+          gaps.df <- ways.df[c(i -1, i), ]
+          gaps.df$r_id <- id
+          gaps.df$err <- "sens unique"
+          break
+        }
+        nAvant <- ways.df[i , "node1"]
+        Carp("**** 9-1")
+        nodes.list <- c(nodes.list, x9)
+        next;
+      }
+
       gaps.df <- ways.df[c(i -1, i), ]
       gaps.df$r_id <- id
       gaps.df$err <- "gap"
@@ -1716,18 +1794,43 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
     }
   }
   if (nrow(gaps.df) > 0) {
-#    misc_print(gaps.df)
+    misc_print(gaps.df)
   }
   carp("fin id: %s gaps.df nrow: %s", id, nrow(gaps.df))
   glimpse(ways.df)
+  ways.sf <- st_as_sf(ways.df, geometry = st_as_sfc(ways.df$wkt, crs = st_crs(4326))) %>%
+    st_transform(2154)
+#  print(nodes.list)
+  nodes.df <- data.frame(id = nodes.list) %>%
+    left_join(rc$nodes.df, by = c("id")) %>%
+    glimpse()
+  df21 <- nodes.df %>%
+    filter(is.na(lat))
+  if (nrow(df21) > 0) {
+    glimpse(df21)
+    confess("erruer node")
+  }
+  trace.sf <- nodes.df %>%
+    st_as_sf(coords = c("lon", "lat"), crs = 4326) %>%
+    mutate(ID = "toto") %>%
+    group_by(ID) %>%
+    dplyr::summarize(do_union = FALSE) %>%
+    sf::st_cast("LINESTRING") %>%
+    st_transform(2154) %>%
+    glimpse()
+  plot(st_geometry(trace.sf), add = FALSE, lwd = 5, col = "blue")
+  plot(st_geometry(ways.sf), add = TRUE, lwd = 2, col = "black")
+  dsn <- sprintf("%s/trace.geojson", josmDir)
+  st_write(st_transform(trace.sf, 4326), dsn, delete_dsn = TRUE)
+  carp("dsn: %s", dsn)
+  return()
 #
 # pour savoir si les stations sont du bon côté
 # https://github.com/r-spatial/sf/issues/1001
   ways.sf <- st_as_sf(ways.df, geometry = st_as_sfc(ways.df$wkt, crs = st_crs(4326))) %>%
     st_transform(2154)
   b50.sf <- ways.sf %>%
-    st_buffer(50, singleSide = T)
-  plot(st_geometry(ways.sf))
+    st_buffer(-50, singleSide = T)
   plot(st_geometry(b50.sf), add = TRUE, border = "red")
   return(invisible(gaps.df))
 }

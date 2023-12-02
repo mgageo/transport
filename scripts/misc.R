@@ -923,15 +923,16 @@ misc_dfclass <- function(obj) {
 ## fonctions utilitaires
 #
 # sauvegarde / restauration
-misc_list <<- list()
+misc_list <- list()
 misc_lire <- function(rds = 'lire', dir = FALSE, force = FALSE) {
 #  carp("rds: %s force: %s", rds, force)
-  if ( dir == FALSE) {
+  if (dir == FALSE) {
     dir = varDir
   }
-  if ( ! exists(rds, where = misc_list) | force == TRUE) {
+  if ( ! exists(rds, where = misc_list) || force == TRUE) {
     dsn <- sprintf("%s/%s.Rds", dir, rds)
-    carp("dsn: %s", dsn)
+#    carp("dsn: %s force: %s", dsn, force)
+#    glimpse(misc_list)
     if (file.exists(dsn)) {
       misc_list[[rds]] <<- readRDS(file = dsn)
     } else {
@@ -950,6 +951,13 @@ misc_ecrire <- function(obj, rds = "sauve", dir = FALSE) {
   carp("dsn: %s", dsn)
   saveRDS(obj, file = dsn)
   return(invisible(obj))
+}
+misc_exists <- function(obj, rds = "sauve", dir = FALSE) {
+  if ( dir == FALSE) {
+    dir <- varDir
+  }
+  dsn <- sprintf("%s/%s.Rds",dir , rds)
+  return(invisible(file.exists(dsn)))
 }
 #
 # variante avec arrow/parquet

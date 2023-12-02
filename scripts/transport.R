@@ -120,7 +120,6 @@ Reseau <- "vitobus"; # Vitré/Chateaubourg
 Reseau <- "gironde"; # les lignes régionales
 Reseau <- "arcachon"; # Arcachon
 Reseau <- "toulouse"; # Toulouse Métropole
-Reseau <- "bibus"; # Brest
 Reseau <- "limoges"; # Limoges Métropole
 Reseau <- "bordeaux"; # Bordeaux Métropole
 Reseau <- "vannes"
@@ -135,18 +134,20 @@ Reseau <- "dinan"; # Dinan / Côtes d'Armor
 Reseau <- "distribus"; # Lamballe / Côtes d'Armor
 Reseau <- "breizhgo35"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
 Reseau <- "breizhgo29"; # pseudo-réseau pour BreizhGo en Finistère
-Reseau <- "star"; # Rennes
 Reseau <- "angers"; # Angers Irigo
 Reseau <- "semo"; # SEMO (pour Seine-Eure MObilités)
 Reseau <- "douarnenez"; # Douarnenez Tudbus
 Reseau <- "lorient"; # Lorient CTRL
-Reseau <- "guingamp"; # Guingamp AXEOBUS
 Reseau <- "breizhgo56"; # pseudo-réseau pour BreizhGo en Morbihan
 Reseau <- "breizhgo"; # BreizhGo en Bretagne, les lignes régionales
 Reseau <- "quimper"; # Quimper QUB
 Reseau <- "bretagne"; # pseudo-réseau pour la Bretagne
 Reseau <- "strasbourg"; # Strasbourg CTS
+Reseau <- "lannion"; # Lannion TILT
+Reseau <- "guingamp"; # Guingamp AXEOBUS
 Reseau <- "saintbrieuc"; # Saint-Brieuc TUB
+Reseau <- "rennes"; # Rennes STAR
+
 config_xls(Reseau)
 Tex <- TRUE
 Wiki <- TRUE

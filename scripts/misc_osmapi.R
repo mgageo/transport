@@ -581,7 +581,7 @@ osmapi_get_transport <- function(ref = "11920346", force = FALSE, force_osm = FA
   } else {
     sf11 <- tribble()
   }
-  rc <- list("relation" = relation.df, "members.df" = df3, "ways.sf" = sf11)
+  rc <- list("relation" = relation.df, "members.df" = df3, "ways.sf" = sf11, "nodes.df" = nodes.df)
   saveRDS(rc, dsn_rds)
   return(invisible(rc))
 }

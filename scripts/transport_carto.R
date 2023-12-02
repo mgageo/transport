@@ -10,12 +10,17 @@
 #
 ## les différentes cartographies
 #
-#
-carto_route_shapes_stops <- function(df, nc1) {
+# cartographie d'une route avec le tracé shape et les stops
+# - calcul de la distance des stops au tracé
+# - vérification de l'emplacement des stops : côté droit du tracé
+carto_route_shape_stops <- function(df, nc1) {
   library(tidyverse)
   library(sf)
-  carp()
+  library(mapsf)
   shape_id <- df[[1, "shape_id"]]
+  carp("*****shape_id: %s", shape_id)
+  rc <- as.list(df)
+#  return(invisible(rc))
   shape <- df[[1, "shape"]]
   dsn_shape <- sprintf("%s/shape_%s.gpx", josmDir, shape)
   if (! file.exists(dsn_shape)) {
@@ -24,9 +29,13 @@ carto_route_shapes_stops <- function(df, nc1) {
   }
   shape.sf <- st_read(dsn_shape, layer = "tracks", quiet = TRUE) %>%
     st_transform(2154)
+  mf_init(shape.sf, expandBB = c(200, 200, 200, 200))
   plot(st_geometry(shape.sf), add = FALSE, col = "green", lwd = 3)
+  shape_points.sf <- st_sf(st_cast(st_geometry(shape.sf), "POINT"))
+  mf_annotation(shape_points.sf[1, ], txt = "Départ", col_txt = "green", col_arrow = "green")
   nc2 <- nc1 %>%
-    filter(shape_id == !!shape_id)
+    filter(shape_id == !!shape_id) %>%
+    mutate(Name = sprintf("%s %s", id, stop_name))
   plot(st_geometry(nc2), col = "green", lwd = 3, pch = 19, add = TRUE)
   df2 <- st_distance(nc2, shape.sf) %>%
     glimpse()
@@ -34,15 +43,60 @@ carto_route_shapes_stops <- function(df, nc1) {
     mutate(distance = as.integer(df2)) %>%
     dplyr::select(-df2) %>%
     glimpse()
+  point_dernier <- nrow(nc2)
+  carp("les points trop loin")
   loins.sf <- nc2 %>%
-    filter(distance > 30)
+    filter(distance > 50)
   if (nrow(loins.sf) > 0) {
     plot(st_geometry(loins.sf), col = "red", lwd = 3, pch = 19, add = TRUE)
-    glimpse(loins.sf)
-    stops_loins.df <- rbind(stops_loins.df, st_drop_geometry(loins.sf))
+    mf_label(x = loins.sf,
+      var = "Name",
+      cex = 0.8,
+      overlap = FALSE,
+      lines = TRUE
+    )
+  }
+  carp("les points sur le tracé")
+  dessus.sf <- nc2 %>%
+    filter(distance == 50)
+  if (nrow(dessus.sf) > 0) {
+    plot(st_geometry(dessus.sf), col = "pink", lwd = 3, pch = 19, add = TRUE)
+    mf_label(x = dessus.sf,
+      var = "Name",
+      cex = 0.8,
+      overlap = FALSE,
+      lines = TRUE
+    )
+  }
+  cote_droit.sf <<- shape.sf %>%
+    st_buffer(-50, singleSide = TRUE, bOnlyEdges = FALSE) %>%
+    st_buffer(0) %>%
+    glimpse()
+#  dsn <- sprintf("%s/cote_droit.geojson", josmDir)
+#  st_write(st_transform(cote_droit.sf, 4326), dsn, delete_dsn = TRUE)
+#  carp("dsn: %s", dsn)
+  carp("les points proches")
+  points.sf <<- nc2 %>%
+    filter(distance < 50) %>%
+    glimpse()
+  carp("les points dans le buffer")
+  points.sf$within <- st_within(points.sf, cote_droit.sf, sparse = F)
+  points_out.sf <- points.sf %>%
+    glimpse() %>%
+    filter(within == FALSE) %>%
+    filter(id != 1) %>%
+    filter(id != point_dernier)
+  plot(st_geometry(points_out.sf), col = "orange", lwd = 3, pch = 19, add = TRUE)
+  if (nrow(points_out.sf) > 0) {
+#    stop("*****")
   }
   titre <- sprintf("%s", shape_id)
   title(titre)
+  rc[["points_distance.df"]] <- list(st_drop_geometry(nc2))
+  rc[["points_cote.df"]] <- list(st_drop_geometry(points_out.sf))
+  rc[["shape_lg"]] <- st_length(shape.sf)
+  rc[["points_out"]] <- nrow(points_out.sf)
+  return(invisible(rc))
 }
 #
 # la carte de la ligne
