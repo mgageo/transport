@@ -61,7 +61,8 @@ source("geo/scripts/transport_menu.R")
 source("geo/scripts/transport_mapbox.R")
 source("geo/scripts/transport_mapmatching.R")
 source("geo/scripts/transport_misc.R")
-source("geo/scripts/transport_mobibreizh.R"); # pour le gtfs de la région
+source("geo/scripts/transport_korrigo.R"); # pour le gtfs de la région
+# source("geo/scripts/transport_mobibreizh.R"); # pour le gtfs de la région
 source("geo/scripts/transport_oapi.R")
 source("geo/scripts/transport_osm.R"); # les interrogations osm soit via l'api soit via l'overpass
 source("geo/scripts/transport_osmar.R")
@@ -112,9 +113,7 @@ source("geo/scripts/transport_tudbus.R")
 Reseau <- "concarneau"
 Reseau <- "kiceo"; # Vannes
 Reseau <- "morlaix"; # LinéoTim
-Reseau <- "breizhgo35"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
 Reseau <- "ter"; # pseudo-réseau pour BreizhGo SNCF
-Reseau <- "landerneau"
 Reseau <- "breizhgo56"; # Morbihan
 Reseau <- "vitobus"; # Vitré/Chateaubourg
 Reseau <- "gironde"; # les lignes régionales
@@ -128,7 +127,6 @@ Reseau <- "surf"; # Fougères
 Reseau <- "bibusM"; # Brest avec les données de MobiBreizh
 Reseau <- "bibus"; # Brest
 Reseau <- "ploermel"
-Reseau <- "breizhgo22"; # pseudo-réseau pour BreizhGo en Côtes d'Armor
 Reseau <- "morlaix"; #
 Reseau <- "dinan"; # Dinan / Côtes d'Armor
 Reseau <- "distribus"; # Lamballe / Côtes d'Armor
@@ -145,8 +143,13 @@ Reseau <- "bretagne"; # pseudo-réseau pour la Bretagne
 Reseau <- "strasbourg"; # Strasbourg CTS
 Reseau <- "lannion"; # Lannion TILT
 Reseau <- "guingamp"; # Guingamp AXEOBUS
+Reseau <- "morlaix"; # Morlaix Linéotim
+Reseau <- "breizhgo35"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
 Reseau <- "saintbrieuc"; # Saint-Brieuc TUB
+Reseau <- "breizhgo22"; # pseudo-réseau pour BreizhGo en Côtes d'Armor
 Reseau <- "rennes"; # Rennes STAR
+Reseau <- "guingamp"; # Guingmap Paimpol AxeoBus
+Reseau <- "landerneau"
 
 config_xls(Reseau)
 Tex <- TRUE

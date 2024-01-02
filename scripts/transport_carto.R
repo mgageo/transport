@@ -99,6 +99,93 @@ carto_route_shape_stops <- function(df, nc1) {
   return(invisible(rc))
 }
 #
+# pour savoir si les stations sont du bon côté
+# https://github.com/r-spatial/sf/issues/1001
+#
+# cartographie d'une route avec le tracé à partir des données osm (ways et platforms)
+# - calcul de la distance des platforms au tracé
+# - vérification de l'emplacement des platforms : côté droit du tracé
+# source("geo/scripts/transport.R");carto_route_shape_stops_cote(id = 4259837)
+carto_route_shape_stops_cote <- function(id, force = TRUE) {
+  library(tidyverse)
+  library(mapsf)
+  rc <- tidytransit_lire(sprintf("osm_relation_route_gap_%s", id)) %>%
+    glimpse()
+  ways.sf <- rc$ways.sf %>%
+    st_transform(2154)
+  trace.sf <- rc$trace.sf %>%
+    st_transform(2154)
+  mf_init(ways.sf, expandBB = c(200, 200, 200, 200))
+  plot(st_geometry(ways.sf), add = FALSE, col = "green", lwd = 3)
+  ways_points.sf <- st_sf(st_cast(st_geometry(ways.sf), "POINT"))
+  mf_annotation(ways_points.sf[1, ], txt = "Départ", col_txt = "green", col_arrow = "green")
+  platforms.sf <- rc$members.sf %>%
+    filter(grepl("platform", public_transport))
+  df2 <- st_distance(platforms.sf, trace.sf) %>%
+    glimpse()
+  platforms.sf <- cbind(platforms.sf, df2) %>%
+    mutate(distance = as.numeric(round(df2, 1))) %>%
+    dplyr::select(-df2) %>%
+    glimpse()
+  carp("les points trop loin")
+  loins.sf <- platforms.sf %>%
+    filter(distance > 50)
+  if (nrow(loins.sf) > 0) {
+    plot(st_geometry(loins.sf), col = "red", lwd = 3, pch = 19, add = TRUE)
+    mf_label(
+      x = loins.sf,
+      var = "Name",
+      cex = 0.8,
+      col = "blue",
+      overlap = FALSE,
+      lines = TRUE
+    )
+  }
+  carp("les points trop proches")
+  proches.sf <- platforms.sf %>%
+    filter(distance == 0)
+  if (nrow(proches.sf) > 0) {
+    plot(st_geometry(proches.sf), col = "orange", lwd = 3, pch = 19, add = TRUE)
+    mf_label(
+      x = proches.sf,
+      var = "Name",
+      cex = 0.8,
+      col = "orange",
+      overlap = FALSE,
+      lines = TRUE
+    )
+  }
+  cote_droit.sf <- trace.sf %>%
+    st_buffer(-50, singleSide = TRUE, bOnlyEdges = FALSE) %>%
+    st_buffer(0)
+  platforms.sf$within <- as.logical(st_within(platforms.sf, cote_droit.sf, sparse = F))
+  platforms_out.sf <- platforms.sf %>%
+    filter(within == FALSE) %>%
+    filter(id != 1)
+  if (nrow(platforms_out.sf) > 0) {
+    plot(st_geometry(platforms_out.sf), col = "red", lwd = 3, pch = 19, add = TRUE)
+    mf_label(
+      x = platforms_out.sf,
+      var = "Name",
+      cex = 0.8,
+      col = "red",
+      overlap = FALSE,
+      lines = TRUE
+    )
+  }
+  rc$loins.sf <- loins.sf
+  rc$proches.sf <- proches.sf
+  rc$platforms_out.sf <- platforms_out.sf
+  titre <- sprintf("%s", id)
+  title(titre)
+  legend("topleft",
+    , legend=c(">50m", "0m", "côté")
+    , col=c("blue", "orange", "red")
+    , lwd = 3, lty = 1, cex = 0.8, box.lty = 0
+  )
+  return(invisible(rc))
+}
+#
 # la carte de la ligne
 # https://rgeomatic.hypotheses.org/2077
 # https://riatelab.github.io/mapsf/
@@ -211,7 +298,7 @@ carto_ref_shapes_stops_mapsf <- function(df, force = TRUE) {
   mf_init(shapes.sf, expandBB = c(0.1, 0.1, 0.1, 0.1))
   pal <- hcl.colors(n = nrow(shapes.sf), palette = "Cividis")
   mf_map(x = shapes.sf, col = pal, lwd = shapes.sf$id, add = TRUE)
-  mf_legend_t(title = "", val = shapes.sf$shape_id, pal = pal)
+  mf_legend(type = 'typo', title = "", val = shapes.sf$shape_id, pal = pal)
   mf_label(x = bouts.sf,
     var = "name",
     cex = 0.8,
@@ -244,10 +331,11 @@ carto_route_shape_mapsf <- function(id, shape, force = TRUE, force_osm = TRUE) {
   osm_points.sf <- st_sf(st_cast(st_geometry(osm.sf), "POINT"))
   mf_annotation(osm_points.sf[1, ], txt = "Départ", col_txt = "blue", col_arrow = "blue")
   mf_title(sprintf("r%s %s", id, shape), inner = TRUE)
-  mf_legend_t(title = "", val = c("osm", "gtfs", "inter"), pal = c("blue", "green", "grey"))
+  mf_legend(type = "typo", title = "", val = c("osm", "gtfs", "inter"), pal = c("blue", "green", "grey"))
 
-  dsn_shape <- sprintf("%s/shape_%s.gpx", josmDir, gsub("[$:]", "_", shape))
+  dsn_shape <- sprintf("%s/shape_stops_%s.gpx", josmDir, transport_shape2fic(shape))
   if (! file.exists(dsn_shape)) {
+#    confess("dsn_shape: %s", dsn_shape)
     shape <- sprintf("%s absent", shape)
     rc <- list(
       "id" = id,
@@ -333,4 +421,35 @@ carto_route_shape_stops_mapsf <- function(id, shape, force = TRUE, force_osm = T
     mf_annotation(points.sf[1, ], txt = "Départ", col_txt = "green", col_arrow = "green")
   }
   mf_title(sprintf("r%s %s", id, shape))
+}
+#
+# la carte de la ligne
+# https://rgeomatic.hypotheses.org/2077
+# https://riatelab.github.io/mapsf/
+carto_route_members_mapsf <- function(rc) {
+  library(tidyverse)
+  library(sf)
+  library(mapsf)
+  carp()
+  mf_init(rc$ways.sf, expandBB = c(0.1, 0.1, 0.1, 0.1))
+  mf_map(x = rc$ways.sf, col = "black", lwd = 3, add = TRUE)
+#  mf_map(x = rc$platforms.sf, col = "blue", lwd = 3, pch = 19, add = TRUE)
+  if (nrow(rc$members.sf) > 0) {
+    mf_map(x = rc$members.sf, col = rc$members.sf$couleur, lwd = 3, pch = 19, add = TRUE)
+    mf_label(x = rc$members.sf,
+      var = "Id",
+      cex = 1.5,
+      overlap = FALSE,
+      lines = TRUE,
+      col = rc$members.sf$couleur
+    )
+  }
+  if (! "ref:network" %in% names(rc$relation)) {
+    rc$relation[1, "ref:network" ] <- NA
+  }
+  glimpse(rc)
+  titre <- sprintf("relation: %s ref_network: %s", rc$relation[1, "@id"], rc$relation[1, "ref:network"])
+  carp("titre: %s", titre)
+  mf_title(titre)
+  mf_annotation(rc$ways_points.sf[1, ], txt = "Départ")
 }

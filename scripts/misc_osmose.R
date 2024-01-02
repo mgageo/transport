@@ -15,6 +15,8 @@
 #
 # http://osmose.openstreetmap.fr/api/0.3/issue/8676c5fa-fd69-5cb8-c021-0e5c23ae1454
 osmose_host <- "http://osmose.openstreetmap.fr/api/0.3"
+osmose_network <- "FR:TUB"
+osmose_network <- "BreizhGo;TIBUS"
 #
 ## la recherche de tous les signalements d'une zone
 # détermination avec l'overpass de la zone
@@ -29,6 +31,7 @@ osmose_host <- "http://osmose.openstreetmap.fr/api/0.3"
 #
 # source("geo/scripts/transport.R"); config_xls("bordeaux"); osmose_area_jour(force = TRUE)
 # source("geo/scripts/transport.R"); config_xls("bretagne"); osmose_area_jour(force = TRUE)
+# source("geo/scripts/transport.R"); config_xls("bretagne35"); osmose_area_jour(force = TRUE)
 osmose_area_jour <- function(force = TRUE) {
 #  osmose_area_get(force = FALSE)
   osmose_country_get(country = Config[1, "zone_osmose"], force = force)
@@ -355,9 +358,7 @@ osmose_issues_html <- function(get = "country", force = TRUE) {
 # 3 Non route relation member in route_master relation
   df3 <- df1 %>%
     filter(class %in% c("3")) %>%
-    distinct(class, elems.1.id,  elems.1.type
-      , tags.1.network
-    ) %>%
+    distinct(class, elems.1.id,  elems.1.type, tags.1.network) %>%
     glimpse()
   df4 <- df3 %>%
     mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
@@ -425,11 +426,12 @@ osmose_issues_html <- function(get = "country", force = TRUE) {
 #  html <- html_append_df(html, df4)
 #
 # 1 Diff gap
+# https://osmose.openstreetmap.fr/fr/map/#item=1260&zoom=17&lat=47.997266&lon=-4.1076&level=1
   df3 <- df1 %>%
     filter(class == "1") %>%
     filter(tags.1.route == "bus") %>%
     dplyr::select(uuid, subtitle = subtitle.auto, elems.1.id,  elems.1.type
-      , tags.1.network, tags.1.route
+      , tags.1.network, tags.1.route, lat, lon
     ) %>%
     glimpse()
   df4 <- df3 %>%
@@ -438,6 +440,7 @@ osmose_issues_html <- function(get = "country", force = TRUE) {
     mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
     mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>", str_sub(elems.1.type,1, 1), elems.1.id)) %>%
     mutate(PTNA = sprintf("<a href='https://ptna.openstreetmap.de/relation.php?id=%s&lang=fr'>PTNA</a>", elems.1.id)) %>%
+    mutate(map = sprintf("<a href='https://osmose.openstreetmap.fr/fr/map/#item=1260&zoom=17&lat=%s&lon=%s&level=1%s'>map</a>", lat, lon, '%2C2%2C3')) %>%
     glimpse()
   html <- html_append(html, "<h2>Diff gap</h2>")
   html <- html_append_df(html, df4)
@@ -533,7 +536,7 @@ osmose_issues_html <- function(get = "country", force = TRUE) {
       , tags.1.network) %>%
     glimpse()
   df4 <- df3 %>%
-    filter(tags.1.network == "FR:TUB") %>%
+    filter(tags.1.network == osmose_network) %>%
     glimpse() %>%
     mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
     mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
@@ -554,7 +557,7 @@ osmose_issues_html <- function(get = "country", force = TRUE) {
       , tags.1.network) %>%
     glimpse()
   df4 <- df3 %>%
-    filter(tags.1.network == "FR:TUB") %>%
+    filter(tags.1.network == osmose_network) %>%
     glimpse() %>%
     mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
     mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%

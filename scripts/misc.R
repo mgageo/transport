@@ -885,6 +885,20 @@ misc_list2tpl <- function(foo, tpl) {
 }
 #
 # template du pauvre
+misc_glue <- function(foo, tpl, .open = "{{", .close = "}}") {
+  for(i in seq_along(foo)) {
+    v <- foo[[i]]
+#    carp("v: %s", v)
+    val <- get(v)
+#    carp("v: %s=>%s", v, val)
+    re <- paste0("\\{\\{", v, "\\}\\}")
+    tpl <- gsub(re, val, tpl, perl = TRUE)
+#    print(tpl); stop("*****")
+  }
+  return(invisible(tpl))
+}
+#
+# template du pauvre
 misc_dfi2tpl <- function(df, i, tpl) {
   for ( v in colnames(df) ) {
     if( is.na(df[i, v]) ) {

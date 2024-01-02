@@ -465,8 +465,8 @@ osmapi_get_node_ways <- function(node, force = FALSE) {
 # https://rdrr.io/github/mdlincoln/bigosm/src/R/parse.R
 # source("geo/scripts/transport.R"); rc <- osmapi_get_transport(ref = "2422224", force = TRUE)
 #
-# bug
-# source("geo/scripts/transport.R"); rc <- osmapi_get_transport(ref = "14194690", force = TRUE)
+# bug, une platform de type way
+# source("geo/scripts/transport.R"); rc <- osmapi_get_transport(ref = "2171048", force = TRUE) %>% glimpse()
 osmapi_get_transport <- function(ref = "11920346", force = FALSE, force_osm = FALSE) {
   library(readr)
   library(tidyverse)
@@ -503,7 +503,7 @@ osmapi_get_transport <- function(ref = "11920346", force = FALSE, force_osm = FA
   ways.df <- osmapi_objects_tags(ways)
   if (nrow(ways.df) > 0) {
     ways.df <- ways.df %>%
-      dplyr::select(id = "@id", matches("^(name|highway|junction|oneway|oneway\\:bus|ref)")) %>%
+      dplyr::select(id = "@id", matches("^(name|public_transport|bus|ref|highway|junction|oneway|oneway\\:bus|ref)")) %>%
       glimpse() %>%
       (function(.df){
         cls <- c("name", "highway", "junction", "oneway", "oneway:bus", "ref")
@@ -535,9 +535,14 @@ osmapi_get_transport <- function(ref = "11920346", force = FALSE, force_osm = FA
 #    glimpse(nodes); stop("*****")
   }
 #  glimpse(ways.df); stop("*****")
-    ways.sf <- st_as_sf(ways.df, geometry = st_as_sfc(ways.df$wkt, crs = 4326)) %>%
-      st_transform(2154) %>%
-      glimpse()
+    ways.sf <- st_as_sf(ways.df, geometry = st_as_sfc(ways.df$wkt, crs = 4326))
+    cc.df <- st_coordinates(st_centroid(ways.sf)) %>%
+    dplyr::as_tibble() %>%
+      dplyr::select(X, Y) %>%
+      dplyr::rename(lon = X, lat = Y)
+    ways.df <- cbind(ways.df, cc.df)
+    ways.sf <- ways.sf %>%
+      st_transform(2154)
   }
 #
 # la relation
@@ -551,25 +556,32 @@ osmapi_get_transport <- function(ref = "11920346", force = FALSE, force_osm = FA
   for (attr in c("type", "ref", "role")) {
     members.list[[attr]] <- members %>% xml_attr(attr)
   }
-  members.df <- as_tibble(members.list) %>%
+  df10 <- as_tibble(members.list) %>%
+    mutate(member_no = row_number()) %>%
     glimpse()
 #
 # on peut enfin s'attaquer au rapprochement pour les nodes
-  df1 <- members.df %>%
+  df11 <- df10 %>%
     filter(type == "node") %>%
     left_join(nodes.df, by = c("ref" = "id"))
+  df12 <- df10 %>%
+    filter(type == "way") %>%
+    left_join(ways.df, by = c("ref" = "id")) %>%
+    dplyr::select(-nb_nodes, -node1, -node9, -nodes)
+  df1 <- bind_rows(df11, df12)
   df2 <- df1 %>%
     filter(grepl("platform", role))
   relation.df[1, "stops_name"] <- paste(df2$name, collapse = ";")
   saveRDS(relation.df, dsn_rds)
   carp("les arrêts")
-  df3 <- df1 %>%
-    filter(grepl("(stop|platform)", role))
+  members.df <- df1 %>%
+    filter(grepl("(stop|platform)", role)) %>%
+    arrange(member_no)
+#  glimpse(df3);stop("****")
 #
 # on peut enfin s'attaquer au rapprochement pour les ways
-#  misc_print(members.df)
   if (nrow(ways.df) > 0) {
-    df11 <- members.df %>%
+    df11 <- df10 %>%
       filter(role == "" & type == "way") %>%
 #    glimpse();stop("*****")
       left_join(ways.sf, by = c("ref" = "id")) %>%
@@ -581,7 +593,7 @@ osmapi_get_transport <- function(ref = "11920346", force = FALSE, force_osm = FA
   } else {
     sf11 <- tribble()
   }
-  rc <- list("relation" = relation.df, "members.df" = df3, "ways.sf" = sf11, "nodes.df" = nodes.df)
+  rc <- list("relation" = relation.df, "members.df" = members.df, "ways.sf" = sf11, "nodes.df" = nodes.df)
   saveRDS(rc, dsn_rds)
   return(invisible(rc))
 }

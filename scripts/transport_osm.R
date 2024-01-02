@@ -10,11 +10,15 @@
 #
 # les traitements journaliers
 
-# source("geo/scripts/transport.R");config_xls('star');osm_jour()
+# source("geo/scripts/transport.R");osm_jour()
 osm_jour <- function(force = TRUE) {
   carp()
-  osm_valid_jour(force = force)
+  reseau_tpl_tex()
+#  osm_valid_jour(force = force)
+  osm_network_relations_route_gap()
+  tex_pdflatex(sprintf("%s_osm.tex", Reseau))
 }
+
 # les routes
 #
 osm_relations_route_bus_get <- function(fic = 'relations_route_bus', force = FALSE) {
@@ -479,6 +483,20 @@ osm_valid_relations_route_bus_network <- function(force = TRUE) {
 
   return(invisible())
 }
+# source("geo/scripts/transport.R");osm_routes_shapes_stops_carto()
+osm_routes_shapes_stops_carto <- function(force = TRUE) {
+  library(tidyverse)
+  library(tidytransit)
+  carp()
+  dsn <- osm_relations_route_bus_csv(force = force)
+  df <- fread(dsn, encoding = "UTF-8") %>%
+    clean_names() %>%
+    glimpse()
+  for (i in 1:nrow(df)) {
+  }
+
+  return(invisible())
+}
 #
 ## les nodes platform
 #
@@ -854,7 +872,7 @@ caption = {Tableau des relations},
   TEX <- file(texFic)
   write(tex, file = TEX, append = FALSE)
   close(TEX)
-  return()
+#  return()
   tex_df2kable(df1, suffixe = "lst", longtable = TRUE)
   texFic <- sprintf("%s/%s", imagesDir, "osm_relations_route_members.tex")
   TEX <- file(texFic)
@@ -968,6 +986,8 @@ osm_relation_route_versions <- function(id, force = FALSE, force_osm = FALSE) {
 # source("geo/scripts/transport.R");osm_relation_route_members(id = "11984170", force = TRUE) %>% glimpse()
 # Bordeaux 2422223 6b
 # source("geo/scripts/transport.R");osm_relation_route_members(id = "2422224", force = TRUE) %>% glimpse()
+# breizhgo22 2171048
+# source("geo/scripts/transport.R");rc <- osm_relation_route_members(id = "2171048", force = TRUE) %>% glimpse()
 osm_relation_route_members <- function(id, force = TRUE, force_osm = TRUE) {
   library(tidyverse)
   library(data.table)
@@ -994,6 +1014,8 @@ osm_relation_route_members <- function(id, force = TRUE, force_osm = TRUE) {
     saveRDS(rc, dsn_rds)
     return(invisible(rc))
   }
+#  print("BUG");glimpse(rc$members.df);stop("****")
+
 # pour remettre dans l'ordre de la relation route les ways
 #  osm_relation_route_members_ways(rc)
   ref_network <- rc$relation[1, "ref:network"]
@@ -1045,35 +1067,7 @@ osm_relation_route_members <- function(id, force = TRUE, force_osm = TRUE) {
   saveRDS(rc, dsn_rds)
   return(invisible(rc))
 }
-#
-# la carte de la ligne
-# https://rgeomatic.hypotheses.org/2077
-# https://riatelab.github.io/mapsf/
-osm_relation_route_members_mapsf <- function(rc) {
-  library(tidyverse)
-  library(sf)
-  library(mapsf)
-  carp()
-  mf_init(rc$ways.sf, expandBB = c(0.1, 0.1, 0.1, 0.1))
-  mf_map(x = rc$ways.sf, col = "black", lwd = 3, add = TRUE)
-#  mf_map(x = rc$platforms.sf, col = "blue", lwd = 3, pch = 19, add = TRUE)
-  if (nrow(rc$members.sf) > 0) {
-    mf_map(x = rc$members.sf, col = rc$members.sf$couleur, lwd = 3, pch = 19, add = TRUE)
-    mf_label(x = rc$members.sf,
-      var = "Id",
-      cex = 1.5,
-      overlap = FALSE,
-      lines = TRUE,
-      col = rc$members.sf$couleur
-    )
-  }
-  if (! "ref:network" %in% names(rc$relation)) {
-    rc$relation[1, "ref:network" ] <- NA
-  }
-  titre <- sprintf("relation: %s ref_network: %s", rc$relation[1, "id"], rc$relation[1, "ref:network"])
-  mf_title(titre)
-  mf_annotation(rc$ways_points.sf[1, ], txt = "Départ")
-}
+
 #
 # détermination de la distance et du segment le plus proche
 osm_relation_route_members_nodes <- function(rc, role = "stop") {
@@ -1128,7 +1122,7 @@ osm_relation_route_members_nodes <- function(rc, role = "stop") {
     err.df$ref_network <- rc$relation[1, "ref_network"]
     err.df$gtfs_shape_id <- rc$relation[1, "gtfs_shape_id"]
     misc_print(err.df)
-    stops.df <<- bind_rows(stops.df, err.df)
+#    stops.df <<- bind_rows(stops.df, err.df)
 #    stop("****")
   }
   if (role == "stop") {
@@ -1158,12 +1152,7 @@ osm_relation_route_members_ways <- function(rc) {
   misc_print(df1)
   return(invisible(rc))
 }
-# source("geo/scripts/transport.R");osm_relations_route_members_tex()
-osm_relations_route_members_tex <- function(force = FALSE, force_osm = FALSE) {
-  carp()
-  osm_relations_route_members(force = force, force_osm = force_osm)
-  tex_pdflatex(sprintf("%s_relations_route_members.tex", Reseau))
-}
+
 #
 ## les arrêts qui ne sont plus en service
 # source("geo/scripts/transport.R");osm_arrets_disused()
@@ -1245,55 +1234,96 @@ osm_relations_bus <- function(force = TRUE, force_osm = TRUE) {
 #
 ## l'analyse fine d'une relation
 #
-# source("geo/scripts/transport.R");Reseau <- "bordeaux";config_xls(Reseau);osm_relations_route_members_valid(force = FALSE, force_osm = FALSE)
-# source("geo/scripts/transport.R");osm_relations_route_members_valid()
-osm_relations_route_members_valid <- function(force = TRUE, force_osm = TRUE) {
-  library(tidyverse)
-  library(data.table)
-  library(sf)
-  library(janitor)
+# source("geo/scripts/transport.R");osm_relations_route_members_tex()
+osm_relations_route_members_tex <- function(force = TRUE, force_osm = TRUE) {
   carp()
+  reseau_tpl_tex()
   dsn <- osm_relations_route_bus_csv(force = force_osm)
   df <- fread(dsn, encoding = "UTF-8") %>%
     as.data.table() %>%
     clean_names() %>%
     glimpse()
+  osm_relations_route_members(df, force = force, force_osm = force_osm)
+  osm_relations_route_members_verif(force = force, force_osm = force_osm)
+  tex_pdflatex(sprintf("%s_osm_relations_route_members.tex", Reseau))
+}
+#
+# source("geo/scripts/transport.R");osm_osmose_members_tex(force = FALSE, force_osm = FALSE)
+osm_osmose_members_tex <- function(force = TRUE, force_osm = TRUE) {
+  library(tidyverse)
+  library(data.table)
+  library(sf)
+  library(janitor)
+  config_xls("bretagne")
+  reseau_tpl_tex()
+  titre <- sprintf("osmose_%s_issues_%s", "country", Config[1, "reseau"])
+  dsn_rds <- sprintf("%s/%s_gap.rds", varDir, titre)
+  carp("dsn_rds: %s", dsn_rds)
+  df <- readRDS(dsn_rds) %>%
+    mutate(id = elems.1.id) %>%
+    glimpse()
+#  osm_relations_route_members(df, force = force, force_osm = force_osm)
+  osm_relations_route_members_verif(force = force, force_osm = force_osm)
+  tex_pdflatex(sprintf("%s_osm_relations_route_members.tex", Reseau))
+}
+# source("geo/scripts/transport.R");osm_relations_route_members(force = FALSE, force_osm = FALSE)
+# source("geo/scripts/transport.R");osm_relations_route_members()
+osm_relations_route_members <- function(df, force = TRUE, force_osm = TRUE) {
+  library(tidyverse)
+  library(data.table)
+  library(sf)
+  library(janitor)
+  carp()
+
 #  stop("*****")
   ptv2.df <<- tibble()
   stops.df <<- tibble()
   relations.list <- list()
+  texFic <- sprintf("%s/%s", imagesDir, "osm_relations_route_members.tex")
+  TEX <- file(texFic)
+  tex <- "% <!-- coding: utf-8 -->"
+  dsn <- sprintf("%s/osm_relations_route_members_tpl.tex", tplDir)
+  template <- readLines(dsn)
   for (i in 1:nrow(df)) {
     id <- as.character(df[[i, "id"]])
     carp("i: %s/%s id: %s", i, nrow(df), id)
+#    if (id != "2171048") next
+#    if (id != "10813811") next
     rc <- osm_relation_route_members(id = id, force = force, force_osm = force_osm)
     if (nrow(rc$ways.sf) > 0) {
       rc <- osm_relation_route_members_valid(rc = rc, id = df[i, "id"], force = force, force_osm = force_osm)
-      rc <- osm_relation_route_stops_order(rc = rc, id = df[i, "id"], force = force, force_osm = force_osm)
-#      osm_relation_route_members_mapsf(rc)
+#      rc <- osm_relation_route_stops_order(rc = rc, id = df[i, "id"], force = force, force_osm = force_osm)
+      carto_route_members_mapsf(rc)
+      dsn <- dev2pdf(suffixe = id, dossier = "images")
+      tpl <- tex_df2tpl(df, i, template)
+      tpl <- escapeLatexSpecials(tpl)
+      tex <- append(tex, tpl)
     }
     relations.list[[id]] <- rc
 #    break
 #    stop("****")
   }
-  misc_print(ptv2.df)
-  carp("les erreurs ordre/distance sur les members")
-  misc_print(stops.df)
-  dsn_rds <- sprintf("%s/osm_relations_route_members_valid.rds", osmDir)
+  dsn_rds <- sprintf("%s/osm_relations_route_members.rds", osmDir)
   saveRDS(relations.list, dsn_rds)
   carp("dsn_rds: %s", dsn_rds)
-  glimpse(relations.list)
+  write(tex, file = TEX, append = FALSE)
+  close(TEX)
+  carp("texFic: %s", texFic)
+  return(invisible(relations.list))
 }
 #
-# source("geo/scripts/transport.R");osm_relations_route_members_valid_tex(force = FALSE, force_osm = FALSE)
-osm_relations_route_members_valid_tex <- function(force = TRUE, force_osm = TRUE) {
+# source("geo/scripts/transport.R");osm_relations_route_members_verif(force = FALSE, force_osm = FALSE)
+osm_relations_route_members_verif <- function(force = TRUE, force_osm = TRUE) {
   library(tidyverse)
   library(janitor)
-  dsn_rds <- sprintf("%s/osm_relations_route_members_valid.rds", osmDir)
+  dsn_rds <- sprintf("%s/osm_relations_route_members.rds", osmDir)
   carp("dsn_rds: %s", dsn_rds)
   relations.list <- readRDS(dsn_rds)
+# pour les erreurs départ/arrivée
   df <- tribble(
+    ~type,
     ~id,
-    ~shape_id,
+    ~ref_network,
     ~distance_depart,
     ~distance_arrivee
   )
@@ -1301,49 +1331,63 @@ osm_relations_route_members_valid_tex <- function(force = TRUE, force_osm = TRUE
   platforms.df <- tibble()
   for (id in names(relations.list)) {
     carp("id: %s", id)
-    relation <- relations.list[[id]]
-    if (nrow(relation$ways.sf) == 0) {
+    rc <- relations.list[[id]]
+#    rc <- osm_relation_route_members_valid(rc = rc, id = id, force = force, force_osm = force_osm)
+#    glimpse(rc);stop("****")
+    if (nrow(rc$ways.sf) == 0) {
       next
     }
-#    glimpse(relation);stop("*****")
-    if (nrow(relation$err_role.df) > 0) {
-      err_role.df <- relation$err_role.df
+#    glimpse(rc$relation);stop("*****")
+    if (nrow(rc$err_role.df) > 0) {
+      err_role.df <- bind_rows(err_role.df, rc$err_role.df)
     }
     df <- add_row(df,
       id = id,
-      shape_id = relation$relation[[1, "gtfs:shape_id"]],
-      distance_depart = relation$distance_depart,
-      distance_arrivee = relation$distance_arrivee,
+      ref_network = rc$relation[[1, "ref:network"]],
+      distance_depart = rc$distance_depart,
+      distance_arrivee = rc$distance_arrivee,
     )
-    if (nrow(relation$platforms.sf) > 0) {
-      relation$platforms.df$relation <- id
-      relation$platforms.df$ref_network <- relation$relation[[1, "ref:network"]]
-#      glimpse(relation$platforms.df)
-      platforms.df <- bind_rows(platforms.df, relation$platforms.df)
+    if (nrow(rc$platforms.sf) > 0) {
+      rc$platforms.df$relation <- id
+      rc$platforms.df$ref_network <- rc$relation[[1, "ref:network"]]
+#      glimpse(rc$platforms.df)
+      platforms.df <- bind_rows(platforms.df, rc$platforms.df)
     }
-#    break
   }
+  df$type <- "relation"
+#  glimpse(err_role.df);stop("****")
+  carp("les erreurs de role")
+  df2 <- tibble()
+  df3 <- tibble()
+  if (nrow(err_role.df) > 0) {
+    df2 <- err_role.df %>%
+      dplyr::select(type, ref, role, name, err)
+    df3 <- df2 %>%
+      group_by(err) %>%
+      summarize(nb = n())
+  }
+  tex_df2kable(df3, suffixe = "erreurs", longtable = TRUE)
+  tex_df2kable(df2, suffixe = "role", longtable = TRUE)
   carp("les erreurs de distance")
   df1 <- df %>%
     filter(distance_depart > 150 | distance_arrivee > 150) %>%
-    arrange(shape_id) %>%
+    arrange(ref_network) %>%
     glimpse()
-  misc_print(df1)
-  carp("les erreurs de role")
-  misc_print(err_role.df)
+  tex_df2kable(df1, suffixe = "da", longtable = TRUE)
   df2 <- platforms.df %>%
     filter(grepl("stop", public_transport)) %>%
     filter(distance > 1) %>%
     glimpse()
+  tex_df2kable(df2, suffixe = "stop", longtable = TRUE)
   df3 <- platforms.df %>%
     filter(grepl("platform", public_transport)) %>%
     filter(distance > 100)
-  misc_print(df3)
+  tex_df2kable(df3, suffixe = "loin", longtable = TRUE)
+  tex_pdflatex(sprintf("%s_osm_relations_route_members.tex", Reseau))
 }
-
-# source("geo/scripts/transport.R"); osm_relation_route_members_valid(id = 4756509, force = TRUE, force_osm = TRUE)
-# source("geo/scripts/transport.R"); osm_relation_route_members_valid(id = 13528658, force = TRUE, force_osm = TRUE)
-osm_relation_route_members_valid <- function(rc, id = 3184038, force = FALSE, force_osm = FALSE) {
+#
+#
+osm_relation_route_members_valid <- function(rc, id, force = FALSE, force_osm = FALSE) {
   carp()
   df <- tibble()
   df1 <- rc$members.df
@@ -1351,6 +1395,7 @@ osm_relation_route_members_valid <- function(rc, id = 3184038, force = FALSE, fo
   df2 <- df1 %>%
     dplyr::bind_rows(dplyr::tibble(bus = character())) %>%
     filter(bus %in% c("yes", "on_demand"))
+#  glimpse(df1);stop("****")
   if (nrow(df2) > 0) {
     df2$err <- "bus=yes"
 #    df <- rbind(df, df2)
@@ -1369,6 +1414,20 @@ osm_relation_route_members_valid <- function(rc, id = 3184038, force = FALSE, fo
     df2$err <- "public_transport"
     df <- rbind(df, df2)
   }
+  df2 <- df1 %>%
+    filter(grepl("stop", role)) %>%
+    filter(type != "node")
+  if (nrow(df2) > 0) {
+    df2$err <- "stop node"
+    df <- rbind(df, df2)
+  }
+  df2 <- df1 %>%
+    filter(grepl("platform", role)) %>%
+    filter(type != "node")
+  if (nrow(df2) > 0) {
+    df2$err <- "stop node"
+    df <- rbind(df, df2)
+  }
   if (nrow(df) > 0) {
     df$relation <- rc$relation[1, "id"]
     df$ref_network <- rc$relation[1, "ref_network"]
@@ -1385,6 +1444,7 @@ osm_relation_route_members_valid <- function(rc, id = 3184038, force = FALSE, fo
     )) %>%
     mutate(member = sprintf("  %s %s %s", type, ref, role))
   rc$members_level0 <- paste(df2$member,  collapse = "\n")
+#  glimpse(df); stop("*****")
   rc$err_role.df <- df
   return(invisible(rc))
 }
@@ -1455,25 +1515,6 @@ osm_relation_route_stops_order <- function(rc, id = 3184038, force = FALSE, forc
     carp("dsn: %s", dsn)
   }
   return(invisible(rc))
-}
-#
-# les trous
-# source("geo/scripts/transport.R");osm_relations_route_gap(force = FALSE, force_osm = FALSE)
-osm_relations_route_gap <- function(force = TRUE, force_osm = TRUE) {
-  library(tidyverse)
-  library(data.table)
-  library(sf)
-  library(janitor)
-  carp()
-  dsn <- osm_relations_routes_bus_csv(force = force_osm)
-  df <- fread(dsn, encoding = "UTF-8") %>%
-    as.data.table() %>%
-    clean_names() %>%
-    filter(type_2 == "route") %>%
-    glimpse()
-  for (i in 1:nrow(df)) {
-    osm_relation_route_gap(id = df[i, "id"], force = TRUE, force_osm = TRUE)
-  }
 }
 
 #
@@ -1553,7 +1594,156 @@ osm_relations_level0 <- function(force = TRUE, force_osm = TRUE) {
   }
 }
 #
-## les gaps dans une relation
+## pour avoir les trous (gap) sur le tracé des relations route
+#
+# c'est lent !
+# l'analyse initiale du xml n'est pas performante
+#
+# une piste
+# interroger avec l'overpass les nodes en format csv
+#
+# source("geo/scripts/transport.R");osm_network_relations_route_gap(force = FALSE, force_osm = FALSE)
+osm_network_relations_route_gap <- function(force = TRUE, force_osm = TRUE) {
+  library(tidyverse)
+  library(data.table)
+  library(sf)
+  library(janitor)
+  carp()
+  df <- overpass_get(query = "relations_route_bus_network", format = "csv", force = force) %>%
+    clean_names()
+  osm_relations_route_gap(df, force = force, force_osm = force_osm)
+  osm_relations_route_gap_verif(force = force, force_osm = force_osm)
+}
+#
+# source("geo/scripts/transport.R");osm_osmose_gap(force = FALSE, force_osm = FALSE)
+osm_osmose_gap <- function(force = TRUE, force_osm = TRUE) {
+  library(tidyverse)
+  library(data.table)
+  library(sf)
+  library(janitor)
+  config_xls("bretagne")
+  reseau_tpl_tex()
+  titre <- sprintf("osmose_%s_issues_%s", "country", Config[1, "reseau"])
+  dsn_rds <- sprintf("%s/%s_gap.rds", varDir, titre)
+  carp("dsn_rds: %s", dsn_rds)
+  df <- readRDS(dsn_rds) %>%
+    mutate(id = elems.1.id) %>%
+    glimpse()
+#  osm_relations_route_gap(df, force = force, force_osm = force_osm)
+  osm_relations_route_gap_verif(force = force, force_osm = force_osm)
+}
+#
+#
+osm_relations_route_gap <- function(df, force = TRUE, force_osm = TRUE) {
+  library(tidyverse)
+  library(data.table)
+  library(sf)
+  library(janitor)
+  carp()
+  DEBUG <<- FALSE
+  texFic <- sprintf("%s/%s", imagesDir, "osm_relations_route_gap.tex")
+  TEX <- file(texFic)
+  tex <- "% <!-- coding: utf-8 -->"
+  dsn <- sprintf("%s/osm_relations_route_gap_tpl.tex", tplDir)
+  template <- readLines(dsn)
+  rc.list <- list()
+  for (i in 1:nrow(df)) {
+    id <- sprintf("%s", df[[i, "id"]])
+    Carp("**** i: %s id: %s", i, )
+    rc <- osm_relation_route_gap(id = id, force = TRUE, force_osm = TRUE)
+    rc <- carto_route_shape_stops_cote(id = id)
+    rc.list[[id]] <- rc
+#    glimpse(rc.list);stop("****")
+    dsn <- dev2pdf(suffixe = id, dossier = "images")
+    tpl <- tex_df2tpl(df, i, template)
+    tpl <- escapeLatexSpecials(tpl)
+    tex <- append(tex, tpl)
+#    break
+  }
+  glimpse(rc.list)
+  tidytransit_sauve(rc.list, "osm_relations_route_gap")
+  write(tex, file = TEX, append = FALSE)
+  close(TEX)
+  carp("texFic: %s", texFic)
+  tex_pdflatex(sprintf("%s_osm_relations_route_gap.tex", Reseau))
+}
+
+#
+# source("geo/scripts/transport.R");osm_relations_route_gap_verif(force = FALSE)
+osm_relations_route_gap_verif <- function(force = TRUE, force_osm = TRUE) {
+  library(tidyverse)
+  library(janitor)
+  carp()
+  titre <- sprintf("osm_relations_route_gap_%s", Config[1, "reseau"])
+  html <- misc_html_titre(titre)
+  html <- misc_html_append(html, sprintf("<h1>%s</h1>", titre))
+  rc.list <- tidytransit_lire("osm_relations_route_gap")
+  relations.df <- data.frame()
+  platforms_out.sf <- data.frame()
+  gaps.df <- data.frame()
+  for (rc in rc.list) {
+    ways.sf <- rc$ways.sf
+    ways.df <- ways.sf %>%
+      st_drop_geometry() %>%
+      group_by(id) %>%
+      summarize(nb = n()) %>%
+      ungroup() %>%
+      filter(nb > 1) %>%
+      glimpse()
+    r.df <- rc$relation %>%
+      rename(Name = name) %>%
+      dplyr::select(`@id`,  network, ref, Name) %>%
+      mutate(ways = nrow(rc$ways.sf)) %>%
+      mutate(louches = nrow(ways.df)) %>%
+      mutate(gaps = rc$nb_gaps) %>%
+      glimpse()
+    Carp("***** %s", r.df[1, "@id"])
+    relations.df <- relations.df %>%
+        bind_rows(r.df)
+    if (rc[["nb_gaps"]] > 0) {
+#      glimpse(rc$gaps.df);stop("****")
+      df1 <- rc$gaps.df %>%
+        bind_cols(r.df[1,])
+      gaps.df <- bind_rows(gaps.df, df1)
+    }
+    if (nrow(rc$platforms_out.sf) > 0) {
+#      glimpse(rc$platforms_out.sf[1, ])
+      if ( nrow(platforms_out.sf) == 0 ) {
+        platforms_out.sf <- rc$platforms_out.sf
+      } else {
+        platforms_out.sf <- bind_rows(platforms_out.sf, rc$platforms_out.sf)
+      }
+    }
+  }
+  relations.df <- relations.df %>%
+    arrange(network, ref)
+  html <- html_append(html, "<h2>relations</h2>")
+  html <- misc_html_append_df(html, relations.df)
+#
+  html <- html_append(html, "<h2>gaps</h2>")
+  if (nrow(gaps.df)) {
+    gaps.df <- gaps.df %>%
+      glimpse()
+    df1 <- gaps.df %>%
+      dplyr::select(r_id, name, err, Name) %>%
+      mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/relation/%s/full'>josm</a>", r_id))
+    if (nrow(df1) > 0) {
+      html <- misc_html_append_df(html, df1)
+    }
+  }
+  html <- html_append(html, "<h2>platforms_out</h2>")
+  df11 <- platforms_out.sf %>%
+    st_drop_geometry() %>%
+    glimpse() %>%
+    group_by(type, ref, name) %>%
+    summarize(nb = n()) %>%
+    arrange(desc(nb)) %>%
+    ungroup() %>%
+    glimpse()
+  html <- misc_html_append_df(html, df11)
+  transport_html_browse(html, titre)
+}
+
 #
 # source("geo/scripts/transport.R");osm_relation_route_gap(id = 4260060, force = FALSE, force_osm = FALSE)
 # source("geo/scripts/transport.R");osm_relation_route_gap(id = 14632216, force = FALSE, force_osm = FALSE)
@@ -1564,13 +1754,25 @@ osm_relations_level0 <- function(force = TRUE, force_osm = TRUE) {
 # ligne courte
 # le deuxième est un rond-point
 # source("geo/scripts/transport.R");osm_relation_route_gap(id = 6528783, force = FALSE, force_osm = FALSE)
+# plante
+# source("geo/scripts/transport.R");osm_relation_route_gap(id = 399697, force = FALSE, force_osm = FALSE)
+# plante, rond-point en 2
+# source("geo/scripts/transport.R");osm_relation_route_gap(id = 1743318, force = FALSE, force_osm = FALSE)
+# plante, le premier est un rond-point
+# source("geo/scripts/transport.R");osm_relation_route_gap(id = 4021057, force = FALSE, force_osm = FALSE)
+# pas droite 6517348
+# source("geo/scripts/transport.R");DEBUG <- TRUE;rc <- osm_relation_route_gap(id = 6517348, force = TRUE, force_osm = FALSE)
+# osmose 4259837
+# source("geo/scripts/transport.R");DEBUG <- TRUE;rc <- osm_relation_route_gap(id = 4259837, force = TRUE, force_osm = TRUE)
 osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE) {
   library(tidyverse)
   library(rlist)
-  DEBUG <<- TRUE
+
   gaps.df <- data.frame()
-  rc <- osm_relation_route_members(id = id, force = force, force_osm = force_osm) %>%
-    glimpse()
+  rc <- osm_relation_route_members(id = id, force = force, force_osm = force_osm)
+  if (DEBUG == TRUE) {
+    glimpse(rc)
+  }
   if ("note:mga_geo" %in% names(rc$relation)) {
     carp("note:mga_geo id: %s", id)
 #    return(invisible(gaps.df))
@@ -1583,8 +1785,7 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
       .df[cls[!(cls %in% colnames(.df))]] = NA
       return(.df)
     }) %>%
-    clean_names() %>%
-    glimpse()
+    clean_names()
   if (nrow(ways.df) == 0) {
     carp("****id: %s pas de ways", id)
     return(invisible(gaps.df))
@@ -1612,11 +1813,16 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
     dplyr::select(no, id, node1, node9, wRP, wOW, name, nodes, wkt)
 #    filter(! is.na(junction)) %>%
 #    glimpse()
+  Carp("****id: %s", id)
+# nAvant : -1 gap, 0 rond-point, > 0 way
   nAvant <- "-1"
-  carp("****id: %s", id)
+  nodes <- c()
+  nodes.list <- c()
   for (i in 2:nrow(ways.df)) {
-    if (i > 2) {
-      glimpse(nodes.list)
+    if (DEBUG == TRUE) {
+      Carp("###i: %s %s wRP: %s nAvant: %s 1-9: %s-%s", i, ways.df[i, "name"], ways.df[i, "wRP"], nAvant, ways.df[i, "node1"], ways.df[i, "node9"])
+#      glimpse(nodes.list)
+      misc_print(ways.df[c(i -1, i), ])
       if (anyNA(nodes.list) > 0) {
         confess("na")
       }
@@ -1624,16 +1830,41 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
     if (i > 30) {
 #      break
     }
-    Carp("***i: %s %s wRP: %s nAvant: %s", i, ways.df[i, "name"], ways.df[i, "wRP"], nAvant)
+# la liste des nodes de la way en cours
+# x1 sans le premier point
+# x9 sans le dernier point et inversé
     x <- unname(unlist(ways.df[i, "nodes"]))
     x1 <- x[2:length(x)]
     x9 <- rev(x[1:(length(x)-1)])
 
-#    misc_print(ways.df[c(i -1, i), ])
-
-# le début du tracé
-    if (i == 2) {
+    if (nAvant == -1) {
+      Carp("début d'un tracé")
       y <- unname(unlist(ways.df[i - 1, "nodes"]))
+      if (ways.df[i - 1, "wRP"]  == TRUE) {
+        Carp( "debut par un rond-point")
+        yn <- y[1:length(y)-1]
+        j <- match(ways.df[i , "node9"], yn)
+        if (! is.na(j)) {
+          Carp("wRP j: %s(%s) node9: %s", j, yn[j], ways.df[i, "node9"])
+          nAvant <- ways.df[i , "node1"]
+          nodes.list <- c(nodes, list.reverse(y))
+          next
+        }
+        j <- match(ways.df[i , "node1"], yn)
+        if (! is.na(j)) {
+          Carp("wRP j: %s(%s) node1: %s", j, yn[j], ways.df[i, "node1"])
+          nAvant <- ways.df[i , "node9"]
+          nodes.list <- c(nodes, y)
+          next
+        }
+
+        Carp( "début rond-point")
+        gaps.df <- ways.df[c(i -1, i), ]
+        gaps.df$r_id <- id
+        gaps.df$err <- "début rond-point"
+        break
+      }
+
       if (ways.df[i, "wRP"] == TRUE) {
         Carp("rond-point i=2")
         xn <- x[1:length(x)-1]
@@ -1646,6 +1877,7 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
           } else {
             nodes <- xn
           }
+          nAvant <- 0
           next
         }
         j <- match(ways.df[i - 1 , "node1"], xn)
@@ -1657,6 +1889,7 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
           } else {
             nodes <- xn
           }
+          nAvant <- 0
           next
         }
         Carp( "gap avant rond-point")
@@ -1715,11 +1948,11 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
       gaps.df$err <- "gap"
       break
     }
-
-# la suite
-    if (i > 2) {
+    if (nAvant >= 0) {
+      Carp("suite d'un tracé")
 # c'est un rond-point ?
       if (ways.df[i , "wRP"] == TRUE) {
+        Carp("rond-point")
 # précédé d'un rond-point ?
         if (ways.df[i - 1 , "wRP"] == TRUE) {
           Carp("deux ronds-points")
@@ -1728,12 +1961,11 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
           gaps.df$err <- "deux ronds-points"
           break
         }
-        Carp("rond-point")
         xn <- x[1:length(x)-1]
         j <- match(nAvant, xn)
         if (is.na(j)) {
-          Carp( "gap avant rond-point")
-          next
+          Carp("gap avant rond-point")
+          break
         }
         Carp("rond-point j: %s xn: %s", j, length(xn))
         if (j < length(xn)) {
@@ -1750,7 +1982,7 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
         if (! is.na(j)) {
           Carp("node1")
           nodes <- nodes[1:j]
-          nodes.list <- c(nodes.list, nodes)
+          nodes.list <- c(nodes.list, nodes, x1)
           nAvant <- ways.df[i , "node9"]
           next;
         }
@@ -1767,11 +1999,12 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
         gaps.df$err <- "un rond-point avant"
         break
       }
+      Carp("deux segments à suive")
       if (nAvant == ways.df[i , "node1"]) {
         nAvant <- ways.df[i , "node9"]
         Carp("**** 1-9")
         nodes.list <- c(nodes.list, x1)
-        next;
+        next
       }
       if (nAvant == ways.df[i , "node9"]) {
         if (ways.df[i, "wOW"]  == TRUE) {
@@ -1793,17 +2026,18 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
       break
     }
   }
-  if (nrow(gaps.df) > 0) {
-    misc_print(gaps.df)
+  if (DEBUG == TRUE) {
+    Carp("###fin id: %s gaps.df nrow: %s", id, nrow(gaps.df))
+    if (nrow(gaps.df) > 0) {
+      misc_print(gaps.df)
+    }
+    glimpse(ways.df)
   }
-  carp("fin id: %s gaps.df nrow: %s", id, nrow(gaps.df))
-  glimpse(ways.df)
   ways.sf <- st_as_sf(ways.df, geometry = st_as_sfc(ways.df$wkt, crs = st_crs(4326))) %>%
     st_transform(2154)
 #  print(nodes.list)
   nodes.df <- data.frame(id = nodes.list) %>%
-    left_join(rc$nodes.df, by = c("id")) %>%
-    glimpse()
+    left_join(rc$nodes.df, by = c("id"))
   df21 <- nodes.df %>%
     filter(is.na(lat))
   if (nrow(df21) > 0) {
@@ -1816,24 +2050,21 @@ osm_relation_route_gap <- function(id = 4260060, force = TRUE, force_osm = TRUE)
     group_by(ID) %>%
     dplyr::summarize(do_union = FALSE) %>%
     sf::st_cast("LINESTRING") %>%
-    st_transform(2154) %>%
-    glimpse()
+    st_transform(2154)
   plot(st_geometry(trace.sf), add = FALSE, lwd = 5, col = "blue")
   plot(st_geometry(ways.sf), add = TRUE, lwd = 2, col = "black")
-  dsn <- sprintf("%s/trace.geojson", josmDir)
-  st_write(st_transform(trace.sf, 4326), dsn, delete_dsn = TRUE)
+  title(sprintf("id: %s", id))
+  dsn <- sprintf("%s/trace_%s.geojson", josmDir, id)
+  st_write(st_transform(trace.sf, 4326), dsn, delete_dsn = TRUE, quiet = TRUE)
   carp("dsn: %s", dsn)
-  return()
-#
-# pour savoir si les stations sont du bon côté
-# https://github.com/r-spatial/sf/issues/1001
-  ways.sf <- st_as_sf(ways.df, geometry = st_as_sfc(ways.df$wkt, crs = st_crs(4326))) %>%
-    st_transform(2154)
-  b50.sf <- ways.sf %>%
-    st_buffer(-50, singleSide = T)
-  plot(st_geometry(b50.sf), add = TRUE, border = "red")
-  return(invisible(gaps.df))
+#  rc1 <- unlist(list(rc$relation[1, ]))
+  rc$nb_gaps <- nrow(gaps.df)
+  rc$gaps.df <- gaps.df
+  rc$trace.sf <- trace.sf
+  tidytransit_sauve(rc, sprintf("osm_relation_route_gap_%s", id))
+  return(invisible(rc))
 }
+
 #
 # source("geo/scripts/transport.R");osm_routes_refs(reseau = Reseau, force = TRUE)
 osm_routes_refs <- function(reseau = "star", force = TRUE) {

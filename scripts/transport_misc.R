@@ -7,6 +7,18 @@
 # ===============================================================
 #
 #
+# conversion d'un nom d'un shape dans le gtfs
+transport_shape2fic <- function(shape) {
+  fic <- gsub("[$:]", "_", shape)
+  return(invisible(fic))
+}
+#
+# url josm
+transport_id2urljosm <- function(id) {
+  url <- sprintf("<a href='http://localhost:8111/load_object?objects=r%s,relation_members=true' target='josm'>josm</a>", id)
+  return(invisible(url))
+}
+#
 # ajout d'info aux shapes
 shapes_cpl <- function(df) {
   print(sprintf("shapes_cpl"))

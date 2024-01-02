@@ -72,7 +72,7 @@ config_xls <- function(res = "star", xls = "agency") {
   cols <- colnames(Config)
   for (i in 1:ncol(Config)) {
     col <- sprintf("Config_%s", cols[i])
-    assign(col, Config[[1, i]], envir=.GlobalEnv)
+    assign(col, Config[[1, i]], envir = .GlobalEnv)
   }
   cfg_dir <<- sprintf("%s/%s", cfgDir, toupper(Config[1, "reseau"]))
   transportDir <<- sprintf("%s/%s", varDir, toupper(Config[1, "reseau"]))

@@ -77,7 +77,7 @@ tidytransit_zip_lire <- function(rds = 'gtfs') {
   tt <<- tidytransit::read_gtfs(dsn, quiet = FALSE)
   tt$stops <- tt$stops %>%
     (function(.df){
-      cls <- c("stop_desc") # columns I need
+      cls <- c("stop_desc", "stop_code") # columns I need
     # adding cls columns with NAs if not present in the piped data.frame
       .df[cls[!(cls %in% colnames(.df))]] = NA
       return(.df)
@@ -329,7 +329,7 @@ tidytransit_shapes_stops_coord <- function() {
     }
     nc3 <- nc3 %>%
       rbind(nc2[i, ])
-    shape_id <- gsub(":", "_", shape_id)
+    shape_id <- gsub("[:$]", "_", shape_id)
     dsn <- sprintf("%s/shape_stops_%s.geojson", josmDir, shape_id)
     st_write(nc3, dsn, delete_dsn = TRUE)
     carp("dsn: %s", dsn)

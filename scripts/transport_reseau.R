@@ -41,14 +41,16 @@ reseau_toto <- function(force = TRUE) {
 # recopie des templates tex
 # source("geo/scripts/transport.R");reseau_tpl_tex()
 reseau_tpl_tex <- function(force = TRUE) {
+  library(glue)
   carp()
-  files <- list.files(tplDir, pattern = "reseau.*_tpl.tex$", full.names = TRUE, ignore.case = TRUE, recursive = FALSE)
+  files <- list.files(tplDir, pattern = "reseau_.*_tpl.tex$", full.names = TRUE, ignore.case = TRUE, recursive = FALSE)
   for (file in files) {
     tex <- readLines(file)
     dsn <- str_replace(file, "reseau", Reseau)
     dsn <- str_replace(dsn, "_tpl.tex", ".tex")
     dsn <- str_replace(dsn, ".*/", sprintf("%s/", texDir))
     carp("dsn: %s", dsn)
+    tex <- misc_glue(c("Reseau", "Config_network"), tex, .open = "{{", .close = "}}")
     write(tex, file = dsn, append = FALSE)
   }
   from <- sprintf("%s/misc.tex", tplDir)
@@ -60,8 +62,9 @@ reseau_diff_jour <- function(force = TRUE) {
   library(tidyverse)
   library(data.table)
   library(janitor)
-  gtfs2osm_jour(force = force)
-  if (Config[[1, "shapes"]] != "FALSE") {
+#  gtfs2osm_jour(force = force)
+  Carp("Reseau: %s Config %s", Reseau, Config[[1, "shapes"]])
+  if (Config_shapes != FALSE) {
 #    reseau_osm_routes_tag_shape(force = force)
 #    tex_pdflatex(sprintf("%s_diff.tex", Reseau))
     reseau_osm_routes_shapes(force = force)
@@ -80,7 +83,6 @@ reseau_osm_jour <- function(force = TRUE, force_members = TRUE, force_osm = TRUE
   library(data.table)
   library(janitor)
   osm_jour(force = force)
-  tex_pdflatex(sprintf("%s_osm.tex", Reseau))
 }
 
 
@@ -103,7 +105,8 @@ reseau_osm_routes_shapes <- function(force = TRUE) {
   dsn <- osm_relations_route_bus_csv(force = force)
   df <- fread(dsn, encoding = "UTF-8") %>%
     as.data.table() %>%
-    clean_names()
+    clean_names() %>%
+    mutate(shape = transport_shape2fic(gtfs_shape_id))
   texFic <- sprintf("%s/%s", imagesDir, "reseau_osm_routes_shapes.tex")
   TEX <- file(texFic)
   tex <- sprintf("<!-- coding: utf-8 -->
@@ -123,6 +126,7 @@ reseau_osm_routes_shapes <- function(force = TRUE) {
       arrange(gtfs_shape_id) %>%
       glimpse()
   }
+
 #  stop("****")
   df1 <- df %>%
     dplyr::select(id, timestamp, user, ref_network, gtfs_shape_id) %>%
@@ -133,7 +137,7 @@ reseau_osm_routes_shapes <- function(force = TRUE) {
   for (i in 1:nrow(df)) {
     carp("i: %s/%s", i, nrow(df))
     id <-  df[[i, "id"]]
-    shape <- df[[i, "gtfs_shape_id"]]
+    shape <- df[[i, "shape"]]
     if (is.na(shape)) {
       carp("**** id: %s pas de shape", id)
       next

@@ -24,26 +24,28 @@ diff_jour <- function(force = TRUE) {
 }
 #
 # source("geo/scripts/transport.R");diff_routes()
-diff_routes <- function(force = TRUE) {
+diff_routes <- function(force = TRUE, OsmChange = FALSE) {
   library(tidyverse)
   library(rio)
   library(sf)
   carp()
+  Wiki <<- FALSE
   gtfs2osm_jour(force = force)
-  diff_relations_route_tags(force = force)
+  diff_relations_route_bus_tags(force = force, OsmChange = OsmChange)
+#  diff_relations_route_tags(force = force)
   if( Config[1, "shapes"] == "TRUE" ) {
 #    gtfs2osm_routes_shapes_stops(force = force)
   }
 }
 #
 # source("geo/scripts/transport.R");diff_routemasters()
-diff_routemasters <- function(force = TRUE) {
+diff_routemasters <- function(force = TRUE, OsmChange = FALSE) {
   library(tidyverse)
   library(rio)
   library(sf)
   carp()
-  gtfs2osm_routemasters()
-  diff_relations_routemaster_bus(force = force)
+#  gtfs2osm_routemasters()
+  diff_relations_routemaster_bus(force = force, OsmChange = OsmChange)
 }
 #
 # l'enchainement pour un réseau avec shapes
@@ -625,6 +627,7 @@ diff_relations_route_bus <- function(force = TRUE) {
   df1 %>%
     filter(is.na(name.osm)) %>%
     glimpse()
+  stop("*****")
   carp("osm et gtfs: les communs")
   df1 <- df1 %>%
     filter(!is.na(name.gtfs)) %>%
@@ -962,7 +965,7 @@ diff_relations_route_tag_shape_id <- function(rds = "diff_relations_route_tag_sh
     glimpse() %>%
     filter(is.na(kref) | kref == "") %>%
     dplyr::select(`@id`, `ref:network`, name, from, to) %>%
-    mutate(`@id` = sprintf("<a href=http://level0.osmz.ru/?url=relation/%s>%s</a>", `@id`, `@id`))
+    mutate(level0 = sprintf("<a href=http://level0.osmz.ru/?url=relation/%s>level0</a>", `@id`))
   if (nrow(df11) > 0) {
     transport_ecrire(df11, rds)
     html <- html_append(html, "<h2>osm sans tag gtfs:shape_id</h2>")
@@ -978,14 +981,14 @@ diff_relations_route_tag_shape_id <- function(rds = "diff_relations_route_tag_sh
     filter(nb > 1)
   if (nrow(df12) > 0) {
     df13 <- osm.df %>%
-      filter(c %in% df12$kref) %>%
+      filter(kref %in% df12$kref) %>%
       arrange(kref, `ref:network`) %>%
       mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/relation/%s/full'>josm</a>", `@id`)) %>%
       dplyr::select(kref, `@id`, josm, `ref:network`, from, to, name) %>%
       mutate(`@id` = sprintf("<a href=http://level0.osmz.ru/?url=relation/%s>%s</a>", `@id`, `@id`))
-    html <- misc_html_append(html, "<h2>Les doublons</h2>")
-    html <- misc_html_append_df(html, df13)
-    misc_html_browse(html, titre)
+    html <- html_append(html, "<h2>Les doublons</h2>")
+    html <- html_append_df(html, df13)
+    transport_html_browse(html, titre)
     confess("Les doublons")
   }
   carp("osm: tri par kref")
