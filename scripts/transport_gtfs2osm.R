@@ -19,8 +19,7 @@ gtfs2osm_jour <- function(force = TRUE, force_osm = TRUE) {
   library(sf)
   carp()
 # mise au format interne des fichiers gtfs pour les relations route_master
-  gtfs2osm_relations_routemaster();
-  gtfs2osm_relations_routemaster_level0(force_osm = force_osm)
+  gtfs2osm_jour_routemasters(force = force, force_osm = force_osm)
 # mise au format interne des fichiers gtfs pour les routes
   gtfs2osm_relations_route_stops(force_osm = force_osm)
   gtfs2osm_relations_route_level0(force_osm = force_osm)
@@ -29,6 +28,16 @@ gtfs2osm_jour <- function(force = TRUE, force_osm = TRUE) {
     gtfs2osm_relations_route_shape_stops(force_osm = force_osm)
 #    gtfs2osm_relations_route_shape_wiki("gtfs2osm_routes_shapes_stops")
   }
+  return(invisible())
+}
+# mise au format interne des fichiers gtfs pour les relations route_master
+gtfs2osm_jour_routemasters <- function(force = TRUE, force_osm = TRUE) {
+  library(tidyverse)
+  library(rio)
+  library(sf)
+  carp()
+  gtfs2osm_relations_routemaster();
+  gtfs2osm_relations_routemaster_level0(force_osm = force_osm)
   return(invisible())
 }
 #
@@ -131,7 +140,6 @@ gtfs2osm_relations_routemaster <- function(rds = "gtfs2osm_routemasters", force_
   page <- sprintf("User:Mga_geo/Transports_publics/%s/%s", Config["wiki"], rds)
   wiki <- wiki_df2table(df)
 #  page <- append(page, wiki)
-  Wiki <<- TRUE
   wiki_page_init(page = page, article = wiki, force = TRUE)
 }
 

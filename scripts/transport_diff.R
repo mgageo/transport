@@ -30,7 +30,7 @@ diff_routes <- function(force = TRUE, OsmChange = FALSE) {
   library(sf)
   carp()
   Wiki <<- FALSE
-  gtfs2osm_jour(force = force)
+#  gtfs2osm_jour(force = force)
   diff_relations_route_bus_tags(force = force, OsmChange = OsmChange)
 #  diff_relations_route_tags(force = force)
   if( Config[1, "shapes"] == "TRUE" ) {
@@ -44,7 +44,8 @@ diff_routemasters <- function(force = TRUE, OsmChange = FALSE) {
   library(rio)
   library(sf)
   carp()
-#  gtfs2osm_routemasters()
+  Wiki <<- FALSE
+  gtfs2osm_jour_routemasters(force = force)
   diff_relations_routemaster_bus(force = force, OsmChange = OsmChange)
 }
 #
@@ -1179,7 +1180,7 @@ diff_objects_tags <- function(df1, type = "route", OsmChange = TRUE) {
       "operator",
       "colour",
       "text_colour",
-      "network:wikidata",
+#      "network:wikidata",
 #      "network:wikipedia",
     )
   if (type == "master") {

@@ -149,7 +149,8 @@ Reseau <- "saintbrieuc"; # Saint-Brieuc TUB
 Reseau <- "breizhgo22"; # pseudo-réseau pour BreizhGo en Côtes d'Armor
 Reseau <- "rennes"; # Rennes STAR
 Reseau <- "guingamp"; # Guingmap Paimpol AxeoBus
-Reseau <- "landerneau"
+Reseau <- "landerneau"; # Landernaeau Le Bus/Ar Bus
+Reseau <- "pontivy"; # Pontivy PondiBus
 
 config_xls(Reseau)
 Tex <- TRUE
