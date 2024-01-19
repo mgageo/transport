@@ -545,9 +545,23 @@ diff_relations_routemaster_bus <- function(force = TRUE, OsmChange = FALSE) {
     filter(is.na(name.gtfs)) %>%
     glimpse()
   carp("osm et gtfs: absent d'osm")
-  df1 %>%
+  df2 <- df1 %>%
     filter(is.na(name.osm)) %>%
     glimpse()
+  if (nrow(df2) > 0) {
+    level0 <- ""
+    for (i2 in 1:nrow(df2)) {
+      dsn <- sprintf("%s/gtfs2osm_relations_routemaster_level0_%s.txt", osmDir, df2[[i2, "ref.gtfs"]])
+      carp("dsn: %s", dsn)
+      l <- readLines(dsn)
+      level0 <- c(level0, l)
+    }
+    dsn <- sprintf("%s/diff_relations_routemaster_bus_level0.txt", osmDir)
+    write(level0, dsn)
+    carp("dsn: %s", dsn)
+    carp("créer avec level0")
+    stop("****")
+  }
   carp("osm et gtfs: les communs")
   df1 <- df1 %>%
     filter(!is.na(name.gtfs)) %>%
@@ -853,12 +867,13 @@ diff_osm_routes_tag_shape <- function(force = FALSE) {
 #
 # comparaison à partir des routes gtfs
 # source("geo/scripts/transport.R");diff_relations_route_tags(force = FALSE)
-diff_relations_route_tags <- function(force = TRUE) {
+diff_relations_route_tags <- function(force = TRUE, OsmChange = TRUE) {
   library(tidyverse)
   library(data.table)
   library(sf)
   library(janitor)
   carp()
+  OsmChange <<- OsmChange
   titre <- sprintf("diff_relations_route_tags_%s", Reseau)
   html <- misc_html_titre(titre)
   html <- misc_html_append(html, sprintf("<h1>%s</h1>", titre))
@@ -921,6 +936,17 @@ diff_relations_route_tags <- function(force = TRUE) {
       dplyr::select("ref:network", "name", "from", "to")
     html <- misc_html_append_df(html, "<h2>osm et gtfs: absent d'osm</h2>")
     html <- misc_html_append_df(html, df3)
+    level0 <- ""
+    for (i2 in 1:nrow(df2)) {
+      dsn <- sprintf("%s/gtfs2osm_relations_route_level0_%s.txt", osmDir, df2[[i2, "ref:network"]])
+      l <- readLines(dsn)
+      level0 <- c(level0, l)
+    }
+    dsn <- sprintf("%s/diff_relations_route_tags_level0.txt", osmDir)
+    write(level0, dsn)
+    carp("dsn: %s", dsn)
+    carp("créer avec level0")
+    stop("****")
   }
   carp("osm et gtfs: les communs")
   df1 <- df1 %>%
@@ -937,6 +963,29 @@ diff_relations_route_tags <- function(force = TRUE) {
 #    dplyr::select(kref = `ref:network.osm`, name.gtfs, name.osm) %>%
 #    arrange(kref)
 #  misc_print(df2)
+  df3 <- df1 %>%
+    dplyr::select(`@id.osm`, `ref:network`, `gtfs:shape_id.osm`, shape_id.gtfs) %>%
+    glimpse() %>%
+    filter(`gtfs:shape_id.osm` != shape_id.gtfs) %>%
+    glimpse()
+  if (nrow(df3) > 0) {
+    type <- "relation"
+    osm <- ""
+    for (i3 in 1:nrow(df3)) {
+      carp("i3: %s", i3)
+      tags.df <- tribble(
+        ~name, ~value,
+        "gtfs:shape_id", df3[[i3, "shape_id.gtfs"]],
+      )
+      o <- osmchange_object_modify_tags(id = df3[[i3, "@id.osm"]], type = type, tags = tags.df)
+      osm <- sprintf("%s\n%s", osm, o)
+#    break
+    }
+    if (str_length(osm) > 10) {
+      changeset_id <- osmapi_put("modify", text = osm)
+      confess("osm: %s---", changeset_id)
+    }
+  }
 #
 # le fichier de sortie
   transport_html_browse(html, titre, Exit = FALSE)
@@ -1072,7 +1121,6 @@ diff_relations_route_tag_shape_id_change <- function(rds = "diff_relations_route
     arrange(ref_network) %>%
 #    filter(grepl("^5", ref_network)) %>%
     glimpse()
-#  stop("****")
   carp("la fusion")
   df3 <- df1 %>%
     left_join(df2, by = c("ref_network" = "ref_network")) %>%
@@ -1080,6 +1128,7 @@ diff_relations_route_tag_shape_id_change <- function(rds = "diff_relations_route
     arrange(ref_network) %>%
     dplyr::select(id, ref_network, from, to, first_name, last_name, shape_id, nb, nb_stops) %>%
     glimpse()
+  stop("****")
   tex_df2kable(df3, suffixe = "potentiel", longtable = TRUE)
   df4 <- df3 %>%
     mutate(id = sprintf("<a href='http://level0.osmz.ru/?url=relation/%s' target='_blank'>%s</a>", id, id)) %>%
@@ -1125,6 +1174,7 @@ diff_relations_bus_tags <- function(force = TRUE, OsmChange = FALSE) {
     rename_with( ~ paste0(.x, ".osm")) %>%
     glimpse()
   gtfs.df <- misc.lire("gtfs2osm_routemasters", dir = transportDir) %>%
+    glimpse() %>%
     dplyr::select(-`public_transport:version`, -route_master, -type, -`ref:network`) %>%
     rename_with( ~ paste0(.x, ".gtfs")) %>%
     glimpse()

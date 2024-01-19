@@ -15,7 +15,7 @@
 #
 # source("geo/scripts/transport.R");config_xls('tudbus');wiki_connect()
 wiki_session <- FALSE
-wiki_host <- 'https://wiki.openstreetmap.org';
+wiki_host <- "https://wiki.openstreetmap.org"
 wiki_connect <- function(force = TRUE) {
   library(tidyverse)
   library(rvest)
@@ -33,7 +33,7 @@ wiki_connect <- function(force = TRUE) {
   username <- mes_options("osm_wiki_username")
   password <- mes_options("osm_wiki_password")
 #  carp("%s/%s", username, password)
-  form <- html_form_set(login_form, wpName=username, wpPassword=password)
+  form <- html_form_set(login_form, wpName = username, wpPassword = password)
   wiki_session <<- session_submit(session, form)
   return(invisible(wiki_session))
 }

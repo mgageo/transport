@@ -125,7 +125,6 @@ Reseau <- "vannes"
 Reseau <- "rmat"; # Saint-Malo
 Reseau <- "surf"; # Fougères
 Reseau <- "bibusM"; # Brest avec les données de MobiBreizh
-Reseau <- "bibus"; # Brest
 Reseau <- "ploermel"
 Reseau <- "morlaix"; #
 Reseau <- "dinan"; # Dinan / Côtes d'Armor
@@ -151,10 +150,11 @@ Reseau <- "rennes"; # Rennes STAR
 Reseau <- "guingamp"; # Guingmap Paimpol AxeoBus
 Reseau <- "landerneau"; # Landernaeau Le Bus/Ar Bus
 Reseau <- "pontivy"; # Pontivy PondiBus
+Reseau <- "brest"; # Brest Bibus
 
 config_xls(Reseau)
 Tex <- TRUE
-Wiki <- TRUE
+Wiki <- FALSE
 HtmlBrowse <- FALSE
 OsmChange <- FALSE
 if ( interactive() ) {

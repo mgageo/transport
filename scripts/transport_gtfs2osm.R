@@ -206,7 +206,7 @@ relation
 {level0}
 </nowiki>')
 #    print(level0);stop("*****")
-    dsn <- sprintf("%s/reseau_relations_routemaster_level0_%s.txt", osmDir, gtfs_ref)
+    dsn <- sprintf("%s/gtfs2osm_relations_routemaster_level0_%s.txt", osmDir, gtfs_ref)
     write(level0, dsn)
     carp("dsn: %s", dsn)
 

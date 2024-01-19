@@ -9,7 +9,7 @@
 #
 #
 # les traitements journaliers
-
+#
 # source("geo/scripts/transport.R");osm_jour()
 osm_jour <- function(force = TRUE) {
   carp()
@@ -1732,15 +1732,17 @@ osm_relations_route_gap_verif <- function(force = TRUE, force_osm = TRUE) {
     }
   }
   html <- html_append(html, "<h2>platforms_out</h2>")
-  df11 <- platforms_out.sf %>%
-    st_drop_geometry() %>%
-    glimpse() %>%
-    group_by(type, ref, name) %>%
-    summarize(nb = n()) %>%
-    arrange(desc(nb)) %>%
-    ungroup() %>%
-    glimpse()
-  html <- misc_html_append_df(html, df11)
+  if (nrow(platforms_out.sf) > 0) {
+    df11 <- platforms_out.sf %>%
+      st_drop_geometry() %>%
+      glimpse() %>%
+      group_by(type, ref, name) %>%
+      summarize(nb = n()) %>%
+      arrange(desc(nb)) %>%
+      ungroup() %>%
+      glimpse()
+    html <- misc_html_append_df(html, df11)
+  }
   transport_html_browse(html, titre)
 }
 
