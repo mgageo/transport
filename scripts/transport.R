@@ -61,7 +61,6 @@ source("geo/scripts/transport_menu.R")
 source("geo/scripts/transport_mapbox.R")
 source("geo/scripts/transport_mapmatching.R")
 source("geo/scripts/transport_misc.R")
-source("geo/scripts/transport_korrigo.R"); # pour le gtfs de la région
 # source("geo/scripts/transport_mobibreizh.R"); # pour le gtfs de la région
 source("geo/scripts/transport_oapi.R")
 source("geo/scripts/transport_osm.R"); # les interrogations osm soit via l'api soit via l'overpass
@@ -69,6 +68,7 @@ source("geo/scripts/transport_osmar.R")
 source("geo/scripts/transport_osmose.R")
 source("geo/scripts/transport_osm2mga.R")
 source("geo/scripts/transport_postgis.R"); # avec importation par osm2pgsql
+source("geo/scripts/transport_ptv2.R"); # migation en PTv2
 source("geo/scripts/transport_reseau.R"); # les comparaisons osm gtfs
 source("geo/scripts/transport_route.R")
 source("geo/scripts/transport_routes.R"); # cohérence route route_master
@@ -92,11 +92,13 @@ source("geo/scripts/transport_breizhgo.R")
 source("geo/scripts/transport_bretagne.R")
 source("geo/scripts/transport_concarneau.R")
 source("geo/scripts/transport_ctrl.R")
+source("geo/scripts/transport_destineo.R"); # pour le gtfs de la région Pays de la Loire
 source("geo/scripts/transport_distribus.R")
 source("geo/scripts/transport_kiceo.R")
+source("geo/scripts/transport_korrigo.R"); # pour le gtfs de la région Bretagne
 source("geo/scripts/transport_landerneau.R")
-source("geo/scripts/transport_lila.R")
-source("geo/scripts/transport_pennarbed.R")
+source("geo/scripts/transport_pontivy.R")
+source("geo/scripts/transport_pddl.R"); # Pays de la Loire
 source("geo/scripts/transport_pontivy.R")
 #source("geo/scripts/transport_qub.R")
 source("geo/scripts/transport_quimper.R")
@@ -110,9 +112,7 @@ source("geo/scripts/transport_tilt.R")
 source("geo/scripts/transport_tub.R")
 source("geo/scripts/transport_tudbus.R")
 
-Reseau <- "concarneau"
 Reseau <- "kiceo"; # Vannes
-Reseau <- "morlaix"; # LinéoTim
 Reseau <- "ter"; # pseudo-réseau pour BreizhGo SNCF
 Reseau <- "breizhgo56"; # Morbihan
 Reseau <- "vitobus"; # Vitré/Chateaubourg
@@ -121,7 +121,6 @@ Reseau <- "arcachon"; # Arcachon
 Reseau <- "toulouse"; # Toulouse Métropole
 Reseau <- "limoges"; # Limoges Métropole
 Reseau <- "bordeaux"; # Bordeaux Métropole
-Reseau <- "vannes"
 Reseau <- "rmat"; # Saint-Malo
 Reseau <- "surf"; # Fougères
 Reseau <- "bibusM"; # Brest avec les données de MobiBreizh
@@ -129,32 +128,46 @@ Reseau <- "ploermel"
 Reseau <- "morlaix"; #
 Reseau <- "dinan"; # Dinan / Côtes d'Armor
 Reseau <- "distribus"; # Lamballe / Côtes d'Armor
-Reseau <- "breizhgo35"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
-Reseau <- "breizhgo29"; # pseudo-réseau pour BreizhGo en Finistère
 Reseau <- "angers"; # Angers Irigo
 Reseau <- "semo"; # SEMO (pour Seine-Eure MObilités)
 Reseau <- "douarnenez"; # Douarnenez Tudbus
-Reseau <- "lorient"; # Lorient CTRL
-Reseau <- "breizhgo56"; # pseudo-réseau pour BreizhGo en Morbihan
-Reseau <- "breizhgo"; # BreizhGo en Bretagne, les lignes régionales
 Reseau <- "quimper"; # Quimper QUB
 Reseau <- "bretagne"; # pseudo-réseau pour la Bretagne
 Reseau <- "strasbourg"; # Strasbourg CTS
-Reseau <- "lannion"; # Lannion TILT
-Reseau <- "guingamp"; # Guingamp AXEOBUS
 Reseau <- "morlaix"; # Morlaix Linéotim
-Reseau <- "breizhgo35"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
 Reseau <- "saintbrieuc"; # Saint-Brieuc TUB
-Reseau <- "breizhgo22"; # pseudo-réseau pour BreizhGo en Côtes d'Armor
-Reseau <- "rennes"; # Rennes STAR
 Reseau <- "guingamp"; # Guingmap Paimpol AxeoBus
 Reseau <- "landerneau"; # Landernaeau Le Bus/Ar Bus
 Reseau <- "pontivy"; # Pontivy PondiBus
+Reseau <- "vannes"; # Vannes Kicéo
+Reseau <- "guingamp"; # Guingamp AXEOBUS
+Reseau <- "quimperle"; # Quimperlé TBK
+Reseau <- "lannion"; # Lannion TILT
+Reseau <- "morlaix"; # LinéoTim
+Reseau <- "lorient"; # Lorient CTRL
+Reseau <- "breizhgo"; # BreizhGo en Bretagne, les lignes régionales
+Reseau <- "saintnazaire"; # Saint-Nazaire STRAN
+Reseau <- "nantes"; # Nantes TAN/Naolib
+Reseau <- "guingamp"; # Guingamp AXEOBUS
+Reseau <- "korrigo"; # les réseaux gérés en gtfs régionalement
+Reseau <- "breizhgo_illenoo2"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
+Reseau <- "breizhgo_tim"; # pseudo-réseau pour BreizhGo en Côtes d'Armor
+Reseau <- "breizhgo_tibus"; # pseudo-réseau pour BreizhGo en Morbihan
+Reseau <- "aleop_44"; # Pays de la Loire, réseau départemental 44
+Reseau <- "breizhgo_lrron"; # pseudo-réseau pour BreizhGo régional ouest nord
+Reseau <- "breizhgo_lrrns"; # pseudo-réseau pour BreizhGo régional nord sud
+Reseau <- "bretagne"; # les réseaux de la région Bretagne
+Reseau <- "concarneau"; # Concarneau Coralie
+Reseau <- "breizhgo_pennarbed"; # pseudo-réseau pour BreizhGo en Finistère
 Reseau <- "brest"; # Brest Bibus
-
+Reseau <- "destineo"; # Pays de la Loire, les réseaux gérés au niveau de la région
+Reseau <- "aleop"; # Pays de la Loire
+Reseau <- "rennes"; # Rennes STAR
+Reseau <- "saintbrevin"; # Saint Brevin les Pins, Brévibus
+Reseau <- "aleop44"; # Pays de la Loire, réseau départemental 44
 config_xls(Reseau)
 Tex <- TRUE
-Wiki <- FALSE
+Wiki <- TRUE
 HtmlBrowse <- FALSE
 OsmChange <- FALSE
 if ( interactive() ) {
