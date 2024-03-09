@@ -9,11 +9,21 @@
 #
 ## validation des fichiers gtfs de la région
 #
+# source("geo/scripts/transport.R");korrigo_jour()
+korrigo_jour <- function(reseau = "korrigo", force = TRUE) {
+  library(tidyverse)
+  library(rio)
+  library(archive)
+  carp()
+  config_xls(reseau)
+  korrigo_dl()
+  korrigo_reseaux()
+}
+#
+## la version avec un fichier gtfs unique
 # la version avec un fichier zip par agence, novembre 2023
 # Depuis lundi 23 octobre, korrigo.bzh est remplacé par KorriGo.bzh
 # https://www.korrigo.bzh/ftp/OPENDATA/KORRIGOBRET.gtfs.zip
-#
-## la version avec un fichier gtfs unique
 #
 # source("geo/scripts/transport.R");korrigo_dl()
 korrigo_dl <- function(reseau = "korrigo", force = TRUE) {
@@ -43,16 +53,64 @@ korrigo_dl <- function(reseau = "korrigo", force = TRUE) {
 korrigo_reseaux <- function() {
   library(tidyverse)
   library(rio)
+  Tex <<- FALSE
+  Wiki <<- FALSE
   df <- korrigo_agency_lire() %>%
     filter(agency_id != "") %>%
     filter(grepl("KORRIGO", gtfs_dir)) %>%
     glimpse()
 #  return()
   for (i in 1:nrow(df)) {
-    reseau <- df[i, "reseau"]
+    Reseau <- df[i, "reseau"]
     agency_id <- df[i, "agency_id"]
     gtfs_dir <- df[i, "gtfs_dir"]
-    korrigo_gtfs_reseau(reseau, agency_id, gtfs_dir)
+#    korrigo_gtfs_reseau(Reseau, agency_id, gtfs_dir)
+    config_xls(Reseau)
+    wiki_pages_init()
+    next
+    shapes_dsn <- sprintf("%s/%s/shapes.txt", varDir, gtfs_dir)
+    if (file.exists(shapes_dsn)) {
+      size <- file.info(shapes_dsn)$size
+      shapes <- df[i, "shapes"]
+      if (size > 50000 & shapes != TRUE) {
+        carp("reseau: %s shapes_dsn: %s size: %s", Reseau, shapes_dsn, format(size, big.mark = " "))
+        carp("reseau: %s shapes: %s", Reseau, shapes)
+      }
+    }
+    config_xls(Reseau);tidytransit_jour()
+  }
+}
+#
+# source("geo/scripts/transport.R");korrigo_breizhgo()
+korrigo_breizhgo <- function() {
+  library(tidyverse)
+  library(rio)
+  Tex <<- FALSE
+  Wiki <<- FALSE
+  df <- korrigo_agency_lire() %>%
+    filter(agency_id != "") %>%
+    filter(grepl("KORRIGO", gtfs_dir)) %>%
+    filter(grepl("^breizhgo_", reseau)) %>%
+    glimpse()
+#  stop("****")
+#  return()
+  for (i in 1:nrow(df)) {
+    Reseau <- df[i, "reseau"]
+    agency_id <- df[i, "agency_id"]
+    gtfs_dir <- df[i, "gtfs_dir"]
+#    korrigo_gtfs_reseau(Reseau, agency_id, gtfs_dir)
+#    config_xls(Reseau);tidytransit_jour()
+    config_xls(Reseau); wiki_pages_init()
+    next
+    shapes_dsn <- sprintf("%s/%s/shapes.txt", varDir, gtfs_dir)
+    if (file.exists(shapes_dsn)) {
+      size <- file.info(shapes_dsn)$size
+      shapes <- df[i, "shapes"]
+      if (size > 50000 & shapes != TRUE) {
+        carp("reseau: %s shapes_dsn: %s size: %s", Reseau, shapes_dsn, format(size, big.mark = " "))
+        carp("reseau: %s shapes: %s", Reseau, shapes)
+      }
+    }
   }
 }
 # source("geo/scripts/transport.R");korrigo_gtfs_reseau_shapes2ogr()
@@ -379,7 +437,9 @@ korrigo_stops <- function() {
   if ( ! exists("communes.sf") ) {
     communes.sf <<- ign_ade_lire_sf()
   }
-  glimpse(communes.sf)
+  communes.sf <- communes.sf %>%
+    dplyr::select(NOM_COM, INSEE_COM, INSEE_DEP, NOM_DEP, NOM_REG) %>%
+    glimpse()
   stops.sf <- st_as_sf(stops.df, coords = c("lon", "lat"), crs = 4326)
   stops.sf <- st_transform(stops.sf, 2154)
   communes.sf <- st_transform(communes.sf, 2154)
@@ -387,22 +447,42 @@ korrigo_stops <- function() {
   carp("crs: %s", st_crs(communes.sf))
   nc <- st_join(stops.sf, communes.sf, join = st_intersects) %>%
     glimpse()
-  filter(nc, NOM_REG != 'BRETAGNE') %>%
+  nc1 <-  nc %>%
+    filter(NOM_REG != "BRETAGNE") %>%
     group_by(NOM_DEP) %>%
     summarize(nb=n()) %>%
     glimpse()
+  nc2 <-  nc %>%
+    filter(NOM_REG == "BRETAGNE") %>%
+    glimpse()
   dsn <- sprintf("%s/korrigo_stops.Rds", odDir)
-  saveRDS(nc,dsn)
+  saveRDS(nc2, dsn)
 }
 #
 # lecture du fichier
-# source("geo/scripts/transport.R");korrigo_stops_lire()
+# source("geo/scripts/transport.R"); df <- korrigo_stops_lire()
 korrigo_stops_lire <- function() {
   dsn <- sprintf("%s/korrigo_stops.Rds", odDir)
   carp("dsn: %s", dsn)
-  nc <- readRDS(dsn)
-  glimpse(nc)
-  return(invisible(nc))
+  df <- readRDS(dsn) %>%
+    st_drop_geometry() %>%
+    filter(location_type == 0) %>%
+    mutate(agency = gsub(":.*$", "", stop_id)) %>%
+    group_by(agency) %>%
+    summarize(nb = n()) %>%
+    glimpse()
+  return(invisible(df))
+}
+
+#
+# les routes osm
+# source("geo/scripts/transport.R"); df <- korrigo_osm_routes_lire(force_osm = TRUE) %>% glimpse()
+korrigo_osm_routes_lire <- function(force_osm = TRUE) {
+  df <- overpass_get(query = "relations_route_bus_area", format = "csv", force = force_osm) %>%
+    glimpse() %>%
+    filter(grepl("breizhgo", network)) %>%
+    summarize(nb = n())
+  return(invisible(df))
 }
 #
 # validation des stops opendata et des arrêts osm

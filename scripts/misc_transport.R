@@ -136,6 +136,22 @@ transport_osm_routes_gtfs_shapes_diff <- function() {
     }
   }
 }
+# pour l'outil conflate de josm
+transport_stops_conflate <- function(stops.df, fic = "toto") {
+  df1 <- stops.df %>%
+    mutate(lat = as.numeric(stop_lat)) %>%
+    mutate(lon = as.numeric(stop_lon)) %>%
+    mutate(latitude = sprintf("%0.6f", stop_lat)) %>%
+    mutate(longitude = sprintf("%0.6f", stop_lon)) %>%
+    mutate(highway = "bus_stop") %>%
+    mutate(public_transport = "platform") %>%
+    dplyr::select(name = stop_name, "ref:Aléop" = stop_id, latitude, longitude, highway, public_transport) %>%
+    glimpse()
+  dsn <- sprintf("%s/%s.csv", reseau_dir, fic)
+  write.csv(df1, file = dsn, row.names = FALSE, na="", quote = FALSE, fileEncoding = "UTF-8")
+  carp("dsn: %s nrow: %s", dsn, nrow(df1))
+  return(invisible(df1))
+}
 # ???
 # wkbMultiLineString wkbPolygon
 ogr_lire <- function(dsn, geomType="wkbLineString", layer=FALSE, crs="+init=epsg:2154") {
@@ -153,4 +169,14 @@ ogr_lire <- function(dsn, geomType="wkbLineString", layer=FALSE, crs="+init=epsg
     spdf <- spTransform(spdf, CRS("+init=epsg:2154"))
   }
   return(invisible(spdf))
+}
+transport_df2html <- function(df1, dsn = FALSE, titre = "Titre") {
+  df2 <- df1 %>%
+    glimpse() %>%
+    rename_with(~str_remove(., "@")) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s/%s' target='_blank'>%s</a>", type, id, id)) %>%
+    mutate(josm = sprintf("<a href='http://localhost:8111/load_object?objects=%s%s,relation_members=true,referrers=true' target='josm'>josm</a>", str_sub(type, 1, 1), id)) %>%
+    mutate(ptna = sprintf("<a href='https://www.openstreetmap.org/%s/%s' target='ptna'>ptna</a>", type, id)) %>%
+    glimpse()
+  html_df2fic(df2, dsn = dsn, titre = titre)
 }

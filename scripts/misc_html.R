@@ -170,7 +170,7 @@ html_df2fic <- function(df, titre = "titre", dsn = FALSE, suffixe = "", dossier 
 #    kable_minimal() %>%
     kable_styling(bootstrap_options = "striped", full_width = F, position = "left", fixed_thead = T)
   html <- append(html, htm)
-  html <- html_pied(html)
+  html <- append(html, html_pied())
   if ( dsn == FALSE ) {
     curcall <- as.character(deparse(sys.call(-1)))[1]
     curcall <- gsub('\\(.*$', '', curcall)

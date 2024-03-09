@@ -20,8 +20,8 @@ bretagne_jour <- function(force = FALSE) {
 }
 #
 # vérification de l'appartenance à un network connu
-# source("geo/scripts/transport.R");bretagne_relations_bus_network()
-bretagne_relations_bus_network <- function(force = FALSE) {
+# source("geo/scripts/transport.R");bretagne_relations_route_bus_network()
+bretagne_relations_route_bus_network <- function(force = FALSE) {
   library(tidyverse)
   library(data.table)
   library(janitor)
@@ -31,12 +31,8 @@ bretagne_relations_bus_network <- function(force = FALSE) {
   carp("dsn: %s", dsn)
   xls.df <- rio::import(dsn) %>%
     glimpse()
-
   carp("osm")
-  dsn <- osm_bretagne_relations_bus_csv(force = force) %>%
-    glimpse()
-  df <- fread(dsn, encoding = "UTF-8") %>%
-    clean_names() %>%
+  df <- overpass_get(query = "relations_route_bus_area", format = "csv", force = force) %>%
     glimpse()
   df1 <- df %>%
     group_by(network) %>%
@@ -48,6 +44,7 @@ bretagne_relations_bus_network <- function(force = FALSE) {
   df3 <- df %>%
     filter(network %in% df2$network)
   misc_print(df3)
+  misc_print(df1)
 }
 #
 # source("geo/scripts/transport.R");bretagne_nodes_bus()
@@ -153,22 +150,81 @@ bretagne_nodes_bus_platform_mga_proche <- function(fic = "bretagne_nodes_bus_pla
   changeset_id <- osmapi_put("delete", text = osm)
 }
 #
-# source("geo/scripts/transport.R");bretagne_relations_route_bus()
-bretagne_relations_route_bus <- function(fic = "bretagne_relations_route_bus", force = FALSE) {
+## nettoyage des arrêts non référencés
+#
+# et proche d'aun autre arrêt
+# source("geo/scripts/transport.R");bretagne_nodes_bus_platform_ref_get()
+bretagne_nodes_bus_platform_ref_get <- function(fic = "bretagne_nodes_bus_platform_ref", force_osm = FALSE) {
+  library(sf)
+  library(janitor)
+  config_xls("bretagne")
+  ref.od <- overpass_get(query = "nodes_bus_platform_ref", format = "od", force = force_osm)
+  non.od <- overpass_get(query = "nodes_bus_platform_nonref", format = "od", force = force_osm)
+  ref.sf <- ref.od$osm_points
+  non.sf <- non.od$osm_points
+  points.list <- list(
+    ref = ref.sf,
+    non = non.sf
+  )
+  saveRDS(points.list, fic)
+}
+# source("geo/scripts/transport.R");bretagne_nodes_bus_platform_ref()
+bretagne_nodes_bus_platform_ref <- function(fic = "bretagne_nodes_bus_platform_ref", force_osm = FALSE) {
+  library(sf)
+  library(janitor)
+  config_xls("bretagne")
+  points.list <- readRDS(fic)
+  non.sf <- points.list$non %>%
+    st_transform(2154)
+  ref.sf <- points.list$ref %>%
+    st_transform(2154)
+  df1 <- st_proches(non.sf, ref.sf) %>%
+    st_drop_geometry() %>%
+    filter(dist < 1) %>%
+    arrange(dist) %>%
+#    filter(grepl("Village Collec", name)) %>%
+    glimpse()
+  df2 <- df1 %>%
+    pivot_longer(
+      cols = starts_with("ref"),
+      names_to = "Ref",
+      values_to = "val",
+      values_drop_na = TRUE
+    ) %>%
+    dplyr::select(osm_id, name, Ref, val) %>%
+    glimpse()
+
+}
+#
+# les arrêts osm avec leur attribut ref
+# source("geo/scripts/transport.R"); df <- bretagne_nodes_stop_get(force_osm = FALSE) %>% glimpse()
+bretagne_nodes_stop_get <- function(force_osm = TRUE) {
+  rc <- overpass_get(query = "bus_stop_area", format = "od", force = force_osm)
+  nc <- rc$osm_points %>%
+    st_drop_geometry() %>%
+    filter(public_transport != "stop_position") %>%
+    dplyr::select(starts_with("ref:")) %>%
+    pivot_longer(
+    cols = starts_with("ref"),
+      names_to = "Ref",
+      values_to = "val",
+      values_drop_na = TRUE
+    ) %>%
+    group_by(Ref) %>%
+    summarize(nb = n())
+  return(invisible(nc))
+}
+#
+# source("geo/scripts/transport.R"); rc <- bretagne_relations_route_bus()
+bretagne_relations_route_bus <- function(fic = "bretagne_relations_route_bus", force = TRUE, force_osm = TRUE) {
   dsn_rds <- sprintf("%s/%s.rds", osmDir, fic)
   if (file.exists(dsn_rds) && force == FALSE) {
     rc <- readRDS(dsn_rds)
     return(invisible(rc))
   }
-  requete <- '
-area[name="Bretagne"]->.a;
-relation(area.a)[route=bus];
-out meta;'
-  fic <- sprintf("%s.osm", fic)
-  dsn <- oapi_requete_get(requete, fic, force = force)
-  df <- osmapi_objects_get_tags(dsn) %>%
-    glimpse()
-  saveRDS(df, dsn_rds)
+  rc <- overpass_get(query = "relations_route_bus_area", format = "od", force = force_osm)
+  saveRDS(rc, dsn_rds)
+  return(invisible(rc))
 }
 #
 # source("geo/scripts/transport.R");bretagne_relations_route_bus_valid()

@@ -49,6 +49,17 @@ osmapi_get_object_full <- function(ref, type = "relation", force = FALSE) {
   }
   return(invisible(dsn))
 }
+osmapi_get_object_full_xml <- function(ref, type = "relation", force = FALSE, force_osm = TRUE) {
+  dsn_rds <- sprintf("%s/%s_%s_full.Rds", osmDir, type, ref)
+  if (file.exists(dsn_rds) & force == FALSE) {
+    doc <- readRDS(dsn_rds)
+  } else {
+    dsn <- osmapi_get_object_full(ref = ref, type = type, force = force_osm)
+    doc <- read_xml(dsn)
+    saveRDS(doc, dsn_rds)
+  }
+  return(invisible(doc))
+}
 # source("geo/scripts/transport.R"); res <- osmapi_get_object_relations(ref = "269138982"); print(res)
 osmapi_get_object_relations <- function(ref, type = "node", force = FALSE) {
   library(readr)
@@ -623,7 +634,7 @@ osmapi_objects_get_tags <- function(dsn = "d:/web.var/TRANSPORT/STAR/OSM/node_78
 #
 # les attrs et tags
 osmapi_objects_tags <- function(objects) {
-  carp("objets : %s", length(objects))
+#  carp("objets : %s", length(objects))
   objects.df <- data.frame()
   for (object in objects) {
     object.df <- xml_attrs(object) %>%
@@ -645,7 +656,7 @@ osmapi_objects_tags <- function(objects) {
     }
     objects.df <- bind_rows(objects.df, object.df)
   }
-  carp("objets.df : %s", length(objects.df))
+#  carp("objets.df : %s", length(objects.df))
   return(invisible(objects.df))
 }
 #
@@ -880,15 +891,18 @@ osmapi_get_changeset_first <- function(display_name = "mga_geo") {
 # https://gist.github.com/typebrook/d166d5e8d0a293c30f697b0f403b3c0e
 #
 # source("geo/scripts/transport.R"); osmapi_put()
-osmapi_put <- function(osmchange = "create", text = "osm", force = FALSE) {
+osmapi_put <- function(osmchange = "create", text = "osm", comment = "", force = FALSE) {
   library(tidyverse)
   xml <- '<osm>
   <changeset>
     <tag k="created_by" v="R 0.6"/>
-    <tag k="comment" v="maj gtfs %s"/>
+    <tag k="comment" v="%s"/>
   </changeset>
 </osm>'
-  xml <- sprintf(xml, Config_gtfs_source)
+  if (comment == "") {
+    comment <- sprintf("maj gtfs %s", Config_gtfs_source)
+  }
+  xml <- sprintf(xml, comment)
   writeLines(text, sprintf("%s/osmapi_put_%s.txt", cfgDir, Reseau))
   if (OsmChange != TRUE) {
     return(invisible(-1))

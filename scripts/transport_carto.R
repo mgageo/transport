@@ -25,11 +25,12 @@ carto_route_shape_stops <- function(df, nc1) {
   dsn_shape <- sprintf("%s/shape_%s.gpx", josmDir, shape)
   if (! file.exists(dsn_shape)) {
     glimpse(df[1, ])
-    confess("*** dsn_shape: %s", dsn_shape)
+    carp("*** dsn_shape: %s", dsn_shape)
+    return(invisible(FALSE))
   }
   shape.sf <- st_read(dsn_shape, layer = "tracks", quiet = TRUE) %>%
     st_transform(2154)
-  mf_init(shape.sf, expandBB = c(200, 200, 200, 200))
+  mf_init(shape.sf, expandBB = c(1500, 1500, 1500, 1500))
   plot(st_geometry(shape.sf), add = FALSE, col = "green", lwd = 3)
   shape_points.sf <- st_sf(st_cast(st_geometry(shape.sf), "POINT"))
   mf_annotation(shape_points.sf[1, ], txt = "Départ", col_txt = "green", col_arrow = "green")
@@ -37,26 +38,30 @@ carto_route_shape_stops <- function(df, nc1) {
     filter(shape_id == !!shape_id) %>%
     mutate(Name = sprintf("%s %s", id, stop_name))
   plot(st_geometry(nc2), col = "green", lwd = 3, pch = 19, add = TRUE)
-  df2 <- st_distance(nc2, shape.sf) %>%
-    glimpse()
+  mf_label(x = nc2,
+    var = "Name",
+    cex = 0.8,
+    col = "black",
+    overlap = FALSE,
+    lines = TRUE
+  )
+  df2 <- st_distance(nc2, shape.sf)
   nc2 <- cbind(nc2, df2) %>%
     mutate(distance = as.integer(df2)) %>%
-    dplyr::select(-df2) %>%
-    glimpse()
+    dplyr::select(-df2)
   point_dernier <- nrow(nc2)
-  carp("les points trop loin")
   loins.sf <- nc2 %>%
     filter(distance > 50)
+  carp("les points trop loin: %s", nrow(loins.sf))
   if (nrow(loins.sf) > 0) {
     plot(st_geometry(loins.sf), col = "red", lwd = 3, pch = 19, add = TRUE)
     mf_label(x = loins.sf,
       var = "Name",
-      cex = 0.8,
-      overlap = FALSE,
-      lines = TRUE
+      cex = 0.8
     )
   }
   carp("les points sur le tracé")
+#    stop("*****")
   dessus.sf <- nc2 %>%
     filter(distance == 50)
   if (nrow(dessus.sf) > 0) {
@@ -70,19 +75,16 @@ carto_route_shape_stops <- function(df, nc1) {
   }
   cote_droit.sf <<- shape.sf %>%
     st_buffer(-50, singleSide = TRUE, bOnlyEdges = FALSE) %>%
-    st_buffer(0) %>%
-    glimpse()
+    st_buffer(0)
 #  dsn <- sprintf("%s/cote_droit.geojson", josmDir)
 #  st_write(st_transform(cote_droit.sf, 4326), dsn, delete_dsn = TRUE)
 #  carp("dsn: %s", dsn)
   carp("les points proches")
   points.sf <<- nc2 %>%
-    filter(distance < 50) %>%
-    glimpse()
+    filter(distance < 50)
   carp("les points dans le buffer")
   points.sf$within <- st_within(points.sf, cote_droit.sf, sparse = F)
   points_out.sf <- points.sf %>%
-    glimpse() %>%
     filter(within == FALSE) %>%
     filter(id != 1) %>%
     filter(id != point_dernier)

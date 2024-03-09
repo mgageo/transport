@@ -57,9 +57,9 @@ source("geo/scripts/transport_diff.R"); # différence entre gtfs et osm
 source("geo/scripts/transport_gtfs2mga.R")
 source("geo/scripts/transport_gtfs2osm.R"); # mise en format compatible perl
 source("geo/scripts/transport_ign.R"); # pour la détermination des communes des arrêts
-source("geo/scripts/transport_menu.R")
 source("geo/scripts/transport_mapbox.R")
 source("geo/scripts/transport_mapmatching.R")
+source("geo/scripts/transport_menu.R")
 source("geo/scripts/transport_misc.R")
 # source("geo/scripts/transport_mobibreizh.R"); # pour le gtfs de la région
 source("geo/scripts/transport_oapi.R")
@@ -97,6 +97,7 @@ source("geo/scripts/transport_distribus.R")
 source("geo/scripts/transport_kiceo.R")
 source("geo/scripts/transport_korrigo.R"); # pour le gtfs de la région Bretagne
 source("geo/scripts/transport_landerneau.R")
+source("geo/scripts/transport_orleans.R")
 source("geo/scripts/transport_pontivy.R")
 source("geo/scripts/transport_pddl.R"); # Pays de la Loire
 source("geo/scripts/transport_pontivy.R")
@@ -146,8 +147,6 @@ Reseau <- "lannion"; # Lannion TILT
 Reseau <- "morlaix"; # LinéoTim
 Reseau <- "lorient"; # Lorient CTRL
 Reseau <- "breizhgo"; # BreizhGo en Bretagne, les lignes régionales
-Reseau <- "saintnazaire"; # Saint-Nazaire STRAN
-Reseau <- "nantes"; # Nantes TAN/Naolib
 Reseau <- "guingamp"; # Guingamp AXEOBUS
 Reseau <- "korrigo"; # les réseaux gérés en gtfs régionalement
 Reseau <- "breizhgo_illenoo2"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
@@ -159,12 +158,15 @@ Reseau <- "breizhgo_lrrns"; # pseudo-réseau pour BreizhGo régional nord sud
 Reseau <- "bretagne"; # les réseaux de la région Bretagne
 Reseau <- "concarneau"; # Concarneau Coralie
 Reseau <- "breizhgo_pennarbed"; # pseudo-réseau pour BreizhGo en Finistère
-Reseau <- "brest"; # Brest Bibus
 Reseau <- "destineo"; # Pays de la Loire, les réseaux gérés au niveau de la région
 Reseau <- "aleop"; # Pays de la Loire
-Reseau <- "rennes"; # Rennes STAR
 Reseau <- "saintbrevin"; # Saint Brevin les Pins, Brévibus
 Reseau <- "aleop44"; # Pays de la Loire, réseau départemental 44
+Reseau <- "saintnazaire"; # Saint-Nazaire STRAN
+Reseau <- "orleans"; # Orléans TAO
+Reseau <- "nantes"; # Nantes TAN/Naolib
+Reseau <- "rennes"; # Rennes STAR
+Reseau <- "brest"; # Brest Bibus
 config_xls(Reseau)
 Tex <- TRUE
 Wiki <- TRUE
@@ -175,12 +177,5 @@ if ( interactive() ) {
   graphics.off()
 #  shapes()
 } else {
-#  cesson()
-#  osm_fla()
-#  shapes2kml()
-#  shapes_partiel()
-#  shapes2routes()
-#  shapes2shape()
-#  trips_stops()
-#  transport_get()
+  menu()
 }

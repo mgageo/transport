@@ -23,11 +23,11 @@ wiki_connect <- function(force = TRUE) {
     return(invisible(wiki_session))
   }
   carp()
-  if ( wiki_session != FALSE & force == FALSE) {
+  if (! is.logical(wiki_session) & force == FALSE) {
     return(invisible(wiki_session))
   }
   url <- sprintf("%s/w/index.php?title=Special:UserLogin", wiki_host)
-  session <- rvest::session(url)
+  session <- rvest::session(url, quiet = TRUE)
   unfilled_forms <- html_form(session)
   login_form <- unfilled_forms[[1]]
   username <- mes_options("osm_wiki_username")
@@ -65,14 +65,17 @@ wiki_page_init <- function(page = "User:Mga_geo/Transports_publics/toto", articl
   edit_form <- edit_forms[[1]]
   form <- html_form_set(edit_form, wpTextbox1 = article)
   session3 <- session_submit(edit, form)
-  return()
+  return(invisible())
   html <- content(session3$response,as = "text")
   dsn <- sprintf("%s/wiki.html", transportDir)
   write(html, file = dsn, append = FALSE)
   carp("dsn: %s", dsn)
+  return(invisible())
 }
 # source("geo/scripts/transport.R");config_xls('arcachon');wiki_pages_init()
 # source("geo/scripts/transport.R");config_xls('strasbourg');wiki_pages_init()
+# source("geo/scripts/transport.R");config_xls('aleop');wiki_pages_init()
+# source("geo/scripts/transport.R");config_xls('orleans');wiki_pages_init()
 wiki_pages_init <- function() {
   if (is.na(Config[1, "wiki"])) {
      stop("*****")
@@ -125,24 +128,24 @@ out meta;
 </pre>
 
 =OpenStreetMap=
-{{User:Mga_geo/Transports_publics/((wiki))/network}}
-{{User:Mga_geo/Transports_publics/((wiki))/route_master}}
-{{User:Mga_geo/Transports_publics/((wiki))/route}}
+{{User:Mga_geo/Transports_publics/((wiki))/osm/network}}
+{{User:Mga_geo/Transports_publics/((wiki))/osm/route_master}}
+{{User:Mga_geo/Transports_publics/((wiki))/osm/route}}
 =GTFS=
-{{User:Mga_geo/Transports_publics/((wiki))/gtfs_routes_shapes}}
+{{User:Mga_geo/Transports_publics/((wiki))/gtfs/tidytransit_routes_shapes}}
 
 
-{{User:Mga_geo/Transports_publics/((wiki))/routes}}
+{{User:Mga_geo/Transports_publics/((wiki))/gtfs/tidytransit_routes}}
 
-{{User:Mga_geo/Transports_publics/((wiki))/routes_stops}}
+{{User:Mga_geo/Transports_publics/((wiki))/gtfs/tidytransit_routes_stops}}
 
-{{User:Mga_geo/Transports_publics/((wiki))/gtfs_shapes}}
+{{User:Mga_geo/Transports_publics/((wiki))/gtfs/tidytransit_shapes}}
 '
   wiki_connect()
   article <- wiki_dfi2tpl(Config, 1, article)
   page <- sprintf("User:Mga_geo/Transports_publics/%s", wiki_page)
   wiki_page_init(page = page, article = article, force = TRUE)
-  for (p in c("network", "route_master", "route", "routes", "routes_stops", "gtfs_shapes", "gtfs_routes_shapes")) {
+  for (p in c("osm/network", "osm/route_master", "osm/route", "gtfs/tidytransit_routes_shapes", "gtfs/tidytransit_routes", "gtfs/tidytransit_routes_stops", "gtfs/tidytransit_shapes")) {
     page <- sprintf("User:Mga_geo/Transports_publics/%s/%s", wiki_page, p) %>%
       glimpse()
     wiki_page_init(page = page, article = "roro", force = TRUE)
@@ -176,7 +179,10 @@ wiki_df2table_test <- function() {
 }
 #
 # création d'une table mediawiki
-wiki_df2table <- function(df) {
+wiki_df2table <- function(df, num = FALSE) {
+  if (num == TRUE) {
+    df <- tibble::rowid_to_column(df, "NO")
+  }
   wiki <- '{| class="wikitable sortable"'
   wiki <- append(wiki, "|-")
   colonnes <- colnames(df)

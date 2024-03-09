@@ -1033,6 +1033,8 @@ misc_html_titre <- function(titre = "titre") {
     <meta http-equiv="expires" content="43200"/>
   </head>
   <body>
+<iframe style="display:none" id="hiddenIframe" name="hiddenIframe"></iframe>
+</iframe>
 '
   sprintf(html, titre)
 }
@@ -1186,4 +1188,8 @@ misc_cache_read <- function() {
     misc_cache.list <<- list()
   }
   return(invisible(misc_cache.list))
+}
+misc_scite <- function(dsn) {
+  scite <- "C:\\Program Files (x86)\\AutoIt3\\SciTE\\SciTE.exe"
+  system2(scite, dsn)
 }

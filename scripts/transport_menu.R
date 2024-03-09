@@ -9,9 +9,9 @@ menu <- function() {
   les_choix <- tribble(
     ~choix, ~fonction,
     "gtfs", "tidytransit_jour",
-    "gtfs2osm", "gtfs2osm_jour",
     "diff gtfs osm stops", "diff_stops",
-    "diff gtfs osm routes", "diff_routes",
+    "gtfs2osm", "gtfs2osm_jour",
+    "diff gtfs osm routes tags", "diff_relations_route_bus",
   )
   choix <- utils::menu(les_choix$choix, title = "action")
   if (choix == 0 ) {

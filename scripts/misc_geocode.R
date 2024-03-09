@@ -376,6 +376,15 @@ geocode_reverse_sf <- function(nc) {
 #
 # géocodage inverse avec openls
 # https://geoservices.ign.fr/documentation/services/api-et-services-ogc/geocodage-ogc
+# source("geo/scripts/cheveche35.R");geocode_reverse_openls_test()
+geocode_reverse_openls_test <- function() {
+  df <- tribble(
+  ~lat, ~lon,~name,
+#48.844061,2.37068,"titi",
+48.10223,-1.566686,"toto"
+)
+  geocode_reverse_openls(df)
+}
 geocode_reverse_openls <- function(df, force=FALSE) {
   carp("nb: %s", nrow(df))
   df <- df %>%
@@ -385,27 +394,32 @@ geocode_reverse_openls <- function(df, force=FALSE) {
     mutate(lonlat = sprintf("%s, %s", lon, lat))
   dsn <- sprintf("%s/geocode_reverse_openls.Rds", cfgDir);
   if ( file.exists(dsn) & force==FALSE) {
-    reverse.df <- readRDS(dsn);
+    reverse.df <- readRDS(dsn) %>%
+      glimpse()
   } else {
     reverse.df <- data.frame("lon_lat" = character(0), "lieudit" = character(0), stringsAsFactors = FALSE)
   }
   for (i in 1:nrow(df)) {
-    lonlat <- df[i, "lonlat"]
+    lonlat <- df[[i, "lonlat"]]
     df1 <- subset(reverse.df, lon_lat == lonlat)
     if ( nrow(df1) > 0 ) {
       lieudit <- df1[1, "lieudit"]
     } else {
-      geocode_reverse_openls_point(df, i)
-      lieudit <- geocode_reverse_openls_point_parse()
+#      geocode_reverse_openls_point_xml(df, i)
+#      lieudit <- geocode_reverse_openls_point_parse_xml()
+      geocode_reverse_openls_point_json(df, i)
+      lieudit <- geocode_reverse_openls_point_parse_json()
     }
     df[i, "lieudit"] <- lieudit
-    reverse.df <- rbind(reverse.df, data.frame(lon_lat = lonlat, lieudit = lieudit))
+    carp("%s %s", lonlat, lieudit)
+    reverse.df <- reverse.df %>%
+      add_row(lon_lat = lonlat, lieudit = lieudit)
     saveRDS(reverse.df, file = dsn)
   }
   glimpse(df)
   return(invisible(df))
 }
-geocode_reverse_openls_point <- function(df, i, force = FALSE) {
+geocode_reverse_openls_point_xml <- function(df, i, force = FALSE) {
   library(httr)
   http_headers = c(
     Accept = "text/html",
@@ -432,6 +446,25 @@ geocode_reverse_openls_point <- function(df, i, force = FALSE) {
 #  carp("body: %s", body)
   dsn <- sprintf("%s/geocode_reverse_openls_point.xml", varDir)
   reponse <- httr::POST(url, body = body, encode = "multipart", add_headers(http_headers), write_disk(dsn, overwrite = TRUE))
+  carp("reponse: %s", content(reponse))
+}
+#
+# https://www.developpez.net/forums/d2158215/applications/sig-systeme-d-information-geographique/ign-api-geoportail/retours-geocodage-geoplateforme/
+
+geocode_reverse_openls_point_json <- function(df, i, force = FALSE) {
+  library(httr)
+  http_headers = c(
+    Accept = "text/html",
+    "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:51.0) Gecko/20100101 Firefox/51.0"
+  )
+  tpl <- 'https://data.geopf.fr/geocodage/reverse?index=poi&searchgeom={%22type%22:%22Point%22,%22coordinates%22:[{{lon}},{{lat}}]}'
+#https://data.geopf.fr/geocodage/reverse?index=address&searchgeom={%22type%22:%22Circle%22,%22coordinates%22:[2.423079,48.845914],%22radius%22:50}&lon=2.423079&lat=48.845914&limit=20
+  tpl <- 'https://data.geopf.fr/geocodage/reverse?index=poi&searchgeom={%22type%22:%22Circle%22,%22coordinates%22:[{{lon}},{{lat}}],%22radius%22:500}'
+#  tpl <- 'https://data.geopf.fr/geocodage/reverse?index=poi&lon={{lon}}&lat={{lat}}}'
+  url <- misc_dfi2tpl(df, i, tpl)
+#  writeLines(url)
+  dsn <- sprintf("%s/geocode_reverse_openls_point.json", varDir)
+  reponse <- httr::GET(url, write_disk(dsn, overwrite = TRUE))
 #  carp("reponse: %s", content(reponse))
 }
 #
@@ -471,7 +504,7 @@ geocode_reverse_openls_point_GET <- function(df, i, force = FALSE) {
 #
 # https://urbandatapalette.com/post/2021-03-xml-dataframe-r/
 # source("geo/scripts/cheveche35.R"); geocode_reverse_openls_point_parse()
-geocode_reverse_openls_point_parse <- function() {
+geocode_reverse_openls_point_parse_xml <- function() {
   library(xml2)
   carp()
   dsn <- sprintf("%s/geocode_reverse_openls_point.xml", varDir)
@@ -503,6 +536,31 @@ geocode_reverse_openls_point_parse <- function() {
     filter(grepl("Lieu", Nature))
   lieudit <- sprintf("%s / %s", df1[1, "Municipality"], df1[1, "Commune"]) %>%
     glimpse()
+  return(invisible(lieudit))
+}
+# source("geo/scripts/cheveche35.R"); geocode_reverse_openls_point_parse_json()
+# https://themockup.blog/posts/2020-05-22-parsing-json-in-r-with-jsonlite/
+geocode_reverse_openls_point_parse_json <- function() {
+  library(tidyverse)
+  library(jsonlite)
+  carp()
+  dsn <- sprintf("%s/geocode_reverse_openls_point.json", varDir)
+  raw_json <<- read_json(dsn)
+  lieudit <- ""
+  for (feature in raw_json$features) {
+#    mga <<- feature
+    for (category in feature$properties$category) {
+#      carp("category: %s", category)
+      if (category == "lieu-dit habité") {
+        lieudit <- sprintf("%s / %s", feature$properties$name[[1]], feature$properties$city[[1]])
+        break
+      }
+    }
+    if (lieudit != "") {
+      break
+    }
+  }
+#  confess("**** %s", lieudit)
   return(invisible(lieudit))
 }
 #

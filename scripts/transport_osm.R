@@ -254,7 +254,8 @@ osm_valid_relations <- function(force = TRUE) {
   html <- misc_html_titre(titre)
   html <- misc_html_append(html, sprintf("<h1>%s</h1>", titre))
   rc <- objets_relations_route(force)
-  routes.df <- rc[["relations.df"]]
+  routes.df <- rc[["relations.df"]] %>%
+    glimpse()
   rc <- objets_relations_route_master(force)
   masters.df <- rc[["relations.df"]] %>%
     glimpse()
@@ -265,6 +266,15 @@ osm_valid_relations <- function(force = TRUE) {
   html <- misc_html_append(html, sprintf("<h3>%s</h3>", "les masters sans route"))
   df1 <- masters.df %>%
     filter(nb_members == 0)
+  if (nrow(df1) > 0) {
+    html <- misc_html_append_df(html, df1)
+  }
+  html <- misc_html_append(html, sprintf("<h3>%s</h3>", "les masters avec ref en double"))
+  df1 <- masters.df %>%
+    group_by(ref) %>%
+    summarize(nb = n()) %>%
+    filter(nb > 1)
+
   if (nrow(df1) > 0) {
     html <- misc_html_append_df(html, df1)
   }
@@ -286,7 +296,19 @@ osm_valid_relations <- function(force = TRUE) {
   if (nrow(df1) > 0) {
     html <- misc_html_append_df(html, df1)
   }
-
+  masters1.df <- masters.df %>%
+    dplyr::select(id, ref)
+  routes1.df <-routes.df %>%
+    dplyr::select(id, ref)
+  df1 <- masters1.df %>%
+    full_join(routes1.df, by = c("ref" = "ref"), relationship = "many-to-many") %>%
+    distinct() %>%
+    glimpse()
+  df2 <- members.df %>%
+    full_join(df1, by = c("ref" = "id.y", "id" = "id.x")) %>%
+#    filter(role != "") %>%
+    glimpse()
+  misc_print(df2)
   transport_html_browse(html, titre)
 }
 #
@@ -383,17 +405,18 @@ osm_valid_relations_route_bus <- function(force = TRUE) {
   dsn <- osm_relations_route_bus_csv(force = force)
   df <- fread(dsn, encoding = "UTF-8") %>%
     clean_names() %>%
-    glimpse()
+    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/relation/%s/full'>josm</a>", id)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>", "r", id))
   df10 <- df %>%
     dplyr::select(id, gtfs_shape_id, ref, ref_network, from, to, name) %>%
-    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/relation/%s/full'>josm</a>", id)) %>%
-    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>", "r", id)) %>%
-    arrange(ref, ref_network, gtfs_shape_id)
+    arrange(ref, ref_network, gtfs_shape_id) %>%
+    glimpse()
+#  stop("****")
   html <- misc_html_append(html, sprintf("<h3>%s</h3>", "les relations route"))
-  html <- misc_html_append_df(html, df10)
+#  html <- misc_html_append_df(html, df10)
   df11 <- df %>%
     filter(!grepl("^\\w", gtfs_shape_id)) %>%
-    dplyr::select(id, ref, from, to, name) %>%
+    dplyr::select(id, ref, from, to, name, josm, level0) %>%
     arrange(ref)
   html <- misc_html_append(html, sprintf("<h3>%s</h3>", "les relations route avec gtfs:shape_id"))
   html <- misc_html_append_df(html, df11)
@@ -409,7 +432,7 @@ osm_valid_relations_route_bus <- function(force = TRUE) {
   df3 <- df %>%
     filter(ref %in% df1$ref) %>%
     group_by(ref_network) %>%
-    summarize(josm = paste0(id, collapse = ","))
+    summarize(josm = paste0("r", id, collapse = ","))
   html <- misc_html_append(html, sprintf("<h3>%s</h3>", "les relations route ref_network # 2"))
   html <- misc_html_append_df(html, df3)
   df5 <- df %>%
@@ -483,17 +506,29 @@ osm_valid_relations_route_bus_network <- function(force = TRUE) {
 
   return(invisible())
 }
-# source("geo/scripts/transport.R");osm_routes_shapes_stops_carto()
-osm_routes_shapes_stops_carto <- function(force = TRUE) {
+# source("geo/scripts/transport.R");osm_routes_shapes_stops_fiche()
+osm_routes_shapes_stops_fiche <- function(force = TRUE) {
   library(tidyverse)
   library(tidytransit)
   carp()
   dsn <- osm_relations_route_bus_csv(force = force)
-  df <- fread(dsn, encoding = "UTF-8") %>%
+  df1 <- fread(dsn, encoding = "UTF-8") %>%
     clean_names() %>%
+    as.data.frame() %>%
+    mutate(level0 = sprintf("[http://level0.osmz.ru/?url=%s%s level0]", "r", id)) %>%
+    dplyr::select(-type) %>%
+    arrange(ref, ref_network) %>%
+    dplyr::select(level0, ref, ref_network, name, from, to) %>%
     glimpse()
-  for (i in 1:nrow(df)) {
-  }
+  mtime <- file.info(dsn)$mtime
+  page <- sprintf("User:Mga_geo/Transports_publics/%s/osm/%s", Config["wiki"], "osm_routes_shapes_stops_fiche") %>%
+    glimpse()
+  wiki <- sprintf("==%s==", mtime)
+  wiki <- sprintf("
+%s
+===par ref shape_id===
+%s", wiki, wiki_df2table(df1, num = TRUE))
+  wiki_page_init(page = page, article = wiki, force = TRUE)
 
   return(invisible())
 }
@@ -1242,7 +1277,9 @@ osm_relations_route_members_tex <- function(force = TRUE, force_osm = TRUE) {
   df <- fread(dsn, encoding = "UTF-8") %>%
     as.data.table() %>%
     clean_names() %>%
+    arrange(ref, ref_network) %>%
     glimpse()
+#  stop("****")
   osm_relations_route_members(df, force = force, force_osm = force_osm)
   osm_relations_route_members_verif(force = force, force_osm = force_osm)
   tex_pdflatex(sprintf("%s_osm_relations_route_members.tex", Reseau))

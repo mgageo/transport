@@ -107,6 +107,11 @@ gtfs2osm_relations_routemaster <- function(rds = "gtfs2osm_routemasters", force_
       mutate(Name = str_glue('{Config_route_name} {route_short_name} : {route_long_name}')) %>%
       glimpse()
   }
+  if (grepl("rennes", Config_reseau)) {
+    df <- df %>%
+      mutate(Name = str_glue('{Config_route_name} {route_short_name} : {route_long_name}')) %>%
+      glimpse()
+  }
   df <- df %>%
     dplyr::select(
       description = route_long_name,
@@ -222,6 +227,39 @@ relation
 #
 #
 # la conversion
+# source("geo/scripts/transport.R");gtfs2osm_relations_route()
+gtfs2osm_relations_route <- function(rds = "gtfs2osm_relations_route", force_osm = TRUE) {
+  library(tidyverse)
+  library(tidytransit)
+  carp("selection de la route avec le plus de stops/voyages")
+  df1 <- tidytransit_lire(rds = "tidytransit_routes_stops") %>%
+    group_by(ref_network) %>%
+    arrange(desc(nb_stops), desc(nb)) %>%
+#    filter(row_number() == 1) %>%
+    mutate(Ordre = row_number()) %>%
+    ungroup() %>%
+    glimpse()
+  df2 <- gtfs2osm_routes_osm(df1, stops_osm = FALSE, force_osm = force_osm) %>%
+    select(order(colnames(.))) %>%
+    glimpse()
+  df2 <- df2 %>%
+    dplyr::select(colour, description, from, name, network, operator,`public_transport:version`
+      ,ref, ref_network, Ordre, shape_id, route, text_colour, to, type, stops, stop_names = names
+      ) %>%
+    glimpse()
+  tags <- Config_tags
+  for (tag in tags) {
+    col <- sprintf("Config_%s", tag)
+    val <- get(col)
+    if (! is.na(val)) {
+      df2[, tag] <- val
+    }
+  }
+  transport_sauve(df2, rds)
+  dsn <- sprintf("%s/%s.csv", transportDir, rds)
+  readr::write_tsv(df2, file = dsn)
+  carp("dsn: %s", dsn)
+}
 # source("geo/scripts/transport.R");gtfs2osm_relations_route_stops()
 gtfs2osm_relations_route_stops <- function(rds = "gtfs2osm_routes_stops", force_osm = TRUE) {
   library(tidyverse)
@@ -230,6 +268,7 @@ gtfs2osm_relations_route_stops <- function(rds = "gtfs2osm_routes_stops", force_
   df1 <- tidytransit_lire(rds = "tidytransit_routes_stops") %>%
     group_by(ref_network) %>%
     arrange(desc(nb_stops), desc(nb)) %>%
+    mutate(Ordre = row_number()) %>%
     filter(row_number() == 1) %>%
     ungroup() %>%
     glimpse()
@@ -238,7 +277,7 @@ gtfs2osm_relations_route_stops <- function(rds = "gtfs2osm_routes_stops", force_
     glimpse()
   df2 <- df2 %>%
     dplyr::select(colour, description, from, name, network, operator,`public_transport:version`
-      ,ref, ref_network, shape_id, route, text_colour, to, type, stops, stops_code, stop_names = names
+      ,ref, ref_network, Ordre, shape_id, route, text_colour, to, type, stops, stops_code, stop_names = names
       ,stops_osm_id, stops_osm_name) %>%
     glimpse()
   tags <- Config_tags
@@ -257,37 +296,17 @@ gtfs2osm_relations_route_stops <- function(rds = "gtfs2osm_routes_stops", force_
 #
 # la conversion
 # source("geo/scripts/transport.R");gtfs2osm_relations_route_shape_stops()
-gtfs2osm_relations_route_shape_stops <- function(rds = "gtfs2osm_routes_shapes_stops", force_osm = TRUE) {
+gtfs2osm_relations_route_shape_stops <- function(rds = "gtfs2osm_relations_route_shape_stops", force_osm = TRUE) {
   library(tidyverse)
   library(tidytransit)
   carp()
-  df1 <- tidytransit_lire(rds = "tidytransit_routes_stops") %>%
-    group_by(ref_network, shape_id) %>%
-    arrange(desc(nb), desc(nb_stops)) %>%
-    filter(row_number() == 1) %>%
-    ungroup() %>%
-    arrange(ref_network) %>%
+  df1 <- tidytransit_lire(rds = "tidytransit_shapes_stops") %>%
+    arrange(ref_network, shape_id) %>%
     glimpse()
-  df2 <- df1 %>%
-    dplyr::select(ref_network, shape_id, route_desc, nb, nb_stops) %>%
-    arrange(ref_network, desc(nb), desc(nb_stops))
-  misc_print(df2)
-  df3 <- df1 %>%
-    group_by(ref_network) %>%
-    arrange(desc(nb), desc(nb_stops)) %>%
-    filter(row_number() == 1) %>%
-    ungroup() %>%
-    arrange(ref_network)
-  df4 <- df3 %>%
-    dplyr::select(ref_network, shape_id, route_desc, nb, nb_stops) %>%
-    filter(ref_network == "C4-A") %>%
-    arrange(ref_network, desc(nb), desc(nb_stops))
-  misc_print(df4)
-#  stop("*****")
   df4 <- gtfs2osm_routes_osm(df1, force_osm = force_osm)
   df4 <- df4 %>%
     dplyr::select(colour, description, from, name, network, operator,`public_transport:version`
-      ,ref, ref_network, shape_id, route, text_colour, to, type, stops, stops_code, stop_names = names
+      ,ref, ref_network, Ordre, shape_id, route, text_colour, to, type, stops, stops_code, stop_names = names
       ,stops_osm_id, stops_osm_name
     )
   tags <- Config_tags
@@ -308,11 +327,17 @@ gtfs2osm_relations_route_shape_stops <- function(rds = "gtfs2osm_routes_shapes_s
 }
 #
 # les attributs de la relation route
-gtfs2osm_routes_osm <- function(df1, force_osm = TRUE) {
+gtfs2osm_routes_osm <- function(df1, stops_osm = TRUE, force_osm = TRUE) {
   library(tidyverse)
   library(tidytransit)
   library(stringr)
   carp()
+#  if (!is.na(Config_route_prefixe)) {
+#    df1 <- df1 %>%
+#      mutate(ref_network = sprintf("%s%s", Config_route_prefixe, ref_network)) %>%
+#      glimpse()
+#  }
+
   df2 <- df1 %>%
     mutate(Route_color = sprintf("#%s", toupper(route_color))) %>%
     mutate(Route_text_color = sprintf("#%s", toupper(route_text_color))) %>%
@@ -356,10 +381,19 @@ gtfs2osm_routes_osm <- function(df1, force_osm = TRUE) {
       mutate(name = str_glue('{Config_route_name} {route_short_name} {route_long_name} : {from_city} -> {to_city}')) %>%
       glimpse()
   }
+  if (Reseau == "lorient") {
+    df2 <- df2 %>%
+#      mutate(name = str_glue('{Config_route_name} {route_short_name} : {first_name} -> {last_name}')) %>%
+      mutate(name = str_glue('{Config_route_name} {route_short_name} : {first_city} ({first_name}) -> {last_city} ({last_name})')) %>%
+      glimpse()
+  }
   if (grepl("semo", Config_reseau)) {
     df2 <- df2 %>%
       mutate(description = str_glue('Ligne {route_short_name} : {route_long_name}')) %>%
       glimpse()
+  }
+  if (stops_osm == FALSE) {
+    return(invisible(df2))
   }
 #
 # pour avoir les id osm des stops
@@ -369,6 +403,9 @@ gtfs2osm_routes_osm <- function(df1, force_osm = TRUE) {
     clean_names()
   stops_zone <- "stops"
   if ( Reseau == "bordeaux") {
+    stops_zone <- "stops_code"
+  }
+  if ( Reseau == "vannes") {
     stops_zone <- "stops_code"
   }
   for (i2 in 1:nrow(df2)) {

@@ -135,15 +135,21 @@ reseau_osm_routes_shapes <- function(force = TRUE) {
   lg.df <- tribble(~id, ~ref, ~ref_network, ~shape, ~osm_lg, ~shape_lg, ~inters_lg)
   lg.df <- tribble()
   for (i in 1:nrow(df)) {
-    carp("i: %s/%s", i, nrow(df))
     id <-  df[[i, "id"]]
+    carp("i: %s/%s id: %s", i, nrow(df), id)
     shape <- df[[i, "shape"]]
     if (is.na(shape)) {
       carp("**** id: %s pas de shape", id)
       next
     }
+    if (id != "2122348") {
+#      next
+    }
     dsn <- sprintf("%s/reseau_osm_routes_shapes_%s.pdf", imagesDir, id)
     rc <- carto_route_shape_mapsf(id, shape)
+    if (is.logical(rc)) {
+      next
+    }
     lg.df <- lg.df %>%
       bind_rows(as_tibble(rc))
     dsn <- dev2pdf(suffixe = id, dossier = "images")
@@ -361,7 +367,8 @@ reseau_relations_route_valid <- function(force = TRUE) {
   objects <- xml2::xml_find_all(doc, "//relation")
   osm.df <- osmapi_objects_tags(objects)
   osm.df <- osm.df %>%
-    clean_names()
+    clean_names() %>%
+    glimpse()
 #  View(osm.df)
   df1 <- osm.df %>%
     group_by(ref_network) %>%
@@ -391,14 +398,16 @@ reseau_relations_route_valid <- function(force = TRUE) {
   df13 <- df12 %>%
     dplyr::select(ref_network, route_id, route_long_name) %>%
     misc_print(.)
-  level0 <- ""
-  for (i12 in 1:nrow(df12)) {
-    dsn <- sprintf("%s/reseau_relations_route_level0_%s.txt", osmDir, df12[i12, "ref_network"])
-    level0 <- c(level0, read_lines(file = dsn))
+  if (nrow(df12) > 0) {
+    level0 <- ""
+    for (i12 in 1:nrow(df12)) {
+      dsn <- sprintf("%s/reseau_relations_route_level0_%s.txt", osmDir, df12[i12, "ref_network"])
+      level0 <- c(level0, read_lines(file = dsn))
+    }
+    dsn <- sprintf("%s/reseau_relations_route_valid.txt", osmDir)
+    write(level0, dsn)
+    carp("dsn: %s", dsn)
   }
-  dsn <- sprintf("%s/reseau_relations_route_valid.txt", osmDir)
-  write(level0, dsn)
-  carp("dsn: %s", dsn)
   return(invisible())
 }
 #
