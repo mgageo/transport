@@ -16,7 +16,6 @@ star_jour <- function(reseau = "rennes", force = TRUE) {
   carp()
   config_xls(reseau)
   star_gtfs_dl(reseau = reseau)
-  tidytransit_jour()
 }
 #
 # https://themockup.blog/posts/2020-12-13-extracting-json-from-websites-and-public-apis-with-r/
@@ -260,4 +259,19 @@ star_osm_stops_gtfs_stops <- function(force_osm = TRUE) {
   carp("plus desservi par la star")
   misc_print(rc$autre)
   misc_print(rc$hs)
+}
+#
+# pour le changement de référence des routes
+# source("geo/scripts/transport.R");star_gtfs_routes()
+star_gtfs_routes <- function(force_osm = TRUE) {
+  library(tidyverse)
+  carp()
+  config_xls("rennes")
+  osm.df <- overpass_get(query = "relations_bus_star", format = "csv", force = force_osm) %>%
+    mutate(Ref = gsub("\\-[AB]$", "", `ref:network`)) %>%
+    filter(ref == Ref) %>%
+    mutate(Ref = gsub("^0*", "", `gtfs:shape_id`)) %>%
+    mutate(Ref = gsub("\\-[AB].*", "", Ref)) %>%
+    filter(ref != Ref) %>%
+    glimpse()
 }

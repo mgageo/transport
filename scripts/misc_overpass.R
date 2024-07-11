@@ -695,6 +695,17 @@ out meta;', Config[1, 'zone'], Config[1, 'network'], Config[1, 'network'])
   return(invisible(requete))
 }
 #
+overpass_query_relations_bus_star_csv <- function() {
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,name,ref,"ref:network","gtfs:shape_id";true;"\t")];
+area[name="%s"]->.a;
+(
+relation(area.a)[type=route][route=bus][network="%s"];
+);
+out meta;', Config[1, 'zone'], Config[1, 'network'])
+  carp("requete: %s", requete)
+  return(invisible(requete))
+}
+#
 overpass_query_relations_bus_network <- function() {
   requete <- sprintf('area[name="%s"]->.a;
 (
@@ -796,14 +807,6 @@ relation(%s);map_to_area->.a;
 // les relations route=bus
 relation[type=route][route=bus][!"public_transport:version"](area.a);
 (._;>;);
-out meta;', Config[1, 'zone_relation'])
-  return(invisible(requete))
-}
-overpass_query_ptv2_relations_route_bus_csv <- function() {
-  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user;true;"\t")];
-relation(%s);map_to_area->.a;
-// les relations route=bus
-relation[type=route][route=bus][!"public_transport:version"](area.a);
 out meta;', Config[1, 'zone_relation'])
   return(invisible(requete))
 }

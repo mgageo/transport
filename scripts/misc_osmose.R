@@ -66,8 +66,8 @@ out ids bb;', Config[1, 'zone_relation'])
   steplon <- 0.2
   steplat <- 0.2
   df1 <- data.frame()
-  for (lon in seq(from=df[[1, "minlon"]], to = df[[1, "maxlon"]], by = steplon)) {
-    for (lat in seq(from=df[[1, "minlat"]], to = df[[1, "maxlat"]], by = steplat)) {
+  for (lon in seq(from = df[[1, "minlon"]], to = df[[1, "maxlon"]], by = steplon)) {
+    for (lat in seq(from = df[[1, "minlat"]], to = df[[1, "maxlat"]], by = steplat)) {
       issues <- osmose_bbox_get(lon1 = lon, lat1 = lat, lon2 = lon + steplon, lat2 = lat + steplat, force = TRUE)
       if (length(issues) == 0) {
         next;

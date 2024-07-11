@@ -4,9 +4,10 @@
 #
 # auteur : Marc Gauthier
 # licence: Creative Commons Paternité - Pas d'Utilisation Commerciale - Partage des Conditions Initiales à l'Identique 2.0 France
-# ===============================================================
+# ===========À====================================================
 #
-Drive <- substr( getwd(),1,2)
+DEBUG <- FALSE
+source("geo/scripts/misc.R")
 baseDir <- sprintf("%s/web", Drive)
 cfgDir <- sprintf("%s/web/geo/TRANSPORT", Drive)
 imagesDir <- sprintf("%s/web/geo/TRANSPORT/images", Drive)
@@ -19,15 +20,12 @@ odDir <- sprintf("%s/MOBIBREIZH", varDir)
 webDir <- sprintf("%s/web.heb/bv/transport", Drive)
 osmDir <- sprintf("%s/OSM", varDir)
 reseauDir <- sprintf("%s/SURF", varDir)
-setwd(baseDir)
 dir.create(cfgDir, showWarnings = FALSE, recursive = TRUE)
 dir.create(varDir, showWarnings = FALSE, recursive = TRUE)
 dir.create(osmDir, showWarnings = FALSE, recursive = TRUE)
 dir.create(texDir, showWarnings = FALSE, recursive = TRUE)
 dir.create(imagesDir, showWarnings = FALSE, recursive = TRUE)
-DEBUG <- FALSE
 source("geo/scripts/mga.R")
-source("geo/scripts/misc.R")
 source("geo/scripts/misc_docker.R")
 source("geo/scripts/misc_datagouv.R")
 source("geo/scripts/misc_geocode.R")
@@ -59,7 +57,7 @@ source("geo/scripts/transport_gtfs2osm.R"); # mise en format compatible perl
 source("geo/scripts/transport_ign.R"); # pour la détermination des communes des arrêts
 source("geo/scripts/transport_mapbox.R")
 source("geo/scripts/transport_mapmatching.R")
-source("geo/scripts/transport_menu.R")
+source("geo/scripts/transport_menu.R"); # les différents traitements suite à mise à jour du gtfs
 source("geo/scripts/transport_misc.R")
 # source("geo/scripts/transport_mobibreizh.R"); # pour le gtfs de la région
 source("geo/scripts/transport_oapi.R")
@@ -75,7 +73,7 @@ source("geo/scripts/transport_routes.R"); # cohérence route route_master
 source("geo/scripts/transport_tidytransit.R"); # lecture du fichier gtfs.zip
 source("geo/scripts/transport_train.R");# les réseaux de train
 source("geo/scripts/transport_txt.R")
-source("geo/scripts/transport_valhalla.R")
+source("geo/scripts/transport_valhalla.R"); # le routage avec les shapes
 source("geo/scripts/transport_wiki.R")
 source("geo/scripts/transport_zone.R")
 #
@@ -149,7 +147,6 @@ Reseau <- "lorient"; # Lorient CTRL
 Reseau <- "breizhgo"; # BreizhGo en Bretagne, les lignes régionales
 Reseau <- "guingamp"; # Guingamp AXEOBUS
 Reseau <- "korrigo"; # les réseaux gérés en gtfs régionalement
-Reseau <- "breizhgo_illenoo2"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
 Reseau <- "breizhgo_tim"; # pseudo-réseau pour BreizhGo en Côtes d'Armor
 Reseau <- "breizhgo_tibus"; # pseudo-réseau pour BreizhGo en Morbihan
 Reseau <- "aleop_44"; # Pays de la Loire, réseau départemental 44
@@ -157,7 +154,6 @@ Reseau <- "breizhgo_lrron"; # pseudo-réseau pour BreizhGo régional ouest nord
 Reseau <- "breizhgo_lrrns"; # pseudo-réseau pour BreizhGo régional nord sud
 Reseau <- "bretagne"; # les réseaux de la région Bretagne
 Reseau <- "concarneau"; # Concarneau Coralie
-Reseau <- "breizhgo_pennarbed"; # pseudo-réseau pour BreizhGo en Finistère
 Reseau <- "destineo"; # Pays de la Loire, les réseaux gérés au niveau de la région
 Reseau <- "aleop"; # Pays de la Loire
 Reseau <- "saintbrevin"; # Saint Brevin les Pins, Brévibus
@@ -165,8 +161,10 @@ Reseau <- "aleop44"; # Pays de la Loire, réseau départemental 44
 Reseau <- "saintnazaire"; # Saint-Nazaire STRAN
 Reseau <- "orleans"; # Orléans TAO
 Reseau <- "nantes"; # Nantes TAN/Naolib
-Reseau <- "rennes"; # Rennes STAR
 Reseau <- "brest"; # Brest Bibus
+Reseau <- "breizhgo_illenoo2"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
+Reseau <- "breizhgo_pennarbed"; # pseudo-réseau pour BreizhGo en Finistère
+Reseau <- "rennes"; # Rennes STAR
 config_xls(Reseau)
 Tex <- TRUE
 Wiki <- TRUE

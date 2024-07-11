@@ -22,7 +22,7 @@ library(knitr)
 library(kableExtra)
 library(readr)
 options("encoding" = "UTF-8")
-par(mar = c(0, 0, 0, 0), oma = c(0, 0, 0, 0), mai = c(0, 0, 0, 0))
+# par(mar = c(0, 0, 0, 0), oma = c(0, 0, 0, 0), mai = c(0, 0, 0, 0))
 options(stringsAsFactors = FALSE)
 # le timeout sur le téléchargement via download.file
 options(timeout=120)
@@ -38,9 +38,15 @@ options(dplyr.summarise.inform = F)
 Tex <- TRUE
 Wiki <- TRUE
 OsmChange <- FALSE
+baseDir <- getwd()
+SysName <- Sys.info()[['sysname']]
 switch(Sys.info()[['sysname']],
-  Windows= {baseDir <-"d:/web"},
-  Linux  = {baseDir <- "/d/web"}
+  Windows= {
+    Drive <- "d:"
+  },
+  Linux  = {
+    Drive <- "/d"
+  }
 )
 copyright <- "@ Marc Gauthier CC-BY-NC-ND"
 # ne marche plus en 4.1.0
@@ -463,6 +469,15 @@ add.alpha <- function(col, alpha = 0.2){
 # jongle entre les différents formats d'image
 #
 plotImg <- function(img, alpha = 255, maxpixels = 50000000, new = TRUE, png = FALSE) {
+  if (is(img, "SpatRaster")) {
+    ncols <- ncol(img)
+    nrows <- nrow(img)
+    Carp("%sx%s", ncols, nrows)
+    dev.new(width = ncols, height = nrows, units = "px", pointsize = 12)
+    par(mar = c(0, 0, 0, 0), oma = c(0, 0, 0, 0), mai = c(0, 0, 0, 0))
+    plot(img, axes = FALSE, add = FALSE, legend = FALSE, maxcell = maxpixels)
+    return(invisible())
+  }
   ncols <<- img@ncols
   nrows <<- img@nrows
 #  carp('ncols: %s nrows:%s', img@ncols, img@nrows )
@@ -538,10 +553,10 @@ plotImgGray2 <- function(img, alpha=255, maxpixels=500000) {
 # autre version https://github.com/dahtah/imager/blob/master/R/conversions.R
 plotImgGray3 <- function(img, alpha=255, maxpixels=500000) {
   carp()
-  library(imager)
+#  library(imager)
   dev.new( width = img@ncols, height = img@nrows, units = "px", pointsize = 12)
   par(mar = c(0, 0, 0, 0), oma = c(0, 0, 0, 0), mai = c(0, 0, 0, 0))
-  img <- grayscale(img, method = "Luma", drop = TRUE)
+  img <- imager::grayscale(img, method = "Luma", drop = TRUE)
   plot(img, col = grayscale_colors, axes = FALSE, add = FALSE, maxpixels = maxpixels, alpha = alpha)
 }
 # source("geo/scripts/onc35.R");test_gray();
@@ -613,7 +628,7 @@ ggpdf <- function(plot = last_plot(), suffixe = '', dossier = '',  width = 0, he
   dsn <- sprintf("%s%s/%s%s.pdf", texDir, dossier, curcall, suffixe)
   print(sprintf("%s() dsn : %s", curcall, dsn))
 #  ggsave(dsn, width=width, height=height)
-  ggsave(dsn, plot=plot)
+  ggsave(dsn, plot = plot)
   carp("***dsn: %s", dsn)
 }
 ggpdf2 <- function(p, suffixe = "", dossier = '', width = 7, height = 7) {
@@ -865,7 +880,11 @@ lire_rds <- function(dsn = FALSE, suffixe = "", dossier = "") {
   }
   dsn <- sprintf("%s/%s%s%s.Rds", cfgDir, dossier, dsn, suffixe)
   carp("dsn: %s", dsn)
-  object <- readRDS(dsn)
+  if (file.exists(dsn)) {
+    object <- readRDS(dsn)
+  } else {
+    object <- FALSE
+  }
   return(invisible(object))
 #  stop('****')
 
@@ -977,7 +996,7 @@ misc_exists <- function(obj, rds = "sauve", dir = FALSE) {
 # variante avec arrow/parquet
 misc.list <<- list()
 misc.lire <- function(parquet = 'lire', dir = FALSE, force = FALSE) {
-  library(arrow)
+  library(nanoparquet)
 #  carp("parquet: %s", parquet)
   if (force == TRUE) {
     return(invisible(FALSE))
@@ -991,7 +1010,7 @@ misc.lire <- function(parquet = 'lire', dir = FALSE, force = FALSE) {
     dsn <- sprintf("%s/%s.parquet", parquet_dir, parquet)
     carp("dsn: %s", dsn)
     if (file.exists(dsn)) {
-      misc.list[[parquet]] <<- read_parquet(file = dsn)
+      misc.list[[parquet]] <<- nanoparquet::read_parquet(file = dsn)
     } else {
       return(invisible(FALSE))
     }
@@ -999,7 +1018,7 @@ misc.lire <- function(parquet = 'lire', dir = FALSE, force = FALSE) {
   return(invisible(misc.list[[parquet]]))
 }
 misc.ecrire <- function(obj, parquet = "sauve", dir = FALSE) {
-  library(arrow)
+  library(nanoparquet)
   if ( dir == FALSE) {
     parquet_dir <- varDir
   } else {
@@ -1008,7 +1027,7 @@ misc.ecrire <- function(obj, parquet = "sauve", dir = FALSE) {
   misc.list[[parquet]] <<- obj
   dsn <- sprintf("%s/%s.parquet", parquet_dir, parquet)
   carp("dsn: %s", dsn)
-  write_parquet(obj, sink = dsn)
+  nanoparquet::write_parquet(obj, dsn)
   return(invisible(obj))
 }
 #

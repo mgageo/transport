@@ -166,6 +166,64 @@ geocode_direct_nominatim <- function(adresse, countrycodes = 'FR', force = FALSE
   save(direct.df, file=dsn)
   return(invisible(df))
 }
+# source("geo/scripts/clochouette35.R"); df <- geocode_direct_test() %>% glimpse()
+geocode_direct_test <- function() {
+  df <- tribble(~lieudit,~commune,
+"L'aurore","Cancale"
+)
+  df <- geocode_direct_geopf(df, force = TRUE)
+  return(invisible(df))
+}
+# source("geo/scripts/clochouette35.R"); df <- geocode_direct_test() %>% glimpse()
+geocode_direct_geopf <- function(df, rds = "geocode_direct_geopf", force = TRUE) {
+  df1 <- lire_rds(rds)
+  if (! is.logical(df1) & force == FALSE) {
+    return(invisible(df1))
+  }
+  direct.df <- tibble()
+  for (i in 1:nrow(df)) {
+    geocode_direct_geopf_get(df, i)
+    result <- geocode_direct_geopf_parse_json()
+    result.df <- as_tibble(result) %>%
+# il peut y avoir plusieurs poiType
+      filter(row_number() == 1) %>%
+      mutate(index = df[[i, "index"]])
+    direct.df <- bind_rows(direct.df, result.df)
+  }
+  sauve_rds(direct.df, dsn = rds)
+  return(invisible(direct.df))
+}
+# https://geoservices.ign.fr/documentation/services/services-geoplateforme/geocodage
+# https://geoservices.ign.fr/services-geoplateforme-geocodage-autocompletion
+geocode_direct_geopf_get <- function(df, i, force = FALSE) {
+  library(httr)
+  http_headers = c(
+    Accept = "text/html",
+    "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:51.0) Gecko/20100101 Firefox/51.0"
+  )
+  tpl <- 'https://data.geopf.fr/geocodage/completion?text={{lieudit}},{{commune}}&type=StreetAddress,PositionOfInterest&maximumResponses=15'
+  url <- misc_dfi2tpl(df, i, tpl)
+  url <- URLencode(url)
+  writeLines(url)
+  dsn <- sprintf("%s/geocode_direct_geopf.json", varDir)
+  reponse <- httr::GET(url, write_disk(dsn, overwrite = TRUE))
+#  carp("reponse: %s", content(reponse))
+}
+# source("geo/scripts/clochouette35.R");l <- geocode_direct_geopf_parse_json() %>% glimpse()
+geocode_direct_geopf_parse_json <- function() {
+  library(tidyverse)
+  library(jsonlite)
+  carp()
+  dsn <- sprintf("%s/geocode_direct_geopf.json", varDir)
+  raw_json <- read_json(dsn)
+  r <- FALSE
+  for (result in raw_json$results) {
+    carp("fulltext: %s", result$fulltext)
+    r <- result
+    break
+  }
+  return(invisible(r))
+}
 geocode_reverse_v1 <- function(points, server = NULL) {
   library(RCurl)
   library(RJSONIO)
@@ -381,11 +439,12 @@ geocode_reverse_openls_test <- function() {
   df <- tribble(
   ~lat, ~lon,~name,
 #48.844061,2.37068,"titi",
-48.10223,-1.566686,"toto"
+#48.13151,-1.556521,"toto"
+48.16000,-1.55036,"tutu"
 )
-  geocode_reverse_openls(df)
+  geocode_reverse_openls(df, force = TRUE)
 }
-geocode_reverse_openls <- function(df, force=FALSE) {
+geocode_reverse_openls <- function(df, force = FALSE) {
   carp("nb: %s", nrow(df))
   df <- df %>%
     mutate(adresse = "") %>%
@@ -414,7 +473,9 @@ geocode_reverse_openls <- function(df, force=FALSE) {
     carp("%s %s", lonlat, lieudit)
     reverse.df <- reverse.df %>%
       add_row(lon_lat = lonlat, lieudit = lieudit)
-    saveRDS(reverse.df, file = dsn)
+    if (force == FALSE) {
+      saveRDS(reverse.df, file = dsn)
+    }
   }
   glimpse(df)
   return(invisible(df))
@@ -443,6 +504,7 @@ geocode_reverse_openls_point_xml <- function(df, i, force = FALSE) {
 </XLS>
 '
   body <- misc_dfi2tpl(df, i, tpl)
+  writeLines(body)
 #  carp("body: %s", body)
   dsn <- sprintf("%s/geocode_reverse_openls_point.xml", varDir)
   reponse <- httr::POST(url, body = body, encode = "multipart", add_headers(http_headers), write_disk(dsn, overwrite = TRUE))
@@ -459,10 +521,9 @@ geocode_reverse_openls_point_json <- function(df, i, force = FALSE) {
   )
   tpl <- 'https://data.geopf.fr/geocodage/reverse?index=poi&searchgeom={%22type%22:%22Point%22,%22coordinates%22:[{{lon}},{{lat}}]}'
 #https://data.geopf.fr/geocodage/reverse?index=address&searchgeom={%22type%22:%22Circle%22,%22coordinates%22:[2.423079,48.845914],%22radius%22:50}&lon=2.423079&lat=48.845914&limit=20
-  tpl <- 'https://data.geopf.fr/geocodage/reverse?index=poi&searchgeom={%22type%22:%22Circle%22,%22coordinates%22:[{{lon}},{{lat}}],%22radius%22:500}'
-#  tpl <- 'https://data.geopf.fr/geocodage/reverse?index=poi&lon={{lon}}&lat={{lat}}}'
+  tpl <- 'https://data.geopf.fr/geocodage/reverse?index=poi&searchgeom={%22type%22:%22Circle%22,%22coordinates%22:[{{lon}},{{lat}}],%22radius%22:500}&lon={{lon}}&lat={{lat}}'
   url <- misc_dfi2tpl(df, i, tpl)
-#  writeLines(url)
+  writeLines(url)
   dsn <- sprintf("%s/geocode_reverse_openls_point.json", varDir)
   reponse <- httr::GET(url, write_disk(dsn, overwrite = TRUE))
 #  carp("reponse: %s", content(reponse))
@@ -552,15 +613,19 @@ geocode_reverse_openls_point_parse_json <- function() {
     for (category in feature$properties$category) {
 #      carp("category: %s", category)
       if (category == "lieu-dit habité") {
-        lieudit <- sprintf("%s / %s", feature$properties$name[[1]], feature$properties$city[[1]])
-        break
+        if (feature$properties$name[[1]] != feature$properties$city[[1]]) {
+          lieudit <- sprintf("%s / %s", feature$properties$name[[1]], feature$properties$city[[1]])
+          break
+        }
       }
     }
     if (lieudit != "") {
       break
     }
   }
-#  confess("**** %s", lieudit)
+  if (lieudit == "") {
+    carp("**** %s", lieudit)
+  }
   return(invisible(lieudit))
 }
 #
@@ -588,4 +653,53 @@ geocode_direct_geoservices <- function(adresse, force = FALSE) {
   nc <- st_read(dsn, stringsAsFactors=FALSE, quiet = TRUE)
   misc_print(nc)
   return(invisible(nc))
+}
+#
+# source("geo/scripts/cheveche35.R"); geocode_direct_plan ()
+geocode_direct_plan <- function(lon=-1.55036, lat=48.16081) {
+  library(sf)
+  library(leaflet)
+  library(fontawesome)
+  sfc <- st_sfc(st_point(c(lon,lat)))
+  point.sf <- st_sf(a = 1, geom = sfc)
+  st_crs(point.sf) <- 4326
+  cercle.sfg <- point.sf %>%
+    st_transform(2154) %>%
+    st_buffer(500) %>%
+    st_transform(4326)
+
+  query <- list(
+    SERVICE="WMTS",
+    REQUEST="GetTile",
+    VERSION="1.0.0",
+    STYLE="normal",
+    TILEMATRIXSET="PM",
+    FORMAT="image/png",
+    LAYER="GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2",
+    TILEMATRIX="{z}",
+    TILEROW="{y}",
+    TILECOL="{x}"
+  )
+  query <- paste(names(query), query, sep = "=", collapse = "&")
+  url <- sprintf("https://data.geopf.fr/wmts?%s", query)
+  leaflet() %>%
+    addTiles(url) %>%
+    addMarkers(
+      data = point.sf
+    ) %>%
+    addPolygons(
+      data = cercle.sfg
+    )
+}
+geocode_toto <- function() {
+  library(sf)
+  library(leaflet)
+  library(fontawesome)
+  sfc1 <- st_sfc(st_point(c(-1.55036,48.16081)))
+  sfc2 <- st_sfc(st_point(c(-1.544531,48.158087)))
+  p1 <- st_sf(a = 1, geom = sfc1)
+  p2 <- st_sf(a = 1, geom = sfc2)
+  st_crs(p1) <- 4326
+  st_crs(p2) <- 4326
+  st_distance(p1, p2)
 }

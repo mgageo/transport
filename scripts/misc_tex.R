@@ -517,13 +517,15 @@ tex_df2tpl <- function(df, i, tpl) {
 }
 #
 # setwd('d:/web');source("geo/scripts/onc35.R");tex_pdflatex()
-tex_pdflatex <- function(dsn = "especes.tex") {
+tex_pdflatex <- function(dsn = "especes.tex", dossier = "") {
   library(tinytex)
   if (Tex == FALSE) {
     return(invisible(Tex))
   }
-
-  carp("dsn: %s", dsn)
+  if (dossier != "") {
+    texDir <- sprintf("%s/%s", texDir, dossier)
+  }
+  carp("dsn: %s texDir: %s", dsn, texDir)
   setwd(texDir)
   pdf <- str_replace(dsn , "tex$", "pdf")
   pdf <- sprintf("%s/%s", texDir, pdf)
@@ -533,6 +535,7 @@ tex_pdflatex <- function(dsn = "especes.tex") {
     carp('tDir: %s', tDir)
     setwd(tDir)
   }
+  carp("getwd: %s", getwd())
   options(tinytex.verbose = TRUE)
 #  options(tinytex.verbose = FALSE)
   x <- tryCatch(
@@ -546,5 +549,6 @@ tex_pdflatex <- function(dsn = "especes.tex") {
   carp("baseDir: %s", baseDir)
   setwd(baseDir)
   misc_openFile(pdf)
+  return(invisible(pdf))
 }
 

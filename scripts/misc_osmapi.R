@@ -746,10 +746,63 @@ osmapi_attrs_to_df <- function(nodes) {
 #
 # pour vérifier la connexion
 # source("geo/scripts/transport.R"); osmapi_api("user/details", methode = "GET")
-
-api_url <- "https://master.apis.dev.openstreetmap.org"
+#
+# la version OAuth2 01/07/2024
 api_url <- "https://www.openstreetmap.org"
 osmapi_api <- function(path, xml = '', methode = "PUT", debug = FALSE) {
+  library(httr2)
+  carp("path: %s methode: %s", path, methode)
+  dsn <- "d:/osmapi_url.txt"
+  write(xml, dsn)
+  url <- sprintf("%s/api/0.6/%s", api_url, path)
+  carp("url: %s", url)
+  auth_url <- "https://www.openstreetmap.org/oauth2/authorize"
+  client <- httr2::oauth_client(
+    id = client_id,
+    token_url = "https://www.openstreetmap.org/oauth2/token",
+    secret = client_secret,
+    auth = "header"
+  )
+  if (methode == "PUT" | methode == "POST") {
+    req <- request(url) |>
+      req_method(methode) |>
+      req_body_raw(xml)
+    resp <- req |>
+      req_oauth_auth_code(
+        client = client,
+        auth_url = auth_url,
+        scope = paste(c("write_api"), collapse = " "),
+        redirect_uri = client_redirect
+      ) |>
+      req_perform()
+  }
+  if (methode == "GET") {
+    req <- request(url) |>
+      req_method(methode)
+    resp <- req |>
+      req_perform()
+  }
+  status <- resp |> resp_status_desc()
+  if (status != "OK") {
+    writeLines(xml)
+    stop(
+      sprintf(
+        "osm API request failed [%s]",
+        status
+      ),
+      call. = FALSE
+    )
+  }
+  txt <- ""
+  if (resp |> resp_has_body()) {
+    txt <- resp |> resp_body_string()
+  }
+  return(invisible(txt))
+}
+#
+# la version OAuth1 -> 01/07/2024
+api_url <- "https://www.openstreetmap.org"
+osmapi_api_oauth1 <- function(path, xml = '', methode = "PUT", debug = FALSE) {
   library(httr)
   url <- sprintf("%s/api/0.6/%s", api_url, path)
   carp("url: %s", url)
@@ -893,6 +946,7 @@ osmapi_get_changeset_first <- function(display_name = "mga_geo") {
 # source("geo/scripts/transport.R"); osmapi_put()
 osmapi_put <- function(osmchange = "create", text = "osm", comment = "", force = FALSE) {
   library(tidyverse)
+  carp("osmapi_put")
   xml <- '<osm>
   <changeset>
     <tag k="created_by" v="R 0.6"/>
@@ -910,6 +964,7 @@ osmapi_put <- function(osmchange = "create", text = "osm", comment = "", force =
 #  return(invisible(-2))
   changeset_id <- osmapi_api("changeset/create", xml, methode = "PUT")
   carp("changeset_id: %s", changeset_id)
+#  stop("****")
   text <- osmapi_osmchange(changeset_id, change = osmchange, osm = text)
   path <- sprintf("changeset/%s/upload", changeset_id)
   res <- osmapi_api(path, xml = text, methode = "POST")
@@ -941,6 +996,7 @@ osmapi_create_node <- function() {
   <tag k="name" v="mga_geo"/>
 </node>
 '
+  OsmChange <<- TRUE
   changeset_id <- osmapi_put("create", text = text)
   txt <- osmapi_get_changeset(id = changeset_id)
   return(invisible(changeset_id))
@@ -954,8 +1010,8 @@ osmapi_create_node <- function() {
 osmapi_test <- function() {
   library(stringi)
 # création d'un node
-#  id <- osmapi_create_node()
-  id <- "132833877"
+  id <- osmapi_create_node()
+#  id <- "132833877"
 #
   df <- osmapi_get_changeset(id = id)
   text <- osmapi_get_object_xml(id = df[[1, "id"]], type = df[[1, "xml_name"]])

@@ -16,7 +16,7 @@ korrigo_jour <- function(reseau = "korrigo", force = TRUE) {
   library(archive)
   carp()
   config_xls(reseau)
-  korrigo_dl()
+#  korrigo_dl()
   korrigo_reseaux()
 }
 #
@@ -66,8 +66,7 @@ korrigo_reseaux <- function() {
     gtfs_dir <- df[i, "gtfs_dir"]
 #    korrigo_gtfs_reseau(Reseau, agency_id, gtfs_dir)
     config_xls(Reseau)
-    wiki_pages_init()
-    next
+#    wiki_pages_init();    next
     shapes_dsn <- sprintf("%s/%s/shapes.txt", varDir, gtfs_dir)
     if (file.exists(shapes_dsn)) {
       size <- file.info(shapes_dsn)$size
@@ -77,7 +76,7 @@ korrigo_reseaux <- function() {
         carp("reseau: %s shapes: %s", Reseau, shapes)
       }
     }
-    config_xls(Reseau);tidytransit_jour()
+#    config_xls(Reseau);tidytransit_jour()
   }
 }
 #
@@ -275,6 +274,7 @@ korrigo_agency_lire <- function() {
   dsn <- sprintf("%s/agency.xls", cfgDir)
   carp("dsn: %s", dsn)
   df <- rio::import(dsn, col_names = TRUE, na = "") %>%
+    filter(! grepl("^#", reseau)) %>%
     replace(is.na(.), '')
   return(invisible(df))
 }
