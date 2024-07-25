@@ -16,6 +16,7 @@ star_jour <- function(reseau = "rennes", force = TRUE) {
   carp()
   config_xls(reseau)
   star_gtfs_dl(reseau = reseau)
+  tidytransit_jour(force= TRUE)
 }
 #
 # https://themockup.blog/posts/2020-12-13-extracting-json-from-websites-and-public-apis-with-r/
@@ -42,22 +43,6 @@ star_gtfs_dl <- function(reseau = "rennes", force = FALSE) {
   file.copy(dsn_source, dsn, overwrite = TRUE)
   archive_extract(dsn, gtfsDir)
   carp("fin dsn: %s", dsn)
-}
-
-# source("geo/scripts/transport.R");star_gtfs_jour()
-star_gtfs_jour <- function(reseau = "star", force = FALSE) {
-  library(tidyverse)
-  carp()
-  config_xls(reseau)
-  dsn <- sprintf("%s/gtfs.zip", gtfsDir)
-  #  tt <- tidytransit_zip_lire(dsn)
-  tidytransit_routes_fiche()
-  tidytransit_shapes_stops()
-  #  tidytransit_gtfs_shapes_sf()
-  #  tidytransit_gtfs_stops_sf()
-  #  transport_gtfs_shapes_geojson()
-  #  transport_gtfs_stops_geojson()
-  tex_pdflatex("star.tex")
 }
 # source("geo/scripts/transport.R");star_osm_jour(force = TRUE)
 star_osm_jour <- function(reseau = "star", force = FALSE) {

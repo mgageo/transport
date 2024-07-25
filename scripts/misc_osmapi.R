@@ -748,6 +748,8 @@ osmapi_attrs_to_df <- function(nodes) {
 # source("geo/scripts/transport.R"); osmapi_api("user/details", methode = "GET")
 #
 # la version OAuth2 01/07/2024
+# https://github.com/r-lib/httr2/blob/main/vignettes/articles/oauth.Rmd
+# découvert après https://github.com/ropensci/osmapiR
 api_url <- "https://www.openstreetmap.org"
 osmapi_api <- function(path, xml = '', methode = "PUT", debug = FALSE) {
   library(httr2)
@@ -761,14 +763,15 @@ osmapi_api <- function(path, xml = '', methode = "PUT", debug = FALSE) {
     id = client_id,
     token_url = "https://www.openstreetmap.org/oauth2/token",
     secret = client_secret,
-    auth = "header"
+    auth = "header",
+    name = "mgaOsmApi"
   )
   if (methode == "PUT" | methode == "POST") {
     req <- request(url) |>
       req_method(methode) |>
       req_body_raw(xml)
     resp <- req |>
-      req_oauth_auth_code(
+      httr2::req_oauth_auth_code(
         client = client,
         auth_url = auth_url,
         scope = paste(c("write_api"), collapse = " "),

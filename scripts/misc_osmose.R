@@ -465,19 +465,28 @@ osmose_issues_html <- function(get = "country", force = TRUE) {
   df3 <- df1 %>%
     filter(class %in% c("12")) %>%
     dplyr::select(uuid, subtitle = subtitle.auto, elems.1.id,  elems.1.type,  elems.2.id,  elems.2.type
-      , tags.1.network) %>%
+      , tags.1.network, lon, lat) %>%
     glimpse()
+# les formats
+  zoom <- "left=%0.5f&right=%0.5f&top=%0.5f&bottom=%0.5f"
+  select1 <- "%s%s"
   df4 <- df3 %>%
     filter(tags.1.network == osmose_network) %>%
     glimpse() %>%
-    mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
-    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
+#    mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
+#    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
+    mutate(elem1 = sprintf("%s%s",  str_sub(elems.1.type, 1, 1), elems.1.id)) %>%
+    mutate(elem2 = sprintf("%s%s",  str_sub(elems.2.type, 1, 1), elems.2.id)) %>%
+    mutate(select = sprintf("%s,%s", elem1, elem2)) %>%
+    mutate(zoom = sprintf(zoom, lon - .005, lon + .005, lat + .005, lat - .005)) %>%
+    mutate(josm = sprintf("<a href='http://127.0.0.1:8111/load_object?new_layer=true&relation_members=true&objects=%s' target='hiddenIframe'>josm</a>", select)) %>%
     mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
     mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>"
       , str_sub(elems.1.type,1, 1), elems.1.id
     )) %>%
+    dplyr::select(-elem1, -select, -zoom, -lon, -lat) %>%
     glimpse()
-  html <- html_append(html, "<h1>The platform is not on the right side of the road</h1>")
+  html <- html_append(html, "<h2>1260 12 The platform is not on the right side of the road</h2>")
   html <- html_append_df(html, df4)
   dsn_rds <- sprintf("%s/%s_1260_12.rds", varDir, titre)
   saveRDS(df4, dsn_rds)
@@ -529,7 +538,7 @@ osmose_issues_html <- function(get = "country", force = TRUE) {
 osmose_issues_html_2141 <- function(classe, df1) {
 # les formats
   zoom <- "left=%0.5f&right=%0.5f&top=%0.5f&bottom=%0.5f"
-  select1 <- "%s%s"
+  select1 <- "%s,%s"
   map <- "https://osmose.openstreetmap.fr/fr/map/#zoom=15&lat=%s&lon=%s&item=1260&level=1&tags=public_transport&class=1&issue_uuid=%s"
   df3 <- df1 %>%
     filter(class == classe) %>%

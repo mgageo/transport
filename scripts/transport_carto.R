@@ -20,7 +20,9 @@ carto_route_shape_stops <- function(df, nc1) {
   shape_id <- df[[1, "shape_id"]]
   carp("*****shape_id: %s", shape_id)
   rc <- as.list(df)
-#  return(invisible(rc))
+  if ( shape_id != "0007-A-2281-2337") {
+    return(invisible(rc))
+  }
   shape <- df[[1, "shape"]]
   dsn_shape <- sprintf("%s/shape_%s.gpx", josmDir, shape)
   if (! file.exists(dsn_shape)) {
@@ -76,9 +78,12 @@ carto_route_shape_stops <- function(df, nc1) {
   cote_droit.sf <<- shape.sf %>%
     st_buffer(-50, singleSide = TRUE, bOnlyEdges = FALSE) %>%
     st_buffer(0)
-#  dsn <- sprintf("%s/cote_droit.geojson", josmDir)
-#  st_write(st_transform(cote_droit.sf, 4326), dsn, delete_dsn = TRUE)
-#  carp("dsn: %s", dsn)
+  if ( shape_id == "0007-A-2281-2337") {
+    dsn <- sprintf("%s/cote_droit.geojson", josmDir)
+    st_write(st_transform(cote_droit.sf, 4326), dsn, delete_dsn = TRUE)
+    carp("dsn: %s", dsn)
+    stop("mmmmmmmmmmmmmmm")
+  }
   carp("les points proches")
   points.sf <<- nc2 %>%
     filter(distance < 50)
@@ -157,6 +162,7 @@ carto_route_shape_stops_cote <- function(id, force = TRUE) {
       lines = TRUE
     )
   }
+# buffer de 50 mètres du côté droit
   cote_droit.sf <- trace.sf %>%
     st_buffer(-50, singleSide = TRUE, bOnlyEdges = FALSE) %>%
     st_buffer(0)

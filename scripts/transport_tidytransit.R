@@ -670,6 +670,7 @@ tidytransit_routes_shapes_stops_carto_verif <- function(force = TRUE) {
   misc_print(shapes_out.df)
 #  stop("****")
   points.df <- data.frame()
+# les points du mauvais côté
   points_cote.df <- data.frame()
   for (i in 1:nrow(df)) {
     points.df <- bind_rows(points.df, df[i, "points_distance.df"])
@@ -685,12 +686,12 @@ tidytransit_routes_shapes_stops_carto_verif <- function(force = TRUE) {
   tex_df2kable(df1, num = TRUE, suffixe = "loin")
   df2 <- points_cote.df %>%
     glimpse() %>%
-    arrange(stop_id) %>%
+    arrange(shape_id, stop_id) %>%
     dplyr::select(-id, -stop_name, -within) %>%
     glimpse()
   misc_print(df2)
   tex_df2kable(df2, num = TRUE, suffixe = "cote")
-  return()
+  return(invisible())
 }
 #
 ## sans les shapes
