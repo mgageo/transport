@@ -10,8 +10,10 @@ DEBUG <- FALSE
 source("geo/scripts/misc.R")
 baseDir <- sprintf("%s/web", Drive)
 cfgDir <- sprintf("%s/web/geo/OSM", Drive)
+varDir <- sprintf("%s/web.var/OSM", Drive)
 duckdbDir <- sprintf("%s/web/duckdb", Drive)
 dir.create(cfgDir, showWarnings = FALSE, recursive = TRUE)
+dir.create(varDir, showWarnings = FALSE, recursive = TRUE)
 
 source("geo/scripts/mga.R")
 source("geo/scripts/osm_roundabout.R"); # pour les ronds-points

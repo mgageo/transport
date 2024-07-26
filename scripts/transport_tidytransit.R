@@ -852,6 +852,9 @@ tidytransit_shapes_gpx <- function(rds = 'gtfs_shapes') {
     dsn <- sprintf("%s/shape_%s.gpx", josmDir, shape)
     carp("dsn: %s", dsn)
     st_sf2gpx(shapes.sf[i, ], dsn, shape)
+    dsn <- sprintf("%s/shape_%s.geojson", josmDir, shape)
+    carp("dsn: %s", dsn)
+    st_write(st_transform(shapes.sf[i, ], 4326), dsn, delete_dsn = TRUE, driver = "GeoJSON")
 #    st_write(shapes.sf[i, ], dsn, delete_dsn = TRUE, overwrite_layer = TRUE, driver = 'GPX', GPX_USE_EXTENSIONS = "yes")
 #    confess;
 #    spdf <- as_Spatial(shapes.sf[i, ])

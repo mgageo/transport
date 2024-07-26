@@ -5,11 +5,18 @@
 # licence: Creative Commons Paternité - Pas d'Utilisation Commerciale - Partage des Conditions Initiales à l'Identique 2.0 France
 # ===============================================================
 #
-
+#
+# l'enchainement des traitements
+# source("geo/scripts/osm.R"); roundabout_jour(force = FALSE)
+roundabout_jour  <- function(force = TRUE) {
+  library(arrow)
+  roundabout_parquet_lire(force = force)
+  roundabout_tag_name(force = force)
+}
 #
 # lecture des fichiers
 # source("geo/scripts/osm.R"); roundabout_parquet_lire(force = FALSE)
-roundabout_parquet_lire  <- function(departement = 35, force = TRUE) {
+roundabout_parquet_lire  <- function(force = TRUE) {
   library(arrow)
   dsn <- sprintf("%s/roundabout_ways.parquet", duckdbDir)
   df1 <- arrow::read_parquet(dsn) %>%
@@ -38,6 +45,7 @@ roundabout_parquet_lire  <- function(departement = 35, force = TRUE) {
     if (nrow(df2) == 1) {
 #      carp("ajout d'une way")
       df1[[1, "id"]] <- sprintf("%s,%s", df1[[1, "id"]], df2[[1, "id"]])
+      df1[[1, "name"]] <- sprintf("%s@%s", df1[[1, "name"]], df2[[1, "name"]])
       df1[[1, "pt9"]] <- df2[[1, "pt9"]]
       df1 <- df1 %>%
         filter(id != df2[[1, "id"]])
@@ -53,5 +61,21 @@ roundabout_parquet_lire  <- function(departement = 35, force = TRUE) {
   }
   df1 <- rp.df %>%
       filter(pt1 != pt9)
+  misc_print(df1)
+  dsn <- sprintf("%s/roundabout_rp.parquet", varDir)
+  arrow::write_parquet(rp.df, dsn)
+}
+#
+# l'attribut name est identique
+# source("geo/scripts/osm.R"); roundabout_tag_name(force = FALSE)
+roundabout_tag_name  <- function(force = TRUE) {
+  library(arrow)
+  dsn <- sprintf("%s/roundabout_rp.parquet", varDir)
+  df1 <- arrow::read_parquet(dsn) %>%
+    mutate(tags = strsplit(name, "@")) %>%
+    rowwise() %>%
+    mutate(nb_tags = n_distinct(tags)) %>%
+    filter(nb_tags != 1) %>%
+    glimpse()
   misc_print(df1)
 }
