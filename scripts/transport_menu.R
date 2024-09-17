@@ -6,12 +6,14 @@
 #
 # source("geo/scripts/transport.R");menu()
 menu <- function() {
+  library(tidyverse)
   les_choix <- tribble(
     ~choix, ~fonction,
     "gtfs", "tidytransit_jour",
     "diff gtfs osm stops", "diff_stops",
     "gtfs2osm", "gtfs2osm_jour",
-    "diff gtfs osm routes tags", "diff_relations_route_bus",
+    "reseau gtfs osm routes tags", "reseau_osm_routes_shapes_pdf",
+    "reseau_osm_routes_shapes_pdf", "reseau_osm_routes_shapes_pdf",
   )
   choix <- utils::menu(les_choix$choix, title = "action")
   if (choix == 0 ) {

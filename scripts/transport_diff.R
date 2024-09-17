@@ -9,7 +9,7 @@
 ## script pour les comparaisons
 #
 # distance max entre osm et le gtfs
-stop_loin <- 150
+stop_loin <- 250
 # le réseau est configuré en variable globale dans transport.R
 #
 # source("geo/scripts/transport.R");diff_jour()
@@ -187,8 +187,10 @@ diff_stops <- function(force_osm = TRUE, OsmChange = FALSE) {
     glimpse()
 #  misc_print(df11[, c("stop_id", "stop_name", "name")])
   if (nrow(osm.sf) > 0) {
+    carp("***** les stops trop loin: %s", stop_loin)
     df4 <- df3 %>%
-      mutate(distance = round(sqrt((X.x - X.y)^2 + (Y.x - Y.y)^2), 0)) %>%
+      mutate(distance = round(sqrt((X.x - X.y)^2 + (Y.x - Y.y)^2), 0))
+    df4 <- df4 %>%
       filter(distance > stop_loin)
     if (nrow(df4) > 0) {
       carp("différence de position")
@@ -198,6 +200,10 @@ diff_stops <- function(force_osm = TRUE, OsmChange = FALSE) {
       confess("***** les stops trop loin: %s", stop_loin)
     }
   }
+    df14 <- df %>%
+      filter(grepl("Maison du Département", stop_name)) %>%
+      glimpse()
+#    stop("****")
 #
 # on a enfin les stops du gtfs qui ne sont pas configurés dans osm
   df2 <- df %>%
@@ -370,6 +376,9 @@ diff_stops_absents_osm <- function(force_osm = TRUE, OsmChange = FALSE) {
   library(janitor)
   carp()
   OsmChange <<- OsmChange
+  Debug <<- FALSE
+  osm_name <- "Maison du Département"
+  osm_id <- "6680528465"
   carp("les arrêts du gtfs")
 #  gtfs.sf <- tidytransit_stops_sf() %>%
   gtfs.sf <- transport_lire("diff_stops_absents_osm") %>%
@@ -390,10 +399,15 @@ diff_stops_absents_osm <- function(force_osm = TRUE, OsmChange = FALSE) {
     mutate(k_ref = sprintf("%s", k_ref)) %>%
     filter(highway == "bus_stop") %>%
     filter(grepl("platform", public_transport)) %>%
-#    filter(grepl("Village Collec", name)) %>%
-#    filter(as.numeric(`@version`) > 50) %>%
     filter(k_ref == "") %>%
     glimpse()
+  df11 <- osm.df %>%
+#    filter(grepl(osm_name, name)) %>%
+    filter(osm_id == `@id`) %>%
+    glimpse()
+  if (Debug == TRUE & nrow(df11) == 0) {
+    stop("llllllllll")
+  }
   df1 <- osm.df %>%
     group_by(k_ref) %>%
     summarize(nb = n()) %>%
@@ -404,9 +418,9 @@ diff_stops_absents_osm <- function(force_osm = TRUE, OsmChange = FALSE) {
     st_transform(2154)
   df1 <- st_proches(gtfs.sf, osm.sf) %>%
     st_drop_geometry() %>%
-    filter(dist < 25) %>%
-    arrange(dist) %>%
-#    filter(grepl("Village Collec", name)) %>%
+    arrange(dist)
+  df1 <- df1 %>%
+    filter(dist < 150)  %>%
     glimpse()
 #  stop("$$$$$$$$$$$")
   df2 <- df1 %>%
@@ -433,7 +447,7 @@ diff_stops_absents_osm <- function(force_osm = TRUE, OsmChange = FALSE) {
 #  Wiki <<- TRUE
   wiki_page_init(page = page, article = wiki, force = TRUE)
   df1 <- df1 %>%
-    filter(dist < 25) %>%
+    filter(dist < 150) %>%
     arrange(dist) %>%
     glimpse()
 #  stop("****")
@@ -763,7 +777,7 @@ diff_relations_routemaster_bus <- function(force = TRUE, OsmChange = FALSE) {
     write(level0, dsn)
     carp("dsn: %s", dsn)
     carp("créer avec level0")
-    stop("****")
+#    stop("****")
   }
   carp("osm et gtfs: les communs")
   df1 <- df1 %>%
@@ -836,7 +850,7 @@ diff_relations_route_bus <- function(cmp = "tags", force = TRUE, OsmChange = FAL
 #  if ("ref:network" %notin% names(osm.df)) {
 #    osm.df[, "ref:network"] <- osm.df[, "ref"]
 #  }
-  if (1 == 1) {
+  if (1 == 2) {
     df0 <- osm.df %>%
       filter(! grepl("^\\d\\d\\d\\d", `gtfs:shape_id`)) %>%
       glimpse()
@@ -875,8 +889,8 @@ diff_relations_route_bus <- function(cmp = "tags", force = TRUE, OsmChange = FAL
       glimpse() %>%
       dplyr::select(cle, stops)
     carp("**** doublons nb: %s", nrow(df1))
-    misc_print(df2)
-#    transport_df2html(df2, titre = "diff_relations_route_bus")
+#    misc_print(df2)
+    transport_df2html(df2, titre = "diff_relations_route_bus")
     stop("*****")
   }
   gtfs.df <- gtfs.df %>%
@@ -884,6 +898,7 @@ diff_relations_route_bus <- function(cmp = "tags", force = TRUE, OsmChange = FAL
     glimpse()
   gtfs_names <- names(gtfs.df)
   carp("osm et gtfs: fusion par cle")
+  ko_fusion <- 0
   df1 <- osm.df %>%
     full_join(gtfs.df, by = c("cle.osm" = "cle.gtfs")) %>%
     glimpse()
@@ -895,10 +910,11 @@ diff_relations_route_bus <- function(cmp = "tags", force = TRUE, OsmChange = FAL
     df11 <- df11 %>%
       dplyr::select(ends_with(".osm")) %>%
       rename_with(~str_remove(., ".osm")) %>%
-      dplyr::select("ref:network", `@id`, "gtfs:shape_id", name) %>%
+      dplyr::select("ref:network", `@id`, `@type`,  "gtfs:shape_id", name) %>%
       arrange("ref:network") %>%
       glimpse()
-#    transport_df2html(df11, titre = "diff_relations_route_bus")
+    transport_df2html(df11, titre = "diff_relations_route_bus_absent_gts")
+    ko_fusion <- ko_fusion + 1
   }
   carp("osm et gtfs: absent d'osm")
   df12 <- df1 %>%
@@ -910,20 +926,25 @@ diff_relations_route_bus <- function(cmp = "tags", force = TRUE, OsmChange = FAL
       dplyr::select(ends_with(".gtfs")) %>%
       rename_with(~str_remove(., ".gtfs")) %>%
       dplyr::select("ref:network", "shape_id", name) %>%
-      arrange("ref:network")
+      arrange("ref:network") %>%
+      glimpse()
     carp("osm et gtfs: absent d'osm nb: %s", nrow(df12))
-    glimpse(df12)
+    html_df2fic(df12, titre = "diff_relations_route_bus_absent_osm")
+    ko_fusion <- ko_fusion + 2
+  }
+  if (ko_fusion == 3) {
     df13 <- df11 %>%
       full_join(df12, by = c("ref:network")) %>%
-      filter(! is.na(shape_id)) %>%
-      filter(! is.na(`gtfs:shape_id`)) %>%
+#      filter(! is.na(shape_id)) %>%
+#      filter(! is.na(`gtfs:shape_id`)) %>%
       arrange("ref:network") %>%
-      mutate(type = "relation") %>%
+#      mutate(type = "relation") %>%
       glimpse()
     misc_print(df13)
-    transport_df2html(df13, titre = "diff_relations_route_bus")
   }
-#  stop("****")
+  if (ko_fusion != 0) {
+#    confess("fusion osm gtfs %s", ko_fusion)
+  }
   carp("osm et gtfs: les communs")
   df2 <- df1 %>%
     filter(!is.na(name.gtfs)) %>%

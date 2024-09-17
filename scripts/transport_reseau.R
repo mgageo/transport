@@ -95,7 +95,12 @@ reseau_osm_jour <- function(force = TRUE, force_members = TRUE, force_osm = TRUE
 #
 # à partir des relations route=bus d'osm
 # avec la carto dont celle du gtfs si disponible
-# source("geo/scripts/transport.R");reseau_osm_routes_shapes(force = FALSE);tex_pdflatex(sprintf("%s_reseau_osm_routes_shapes.tex", Reseau))
+# source("geo/scripts/transport.R");reseau_osm_routes_shapes_pdf()
+reseau_osm_routes_shapes_pdf <- function(force = TRUE) {
+  reseau_osm_routes_shapes(force = force);
+  tex_pdflatex(sprintf("%s_reseau_osm_routes_shapes.tex", Reseau))
+}
+# source("geo/scripts/transport.R");r
 reseau_osm_routes_shapes <- function(force = TRUE) {
   library(tidyverse)
   library(data.table)
@@ -106,7 +111,8 @@ reseau_osm_routes_shapes <- function(force = TRUE) {
   df <- fread(dsn, encoding = "UTF-8") %>%
     as.data.table() %>%
     clean_names() %>%
-    mutate(shape = transport_shape2fic(gtfs_shape_id))
+    mutate(shape = transport_shape2fic(gtfs_shape_id)) %>%
+    arrange(ref_network)
   texFic <- sprintf("%s/%s", imagesDir, "reseau_osm_routes_shapes.tex")
   TEX <- file(texFic)
   tex <- sprintf("<!-- coding: utf-8 -->
@@ -117,7 +123,8 @@ reseau_osm_routes_shapes <- function(force = TRUE) {
   template <- readLines(dsn) %>%
     glimpse()
   if (Reseau == "star") {
-    star.df <- star202210_supprime()
+#    star.df <- star202210_supprime()
+    stop("****")
     df <- df %>%
 #    filter(grepl("^0", gtfs_shape_id)) %>%
       filter(ref %notin% star.df$ligne) %>%
@@ -126,11 +133,17 @@ reseau_osm_routes_shapes <- function(force = TRUE) {
       arrange(gtfs_shape_id) %>%
       glimpse()
   }
+  if (Reseau == "rennes") {
+#    stop("****")
+    df <- df %>%
+      mutate(ordre = gsub("\\D.*", "", gtfs_shape_id)) %>%
+      arrange(ordre) %>%
+      glimpse()
+  }
 
 #  stop("****")
   df1 <- df %>%
-    dplyr::select(id, timestamp, user, ref_network, gtfs_shape_id) %>%
-    arrange(ref_network)
+    dplyr::select(id, timestamp, user, ref_network, gtfs_shape_id)
   tex_df2kable(df1, suffixe = "lst", longtable = TRUE)
   lg.df <- tribble(~id, ~ref, ~ref_network, ~shape, ~osm_lg, ~shape_lg, ~inters_lg)
   lg.df <- tribble()

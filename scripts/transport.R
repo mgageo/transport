@@ -40,7 +40,7 @@ source("geo/scripts/misc_osmapi.R")
 source("geo/scripts/misc_osmchange.R")
 source("geo/scripts/misc_osmdata.R")
 source("geo/scripts/misc_osmose.R")
-source("geo/scripts/misc_osrm.R")
+source("geo/scripts/misc_osrm.R"); # le routage avec osrm
 source("geo/scripts/misc_overpass.R")
 source("geo/scripts/misc_ssh.R")
 source("geo/scripts/misc_st.R"); # ajout de fonctions à sf dans st_proches
@@ -82,8 +82,9 @@ source("geo/scripts/transport_objets.R")
 
 #
 # les différents réseaux
-source("geo/scripts/transport_axeo.R")
+source("geo/scripts/transport_atoumod.R"); # pour le gtfs de la région Normandie
 source("geo/scripts/transport_auray.R")
+source("geo/scripts/transport_axeo.R")
 source("geo/scripts/transport_bibus.R"); # brest
 source("geo/scripts/transport_bordeaux.R")
 source("geo/scripts/transport_breizhgo.R")
@@ -161,10 +162,12 @@ Reseau <- "aleop44"; # Pays de la Loire, réseau départemental 44
 Reseau <- "saintnazaire"; # Saint-Nazaire STRAN
 Reseau <- "orleans"; # Orléans TAO
 Reseau <- "nantes"; # Nantes TAN/Naolib
-Reseau <- "brest"; # Brest Bibus
 Reseau <- "breizhgo_illenoo2"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
 Reseau <- "breizhgo_pennarbed"; # pseudo-réseau pour BreizhGo en Finistère
+Reseau <- "brest"; # Brest Bibus
+Reseau <- "atoumod"; # Normandie
 Reseau <- "rennes"; # Rennes STAR
+Reseau <- "nomad50"; # les cars du département de la Manche
 config_xls(Reseau)
 Tex <- TRUE
 Wiki <- TRUE

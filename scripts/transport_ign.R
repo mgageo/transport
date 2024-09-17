@@ -9,16 +9,19 @@
 ## la commune des arrêts
 #
 # source("geo/scripts/transport.R");ign_stops_commune()
-ign_stops_commune <- function() {
+ign_stops_commune <- function(territoire = FALSE) {
   library(readr)
   carp()
   communes.sf <- ign_adminexpress_lire_sf() %>%
-    filter(INSEE_DEP == Config[1, "territoire"]) %>%
-    dplyr::select(NOM) %>%
-    rename("city" = NOM) %>%
-    glimpse()
+    dplyr::select("city" = NOM, INSEE_DEP)
+  if (territoire == TRUE) {
+    communes.sf <- ign_adminexpress_lire_sf() %>%
+      filter(INSEE_DEP == Config[1, "territoire"]) %>%
+      glimpse()
+  }
   stops.df <- gtfs_file_lire("stops") %>%
     glimpse()
+  carp("rapprochement")
   stops.sf <- st_as_sf(stops.df, coords = c("stop_lon", "stop_lat"), crs = 4326, remove = FALSE) %>%
     st_transform(2154) %>%
     glimpse()
@@ -28,10 +31,14 @@ ign_stops_commune <- function() {
     glimpse()
   dsn <- sprintf("%s/%s.txt", gtfsDir, "stops_geocode")
   rio::export(df1, dsn, sep = ",")
-  carp("dsn: %s", dsn)
+  carp("dsn: %s n: %s", dsn, nrow(df1))
   df2 <- df1 %>%
     filter(city == "") %>%
     glimpse()
+  df3 <- df1 %>%
+    group_by(INSEE_DEP) %>%
+    summarize(nb = n())
+  misc_print(df3)
 }
 #
 # source("geo/scripts/transport.R");ign_tidytransit_geocode(tt)
@@ -42,7 +49,7 @@ ign_tidytransit_geocode <- function(tt) {
   territoire <- unlist(strsplit(territoire, ",")) %>%
     glimpse()
   communes.sf <- ign_adminexpress_lire_sf() %>%
-    filter(INSEE_DEP %in% territoire) %>%
+#    filter(INSEE_DEP %in% territoire) %>%
     dplyr::select(city = NOM, dept = INSEE_DEP, insee = INSEE_COM)
   stops.df <- tt$stops
   stops.sf <- st_as_sf(stops.df, coords = c("stop_lon", "stop_lat"), crs = 4326, remove = FALSE) %>%

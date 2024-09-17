@@ -16,7 +16,7 @@ star_jour <- function(reseau = "rennes", force = TRUE) {
   carp()
   config_xls(reseau)
   star_gtfs_dl(reseau = reseau)
-  tidytransit_jour(force= TRUE)
+#  tidytransit_jour(force = TRUE)
 }
 #
 # https://themockup.blog/posts/2020-12-13-extracting-json-from-websites-and-public-apis-with-r/

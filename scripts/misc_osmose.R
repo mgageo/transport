@@ -34,8 +34,11 @@ osmose_network <- "BreizhGo;TIBUS"
 # source("geo/scripts/transport.R"); config_xls("bretagne35"); osmose_area_jour(force = TRUE)
 osmose_area_jour <- function(force = TRUE) {
 #  osmose_area_get(force = FALSE)
+  if (is.na(Config[1, "zone_osmose"])) {
+    confess("zone_osmose")
+  }
   osmose_country_get(country = Config[1, "zone_osmose"], force = force)
-  osmose_issues_get(get = "country")
+  osmose_issues_get(get = "country", force = force)
   osmose_issues_html(get = "country")
 }
 #
@@ -105,10 +108,10 @@ osmose_communes_get <- function() {
 # https://blog.r-hub.io/2021/07/30/cache/
 # source("geo/scripts/transport.R"); config_xls("bretagne");osmose_issues_get()
 # source("geo/scripts/transport.R"); config_xls("bretagne");osmose_issues_get(get = "communes")
-osmose_issues_get <- function(get = "country") {
+osmose_issues_get <- function(get = "country", force = FALSE) {
   cache_rds <- sprintf("%s/osmose_issues.rds", varDir)
   carp("cache_rds: %s", cache_rds)
-  if (file.exists(cache_rds)) {
+  if (file.exists(cache_rds) & force == FALSE) {
     cache.list <- readRDS(cache_rds)
   } else {
     cache.list <- list()
@@ -620,7 +623,7 @@ osmose_bbox_get <- function(lon1 = -2.87, lat1 = 47.58,lon2 = -2.66,lat2 = 47.68
 }
 #
 # source("geo/scripts/transport.R"); osmose_country_get(country = "france_bretagne*", force = TRUE)
-osmose_country_get <- function(country, force = TRUE) {
+osmose_country_get <- function(country, force = FALSE) {
   library(tidyverse)
   df1 <- osmose_country_items_get(country = country, item = 1260, force = TRUE)
   issues <- osmose_country_item_get(country = country, item = 2140, force = TRUE)

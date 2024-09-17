@@ -63,6 +63,7 @@ tidytransit_jour_shapes <- function(force = TRUE) {
   tex_pdflatex(sprintf("%s_tidytransit_routes_shapes_stops.tex", Reseau))
   tex_pdflatex(sprintf("%s_tidytransit_routes_shapes_stops_carto.tex", Reseau))
   tex_pdflatex(sprintf("%s_tidytransit_shapes.tex", Reseau))
+  tidytransit_refs_shapes_stops_carto()
 }
 
 # lecture des routes, données GTFS
@@ -76,9 +77,66 @@ tidytransit_zip_lire <- function(rds = 'gtfs') {
   carp("dsn: %s", dsn)
   options(encoding = "UTF-8")
   tt <<- tidytransit::read_gtfs(dsn, quiet = FALSE)
-  tt$stops %>%
-    filter(stop_id == "CTRL:RIVI1") %>%
+  agency_id <- Config[[1, "agency_id"]]
+  tt$agency <- tt$agency %>%
+    filter(agency_id == !!agency_id) %>%
     glimpse()
+  if (nrow(tt$agency) != 1) {
+    confess("**** agency_id: %s", agency_id)
+  }
+# que les routes de cet agency
+  tt$routes <- tt$routes %>%
+    filter(agency_id == !!agency_id) %>%
+    glimpse()
+  if (nrow(tt$routes) == 0) {
+    confess("**** routes agency_id: %s", agency_id)
+  }
+  if (Reseau == "nomad50") {
+    tt$routes <- tt$routes %>%
+      filter(grepl("^3\\d\\d", route_short_name)) %>%
+      glimpse()
+    if (nrow(tt$routes) == 0) {
+      confess("**** routes agency_id: %s", agency_id)
+    }
+  }
+#  stop("*****")
+# que les voyages de ces routes
+  tt$trips <- tt$trips %>%
+    filter(route_id %in% tt$routes$route_id) %>%
+    glimpse()
+  if (nrow(tt$trips) == 0) {
+    confess("**** trips agency_id: %s", agency_id)
+  }
+# que les shapes de ces voyages
+  tt$shapes <- tt$shapes %>%
+    filter(shape_id %in% tt$trips$shape_id) %>%
+    glimpse()
+  if (nrow(tt$shapes) == 0) {
+    confess("**** shapes agency_id: %s", agency_id)
+  }
+# que les horaires de ces voyages
+  tt$stop_times <- tt$stop_times %>%
+    filter(trip_id %in% tt$trips$trip_id) %>%
+    glimpse()
+  if (nrow(tt$stop_times) == 0) {
+    confess("**** stop_times agency_id: %s", agency_id)
+  }
+  carp("les arrêts utilisés")
+  df1 <- tt$stop_times %>%
+    distinct(stop_id) %>%
+    arrange(stop_id) %>%
+    glimpse()
+  carp("les arrêts utilisés")
+  tt$stops <- tt$stops %>%
+    filter(stop_id %in% df1$stop_id) %>%
+    glimpse()
+  if (nrow(tt$stops) == 0) {
+    confess("**** stops agency_id: %s", agency_id)
+  }
+#  tt$stops %>%
+#    filter(!grepl("ATOUMOD040", stop_id)) %>%
+#    glimpse()
+#  stop("*****")
   tt$stops <- tt$stops %>%
     glimpse() %>%
     (function(.df){
@@ -519,21 +577,31 @@ tidytransit_refs_shapes_stops_carto <- function(force = TRUE) {
   library(tidyverse)
   library(tidytransit)
   carp()
-  df1 <- tidytransit_lire(rds = "tidytransit_routes_stops") %>%
+  df1 <- tidytransit_lire(rds = "tidytransit_shapes_stops")
+  df1 <- df1 %>%
     filter(! grepl("^S", ref_network)) %>%
     group_by(ref_network, shape_id) %>%
     arrange(desc(nb), desc(nb_stops)) %>%
     filter(row_number() == 1) %>%
     ungroup() %>%
-    arrange(ref_network) %>%
-    glimpse()
+    arrange(ref_network)
+  df <- df1 %>%
+    group_by(ref_network, route_long_name) %>%
+    summarize(nb = n())
+  if (Reseau == "rennes") {
+    df1 <- df1 %>%
+      arrange(route_sort_order, ref_network, desc(nb), desc(nb_stops))
+    df <- df1 %>%
+      group_by(route_sort_order, ref_network, route_long_name) %>%
+      summarize(nb = n())
+  }
+  glimpse(df1)
+#  stop("****")
   df2 <- df1 %>%
     dplyr::select(ref_network, shape_id, route_desc, nb, nb_stops) %>%
     arrange(ref_network, desc(nb), desc(nb_stops)) %>%
     glimpse()
-  df <- df1 %>%
-    group_by(ref_network, route_long_name) %>%
-    summarize(nb = n())
+
   texFic <- sprintf("%s/%s", imagesDir, "tidytransit_refs_shapes_stops_carto.tex")
   TEX <- file(texFic)
   tex <- "% <!-- coding: utf-8 -->"
@@ -629,6 +697,9 @@ tidytransit_routes_shapes_stops_carto <- function(rds = "gtfs_routes_shapes_stop
   for (i in 1:nrow(df)) {
 #    glimpse(df[i, ]); stop("***")
     shape <- df[[i, "shape"]]
+    if ( shape != "0007-A-2281-2337") {
+#      next
+    }
     dsn <- misc_dsn(suffixe = shape, dossier = "images", extension = "pdf")
 #    carp("1 dsn: %s", dsn)
     rc <- carto_route_shape_stops(df[i, ], nc1) %>%
@@ -1394,6 +1465,10 @@ tidytransit_donnees_utiles <- function(tt, force = TRUE) {
   if (grepl("(rennes)", Reseau)) {
     routes.df <- routes.df %>%
       filter(!grepl("^(Transport scolaire|Métro)$", route_desc))
+    routes.df <- routes.df %>%
+      filter(!grepl("^5", route_id))
+    stops.df <- stops.df %>%
+      filter(!grepl("^5", stop_id))
   }
 # Lorient, pas les bateaux
   if (grepl("lorient", Reseau)) {

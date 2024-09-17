@@ -21,7 +21,7 @@ carto_route_shape_stops <- function(df, nc1) {
   carp("*****shape_id: %s", shape_id)
   rc <- as.list(df)
   if ( shape_id != "0007-A-2281-2337") {
-    return(invisible(rc))
+#    return(invisible(rc))
   }
   shape <- df[[1, "shape"]]
   dsn_shape <- sprintf("%s/shape_%s.gpx", josmDir, shape)
@@ -75,22 +75,37 @@ carto_route_shape_stops <- function(df, nc1) {
       lines = TRUE
     )
   }
-  cote_droit.sf <<- shape.sf %>%
+# bug sf
+# si la ligne repasse au même endroit
+  cote_droit.sf <- shape.sf %>%
     st_buffer(-50, singleSide = TRUE, bOnlyEdges = FALSE) %>%
     st_buffer(0)
+  cote_gauche.sf <- shape.sf %>%
+    st_buffer(50, singleSide = TRUE, bOnlyEdges = FALSE) %>%
+    st_buffer(0)
   if ( shape_id == "0007-A-2281-2337") {
-    dsn <- sprintf("%s/cote_droit.geojson", josmDir)
+    dsn <- sprintf("%s/cote_droit_shape.geojson", josmDir)
+    st_write(st_transform(shape.sf, 4326), dsn, delete_dsn = TRUE)
+    carp("dsn: %s", dsn)
+    dsn <- sprintf("%s/cote_droit_buffer.geojson", josmDir)
     st_write(st_transform(cote_droit.sf, 4326), dsn, delete_dsn = TRUE)
     carp("dsn: %s", dsn)
-    stop("mmmmmmmmmmmmmmm")
+#    stop("mmmmmmmmmmmmmmm")
   }
   carp("les points proches")
   points.sf <<- nc2 %>%
     filter(distance < 50)
   carp("les points dans le buffer")
+# pas dans le buffer côté droit
   points.sf$within <- st_within(points.sf, cote_droit.sf, sparse = F)
   points_out.sf <- points.sf %>%
     filter(within == FALSE) %>%
+    filter(id != 1) %>%
+    filter(id != point_dernier)
+# dans le buffer côte gauche
+  points.sf$within <- st_within(points.sf, cote_gauche.sf, sparse = F)
+  points_out.sf <- points.sf %>%
+    filter(within == TRUE) %>%
     filter(id != 1) %>%
     filter(id != point_dernier)
   plot(st_geometry(points_out.sf), col = "orange", lwd = 3, pch = 19, add = TRUE)

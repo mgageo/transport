@@ -810,3 +810,18 @@ relation[type=route][route=bus][!"public_transport:version"](area.a);
 out meta;', Config[1, 'zone_relation'])
   return(invisible(requete))
 }
+overpass_query_eumapper <- function() {
+  requete <- "area[name='Bretagne']->.a;
+way(area.a)[junction~'roundabout',i](user:EUMapper);
+out meta;
+"
+  return(invisible(requete))
+}
+overpass_query_eumapper_csv <- function() {
+  requete <- '[out:csv(::type,::id,::version,::timestamp,::user,::changeset,::lat,::lon,name;"\t")];
+area[name="Bretagne"]->.a;
+way(area.a)[junction="roundabout"](user:EUMapper);
+out meta center;
+'
+  return(invisible(requete))
+}

@@ -753,11 +753,11 @@ osmapi_attrs_to_df <- function(nodes) {
 api_url <- "https://www.openstreetmap.org"
 osmapi_api <- function(path, xml = '', methode = "PUT", debug = FALSE) {
   library(httr2)
-  carp("path: %s methode: %s", path, methode)
+#  carp("path: %s methode: %s", path, methode)
   dsn <- "d:/osmapi_url.txt"
   write(xml, dsn)
   url <- sprintf("%s/api/0.6/%s", api_url, path)
-  carp("url: %s", url)
+#  carp("url: %s", url)
   auth_url <- "https://www.openstreetmap.org/oauth2/authorize"
   client <- httr2::oauth_client(
     id = client_id,
@@ -920,7 +920,7 @@ osmapi_get_changeset <- function(id = "132833877") {
   return(invisible(actions.df))
 }
 # https://www.openstreetmap.org/api/0.6/changesets?display_name=mga_geo
-# source("geo/scripts/transport.R"); osmapi_get_changesets()
+# source("geo/scripts/transport.R"); osmapi_get_changesets(display_name = "EUMapper")
 osmapi_get_changesets <- function(display_name = "mga_geo") {
   library(stringi)
   library(xml2)
@@ -928,9 +928,7 @@ osmapi_get_changesets <- function(display_name = "mga_geo") {
   path <- str_glue(path)
   txt <- osmapi_api(path, methode = "GET", debug = TRUE)
   xml <- xml2::read_xml(txt)
-  text <- xml_children(xml) %>%
-    xml_name()
-  print(text)
+  return(invisible(xml))
 }
 # source("geo/scripts/transport.R"); osmapi_get_changeset_first()
 osmapi_get_changeset_first <- function(display_name = "mga_geo") {
@@ -1024,4 +1022,133 @@ osmapi_test <- function() {
   text <- osmapi_get_object_xml(id = df[[1, "id"]], type = df[[1, "xml_name"]])
   changeset_id <- osmapi_put("delete", text = text)
   return(invisible())
+}
+#
+# récupération des comments des changesets d'un utilisateur
+# source("geo/scripts/transport.R"); osmapi_changesets_user("mga_geo")
+osmapi_changesets_user <- function(display_name = "EUMapper", from = "2024-08-01T00:00:00Z") {
+  changesets.df <- osmapi_changesets_user_get(display_name = display_name, from = from)
+  if (0 == 1) {
+    comments.df <- osmapi_changesets_user_comments(changesets.df)
+    misc_print(comments.df)
+    osmapi_changesets_dwg(comments.df)
+  }
+  if (2 == 2) {
+    df <- osmapi_changesets_user_download(changesets.df)
+    mga <<- df
+  }
+}
+#
+# récupération des comments des changesets d'un utilisateur
+# source("geo/scripts/transport.R"); df2 <- osmapi_changesets_user_get("Lyon-St-Clair")
+# source("geo/scripts/transport.R"); df2 <- osmapi_changesets_user_get("EUMapper")
+osmapi_changesets_user_get <- function(display_name = "mga_geo", from = "2024-06-01T00:00:00Z") {
+  library(stringi)
+  library(xml2)
+  comments.df <- tibble()
+  path <- "changesets/?display_name={display_name}"
+  path <- str_glue(path)
+  txt <- osmapi_api(path, methode = "GET", debug = TRUE)
+  doc <- xml2::read_xml(txt)
+  rows <- doc %>%
+    xml_find_all("//changeset")
+  df <- data.frame(
+    id = rows %>% xml_attr("id"),
+    created_at = rows %>% xml_attr("created_at"),
+    comments_count = rows %>% xml_attr("comments_count")
+  ) %>%
+    glimpse()
+  changesets.df <- df
+
+  while (nrow(df) == 100) {
+    to <- df[[100, "created_at"]]
+    path <- "changesets/?display_name={display_name}&to={to}&from={from}"
+    path <- str_glue(path)
+    txt <- osmapi_api(path, methode = "GET", debug = TRUE)
+    doc <- xml2::read_xml(txt)
+    rows <- doc %>%
+     xml_find_all("//changeset")
+    df <- data.frame(
+      id = rows %>% xml_attr("id"),
+      created_at = rows %>% xml_attr("created_at"),
+      comments_count = rows %>% xml_attr("comments_count")
+    ) %>%
+    glimpse()
+    changesets.df <- bind_rows(changesets.df, df)
+  }
+  changesets.df <- changesets.df %>%
+    arrange(desc(created_at))
+  return(invisible(changesets.df))
+}
+osmapi_changesets_user_comments <- function(changesets.df) {
+  carp("changesets.df %s", nrow(changesets.df))
+  df <- changesets.df %>%
+    filter(comments_count != "0") %>%
+    glimpse()
+  carp("df %s", nrow(df))
+  df1 <- data.frame()
+  for (i in 1:nrow(df)) {
+    df2 <- osmapi_changeset_user_comments_discussion(df[[i, "id"]])
+    df1 <- bind_rows(df1, df2)
+  }
+  return(invisible(df1))
+}
+osmapi_changeset_user_comments_discussion <- function(id) {
+  library(stringi)
+  library(xml2)
+  path <- sprintf("changeset/%s?include_discussion=true", id)
+  carp("path: %s", path)
+  txt <- osmapi_api(path, methode = "GET", debug = TRUE)
+  xml <- xml2::read_xml(txt)
+  rows <- xml %>%
+    xml_find_all("//comment")
+  df <- data.frame(
+    comment_id = rows %>% xml_attr("id"),
+    date = rows %>% xml_attr("date"),
+    user = rows %>% xml_attr("user"),
+    text = rows %>% xml_text()
+  )
+  df$id <- id
+  return(invisible(df))
+}
+osmapi_changesets_user_download <- function(changesets.df) {
+  carp("changesets.df %s", nrow(changesets.df))
+  df <- changesets.df %>%
+    glimpse()
+  carp("df %s", nrow(df))
+  df$nb_routes <- 0
+  for (i in 1:nrow(df)) {
+    nb <- osmapi_changeset_download(df[[i, "id"]])
+    df[[i, "nb_routes"]] <- nb
+    carp("%s/%s id: %s nb %s", i, nrow(df), df[[i, "id"]], nb)
+  }
+  return(invisible(df))
+}
+# source("geo/scripts/transport.R"); df2 <- osmapi_changeset_download("155832652")
+osmapi_changeset_download <- function(id = "155832652") {
+  library(stringi)
+  library(xml2)
+  path <- sprintf("changeset/%s/download", id)
+  txt <- osmapi_api(path, methode = "GET", debug = TRUE)
+  xml <- xml2::read_xml(txt)
+  rows <- xml %>%
+    xml_find_all("//modify/relation/tag[@k = 'route'][@v = 'bus']")
+  nb_rows <- length(rows)
+  return(invisible(nb_rows))
+}
+# source("geo/scripts/transport.R"); osmapi_changesets_dwg()
+osmapi_changesets_dwg <- function(comments.df) {
+  carp("comments.df %s", nrow(comments.df))
+  df1 <- comments.df %>%
+    filter(user == "mga_geo") %>%
+    mutate(cmt = sprintf("%s (%s)", id, date)) %>%
+    glimpse()
+  cmt <- paste(df1$cmt, collapse=", ")
+  print(cmt)
+  df1 <- comments.df %>%
+    filter(user != "mga_geo") %>%
+    mutate(cmt = sprintf("%s %s (%s)", user, id, date)) %>%
+    glimpse()
+  cmt <- paste(df1$cmt, collapse=", ")
+  print(cmt)
 }
