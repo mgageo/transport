@@ -111,6 +111,10 @@ osmchange_object_modify_tags <- function(id = "13400195", type = "relation", tag
   }
   tags.df$value <- html_replace(tags.df$value)
 #  misc_print(tags.df); stop("*****")
+  delete.df <- tags.df %>%
+    filter(grepl("^-", name))
+  tags.df <- tags.df %>%
+    filter(! grepl("^-", name))
   nb_modifs <- 0
   for (i in 1:nrow(tags.df)) {
     gtfs <- sprintf('  <tag k="%s" v="%s"/>', tags.df[[i, "name"]], tags.df[[i, "value"]])
@@ -136,13 +140,37 @@ osmchange_object_modify_tags <- function(id = "13400195", type = "relation", tag
 # non, on l'insère à la fin
     re <- regex('^(.*)(</(node|way|relation)>.*$)', , dotall = TRUE)
     matches2 <- str_match(osm, re)[1, ]
-    Carp("\najout id: %s\n  gtfs: %s",id, gtfs)
+#    Carp("\najout id: %s\n  gtfs: %s",id, gtfs)
     osm <- sprintf("%s%s\n%s", matches2[[2]], gtfs, matches2[[3]])
     nb_modifs <- nb_modifs + 1
 #    writeLines(osm);
 # https://stackoverflow.com/questions/70486931/how-to-decode-strings-in-a-data-frame-using-r/70487386#70487386
   }
 #  writeLines(osm);stop("********")
+  if (nrow(delete.df) > 0) {
+    tags.df <- delete.df %>%
+      mutate(name = gsub("^-", "", name))
+    for (i in 1:nrow(tags.df)) {
+      r <- sprintf('^(.*)(  <tag k="%s" v="[^"]*"/>)(.*$)', tags.df[[i, "name"]])
+#      Carp("r: %s", r)
+      re <- regex(r, dotall = TRUE)
+      matches <- str_match(osm, re)[1, ]
+      if (2 == 1) {
+        Carp("re: %s", re)
+        Carp("length: %s", length(matches))
+        glimpse(matches)
+#      stop("****")
+      }
+# le tag est présent ?
+      if (!is.na(matches[[3]])) {
+#        carp("id: %s\n  osm : %s",id, matches[[3]])
+        osm <- sprintf("%s%s", matches[[2]], matches[[4]])
+        nb_modifs <- nb_modifs + 1
+        next
+      }
+    }
+# https://stackoverflow.com/questions/70486931/how-to-decode-strings-in-a-data-frame-using-r/70487386#70487386
+  }
   carp("id: %s, nb_modifs: %s",id, nb_modifs)
   if (nb_modifs > 0) {
 #    writeLines(osm)

@@ -91,9 +91,9 @@ tidytransit_zip_lire <- function(rds = 'gtfs') {
   if (nrow(tt$routes) == 0) {
     confess("**** routes agency_id: %s", agency_id)
   }
-  if (Reseau == "nomad50") {
+  if (grepl("nomad", Reseau)) {
     tt$routes <- tt$routes %>%
-      filter(grepl("^3\\d\\d", route_short_name)) %>%
+      filter(grepl(Config_route_id, route_short_name)) %>%
       glimpse()
     if (nrow(tt$routes) == 0) {
       confess("**** routes agency_id: %s", agency_id)
@@ -240,15 +240,30 @@ tidytransit_sauve <- function(tt, rds = "sauve") {
 #
 ## les shapes sans les routes
 #
+#
+# source("geo/scripts/transport.R");tidytransit_jour_shapes_stops()
+tidytransit_jour_shapes_stops <- function(force = TRUE) {
+  carp("tidytransit_jour_shapes_stops")
+  tidytransit_routes_shapes_stops()
+  tidytransit_routes_shapes_stops_tex()
+  tex_pdflatex(sprintf("%s_tidytransit_routes_shapes_stops.tex", Reseau))
+  tex_pdflatex(sprintf("%s_tidytransit_shapes.tex", Reseau))
+}
 # détermination des stops des différents shapes
 # source("geo/scripts/transport.R");df3 <- tidytransit_shapes_stops() %>% glimpse()
 tidytransit_shapes_stops <- function() {
   library(tidyverse)
   library(tidytransit)
   carp()
-  df2 <- tidytransit_lire("tidytransit_trips_stops")
-  df3 <- df2 %>%
-    filter(shape_id != "") %>%
+# pour avoir la longueur
+  df1 <- tidytransit_lire("gtfs_shapes") %>%
+    st_drop_geometry() %>%
+    glimpse()
+  df2 <- tidytransit_lire("tidytransit_trips_stops") %>%
+      filter(shape_id != "")
+  df11 <- df2 %>%
+    left_join(df1, by = c("shape_id"))
+  df3 <- df11 %>%
     group_by(shape_id) %>%
     arrange(shape_id, desc(nb_stops)) %>%
     mutate(Ordre = row_number()) %>%
@@ -259,6 +274,8 @@ tidytransit_shapes_stops <- function() {
   tidytransit_sauve(df3, "tidytransit_shapes_stops")
 #  return(invisible(df3))
 #  stop("*****")
+# pour avoir la variable tt
+  tt <- tidytransit_lire()
   stops.df <- tt$stops %>%
     dplyr::select(stop_id, stop_name, stop_lat, stop_lon)
   df4 <- df3 %>%
@@ -278,7 +295,7 @@ tidytransit_shapes_stops_tex <- function() {
   library(tidytransit)
   library(janitor)
   carp()
-  Wiki <<- TRUE
+#  Wiki <<- TRUE
   dsn <- sprintf("%s/stop_times.txt", gtfsDir)
   mtime <- file.info(dsn)$mtime
   carp("dsn: %s %s", dsn, mtime)
@@ -301,6 +318,7 @@ tidytransit_shapes_stops_tex <- function() {
       nb,
       stops = nb_stops,
       shape_id,
+      shape_lg,
       de,
       à
     )
@@ -496,6 +514,7 @@ tidytransit_routes_shapes_stops <- function(rds = "tidytransit_routes_shapes_sto
   tt <- tidytransit_lire("gtfs")
   df1 <- tidytransit_lire("tidytransit_shapes_stops") %>%
     glimpse()
+
 #  df1 %>%
 #    filter(grepl("^0806", shape_id)) %>%
 #    glimpse();stop("@@@@@@@")
@@ -535,7 +554,10 @@ tidytransit_routes_shapes_stops_tex <- function(rds = "tidytransit_routes_shapes
   df <- tidytransit_lire(rds) %>%
     mutate(Nb = as.numeric(nb)) %>%
     arrange(ref_network, desc(Nb)) %>%
+    mutate(dsn_shape = gsub("[$:]", "_", shape_id)) %>%
+    mutate(dsn_shape = sprintf("%s/shape_%s.gpx", josmDir, dsn_shape)) %>%
     glimpse()
+#  stop("*****")
   texFic <- sprintf("%s/%s.tex", imagesDir, rds)
   TEX <- file(texFic)
   tex <- "% <!-- coding: utf-8 -->"
@@ -895,7 +917,7 @@ tidytransit_shapes_sf <- function(rds = "gtfs_shapes") {
   carp()
   tt <- tidytransit_lire("gtfs")
   shapes.sf <- shapes_as_sf(tt$shapes) %>%
-    mutate(lg = as.integer(st_length(.))) %>%
+    mutate(shape_lg = as.integer(st_length(.))) %>%
     glimpse()
 #  plot(shapes.sf)
   tidytransit_sauve(shapes.sf, rds)

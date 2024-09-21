@@ -39,10 +39,12 @@ osmapi_get_objet <- function(ref, type = "relation", force = FALSE) {
 osmapi_get_object_full <- function(ref, type = "relation", force = FALSE) {
   library(readr)
   library(tidyverse)
+  library(httr)
   dsn <- sprintf("%s/%s_%s_full.osm", osmDir, type, ref)
   carp("dsn: %s", dsn)
   if (! file.exists(dsn) || force == TRUE) {
     url <- sprintf("https://www.openstreetmap.org/api/0.6/%s/%s/full", type, ref)
+    Carp("***url: %s", url)
 # , verbose()
     res <- httr::GET(url = url, encoding = "UTF-8", type = "application/json", httr::write_disk(dsn, overwrite = TRUE))
     stop_for_status(res)
@@ -50,6 +52,7 @@ osmapi_get_object_full <- function(ref, type = "relation", force = FALSE) {
   return(invisible(dsn))
 }
 osmapi_get_object_full_xml <- function(ref, type = "relation", force = FALSE, force_osm = TRUE) {
+  library(xml2)
   dsn_rds <- sprintf("%s/%s_%s_full.Rds", osmDir, type, ref)
   if (file.exists(dsn_rds) & force == FALSE) {
     doc <- readRDS(dsn_rds)
@@ -64,6 +67,7 @@ osmapi_get_object_full_xml <- function(ref, type = "relation", force = FALSE, fo
 osmapi_get_object_relations <- function(ref, type = "node", force = FALSE) {
   library(readr)
   library(tidyverse)
+  library(httr)
   dsn <- sprintf("%s/%s_%s_relations.osm", osmDir, type, ref)
   carp("dsn: %s", dsn)
   if (! file.exists(dsn) || force == TRUE) {
@@ -74,7 +78,7 @@ osmapi_get_object_relations <- function(ref, type = "node", force = FALSE) {
   }
   return(invisible(dsn))
 }
-osmapi_object_txt <- function(ref, type = "relation", force = FALSE) {
+osmapi_object_txt <- function(ref, type = "relation", force = TRUE) {
   library(readr)
   library(tidyverse)
   library(httr)
@@ -757,7 +761,7 @@ osmapi_api <- function(path, xml = '', methode = "PUT", debug = FALSE) {
   dsn <- "d:/osmapi_url.txt"
   write(xml, dsn)
   url <- sprintf("%s/api/0.6/%s", api_url, path)
-#  carp("url: %s", url)
+  carp("url: %s", url)
   auth_url <- "https://www.openstreetmap.org/oauth2/authorize"
   client <- httr2::oauth_client(
     id = client_id,

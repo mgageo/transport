@@ -514,6 +514,13 @@ overpass_query_bus_stop_kref_csv <- function() {
 out center meta;', Config[1, 'k_ref'], Config[1, 'k_ref'], Config[1, 'k_ref'])
   return(invisible(requete))
 }
+#
+overpass_query_bus_stop_kref_gtfs_csv <- function() {
+  requete <- sprintf('[out:csv(::type,::id,name,highway,public_transport,"%s","gtfs:stop_name:%s";true;"\t")];
+nwr[public_transport=platform][highway=bus_stop]["%s"];
+out center meta;', Config[1, 'k_ref'], Config[1, 'network'], Config[1, 'k_ref'])
+  return(invisible(requete))
+}
 overpass_query_bus_stop_network <- function() {
   requete <- sprintf('
 relation[type=route][route=bus][network="%s"]->.a;
@@ -649,12 +656,11 @@ relation(area.a)[type=route][~"route"~"bus"];
 out meta;', Config[1, 'zone_relation'])
   return(invisible(requete))
 }
-overpass_query_relations_route_bus_area <- function() {
-  requete <- sprintf('
+overpass_query_relations_route_bus_network_area_csv <- function() {
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,name,ref,"ref:network","gtfs:shape_id",from,to;true;"\t")];
 relation(%s);map_to_area->.a;
-relation(area.a)[route=bus];
-(._;>;);
-out meta;', Config[1, 'zone_relation'])
+relation(area.a)[route=bus][network="%s"];
+out meta;', Config[1, 'zone_relation'], Config[1, 'network'])
   return(invisible(requete))
 }
 #
@@ -798,6 +804,169 @@ relation(%s);map_to_area->.a;
 relation[type=route][route=bus](area.a)->.rbus;
 // les platforms
 node(r.rbus)[public_transport=platform][!highway];
+out meta;', Config[1, 'zone_relation'])
+  return(invisible(requete))
+}
+#
+# stop en platform car pas sur une way
+overpass_query_ptv2_stop2platform_csv <- function() {
+  requete <- sprintf('
+[out:csv(::id,::type;"\t")];
+relation(%s);map_to_area->.a;
+node[bus=yes]["public_transport"~"stop"](area.a)->.b;
+way(bn.b);
+node(w)->.c;
+(node.b; -node.c;);
+out meta;', Config[1, 'zone_relation'])
+  return(invisible(requete))
+}
+#
+# stop sans tag public_transport
+overpass_query_ptv2_stop_sans_public_pas_way_csv <- function() {
+  requete <- sprintf('
+[out:csv(::id,::type;"\t")];
+relation(%s);map_to_area->.a;
+// les noeuds avec bus_stop sans tag public_transport
+node["highway"="bus_stop"](area.a)->.b;
+node.b["public_transport"]->.exclude;
+(.b; - .exclude;)->.c;
+// et qui ne sont pas une way
+way(bn.c);
+node(w)["highway"="bus_stop"]->.d;
+(node.c; -node.d;);
+out meta;', Config[1, 'zone_relation'])
+  return(invisible(requete))
+}
+#
+# stop sans tag public_transport sur way
+overpass_query_ptv2_stop_sans_public_pas_way_csv <- function() {
+  requete <- sprintf('
+[out:csv(::id,::type;"\t")];
+relation(%s);map_to_area->.a;
+// les noeuds avec bus_stop sans tag public_transport
+node["highway"="bus_stop"](area.a)->.b;
+node.b["public_transport"]->.exclude;
+(.b; - .exclude;)->.c;
+// et qui sont sur une way
+way(bn.c);
+node(w)->.d;
+node.c.d;
+out meta;', Config[1, 'zone_relation'])
+  return(invisible(requete))
+}
+#
+# platform sur way
+overpass_query_ptv2_platform_sur_way_csv <- function() {
+  requete <- sprintf('
+[out:csv(::id,::type;"\t")];
+relation(%s);map_to_area->.a;
+// les public_transport=platform sur une way
+node["public_transport"="platform"](area.a)->.b;
+// les ways parentes
+way(bn.b);
+// les noeuds des ways parentes
+node(w)["public_transport"="platform"]->.c;
+// intersection
+node.b.c;
+out meta;', Config[1, 'zone_relation'])
+  return(invisible(requete))
+}
+#
+# les public_transport=stop_position qui ne sont pas sur une way
+overpass_query_ptv2_stop_position_pas_way_csv <- function() {
+  requete <- sprintf('
+[out:csv(::id,::type;"\t")];
+relation(%s);map_to_area->.a;
+// les public_transport=stop_position qui ne sont pas sur une way
+node["public_transport"="stop_position"](area.a)->.b;
+// les ways parentes
+way(bn.b);
+// les noeuds des ways parentes
+node(w)["public_transport"="stop_position"]->.c;
+// intersection
+(node.b; -node.c;);
+out meta;', Config[1, 'zone_relation'])
+  return(invisible(requete))
+}
+#
+# les "highway"="bus_stop" sur une way
+overpass_query_ptv2_bus_stop_sur_way_csv <- function() {
+  requete <- sprintf('
+[out:csv(::id,::type;"\t")];
+relation(%s);map_to_area->.a;
+// les "highway"="bus_stop" sur une way
+node["highway"="bus_stop"](area.a)->.b;
+// les ways parentes
+way(bn.b);
+// les noeuds des ways parentes
+node(w)["highway"="bus_stop"]->.c;
+// intersection
+node.b.c;
+out meta;', Config[1, 'zone_relation'])
+  return(invisible(requete))
+}
+#
+# node sur way
+overpass_query_ptv2_node_sur_way_csv <- function() {
+  requete <- sprintf('
+[out:csv(::id,::type;"\t")];
+relation(%s);map_to_area->.a;
+// les relations route=bus
+relation[type=route][route=bus](area.a)->.rbus;
+// les noeuds membres
+node(r.rbus)[bus=yes]->.c1;
+node(r.rbus)["highway"="bus_stop"]->.c2;
+node(r.rbus)["public_transport"]->.c3;
+(.c1; .c2; .c3;)->.c;
+// ces noeuds sont sur une way ?
+way(bn.c);
+node(w)->.d;
+node.c.d->.e;
+// avec les bons attributs ?
+node.e[bus=yes][public_transport=stop_position]->.f;
+// ceux à modifier
+(node.e; -node.f;);
+out meta;', Config[1, 'zone_relation'])
+  return(invisible(requete))
+}
+#
+# node pas way
+overpass_query_ptv2_node_pas_way_csv <- function() {
+  requete <- sprintf('
+[out:csv(::id,::type;"\t")];
+relation(%s);map_to_area->.a;
+// les relations route=bus
+relation[type=route][route=bus](area.a)->.rbus;
+// les noeuds membres
+node(r.rbus)[bus=yes]->.c1;
+node(r.rbus)[highway=bus_stop]->.c2;
+node(r.rbus)["public_transport"]->.c3;
+(.c1; .c2; .c3;)->.c;
+// ces noeuds sont sur une way ?
+way(bn.c);
+node(w)->.d;
+(node.c; -node.d;)->.e;
+// avec les bons attributs ?
+node.e[highway=bus_stop][public_transport=platform]->.f;
+// ceux à modifier
+(node.e; -node.f;);
+out meta;', Config[1, 'zone_relation'])
+  return(invisible(requete))
+}
+#
+# les "public_transport"="platform" avec "bus"="yes"
+overpass_query_ptv2_platform_bus_yes_csv <- function() {
+  requete <- sprintf('
+[out:csv(::id,::type;"\t")];
+relation(%s);map_to_area->.a;
+// les "public_transport"="platform" avec "bus"="yes"
+node["public_transport"="platform"]["bus"="yes"](area.a)->.b;
+// les ways parentes
+way(bn.b);
+// les noeuds des ways parentes
+node(w)->.c;
+// intersection
+(node.b; -node.c;);
 out meta;', Config[1, 'zone_relation'])
   return(invisible(requete))
 }

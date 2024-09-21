@@ -257,6 +257,53 @@ diff_stops <- function(force_osm = TRUE, OsmChange = FALSE) {
   confess("######## %s", nrow(df12))
 }
 #
+# pour ajouter les tags gtfs
+# source("geo/scripts/transport.R");diff_stops_tags_gtfs(force_osm = FALSE, OsmChange = FALSE)
+diff_stops_tags_gtfs <- function(force_osm = TRUE, OsmChange = FALSE) {
+  carp()
+  library(sf)
+  library(tidyverse)
+  library(janitor)
+  carp("début")
+  OsmChange <<- OsmChange
+#
+# les arrêts osm avec le tag k_ref
+  gtfs_name <- sprintf("gtfs:stop_name:%s", Config[1, 'network'])
+  osm.df <- overpass_get(query = "bus_stop_kref_gtfs", format = "csv", force = force_osm) %>%
+    rename(k_ref = Config[1, 'k_ref']) %>%
+    mutate(k_ref = sprintf("%s", k_ref)) %>%
+    glimpse() %>%
+    rename(gtfs_name = !!gtfs_name) %>%
+#    clean_names() %>%
+    glimpse()
+  stops.df <- tidytransit_lire()$stops %>%
+    dplyr::select(stop_id, stop_name) %>%
+    glimpse()
+  df1 <- osm.df %>%
+    left_join(stops.df, by = c("k_ref" = "stop_id")) %>%
+    filter(! is.na(stop_name)) %>%
+    filter(gtfs_name != stop_name) %>%
+#    filter(name == "") %>%
+    glimpse()
+  osm <- ""
+  osm.list <- list()
+  for (i1 in 1:nrow(df1)) {
+    tags.df <- tribble(
+      ~name, ~value,
+#      "name", df1[[i1, "stop_name"]],
+      gtfs_name, df1[[i1, "stop_name"]]
+    )
+    o <- osmchange_object_modify_tags(id = df1[[i1, "@id"]] , type = df1[[i1, "@type"]], tags = tags.df, Change = FALSE)
+    osm <- c(osm, o)
+#    break
+#    stop("*****")
+  }
+  osm <- paste(osm, "\n", collapse = "")
+#  writeLines(osm);  stop("****")
+  changeset_id <- osmapi_put("modify", text = osm, comment = "absence de name, ajout du name gtfs")
+  carp("######## %s changeset: %s", nrow(df1), changeset_id)
+}
+#
 # source("geo/scripts/transport.R");diff_stops_distance()
 diff_stops_distance <- function(force_osm = TRUE, OsmChange = FALSE) {
   library(stringr)
@@ -1149,6 +1196,11 @@ diff_relations_route_tags <- function(force = TRUE, OsmChange = FALSE) {
 # osm
   carp("osm: les relations")
   osm.df <- overpass_get(query = "relations_route_bus_network", format = "csv", force = force)
+  if (! is.na(Config_route_id)) {
+    osm.df <- osm.df %>%
+      filter(grepl(Config_route_id, ref)) %>%
+      glimpse()
+  }
   carp("osm: les doublons")
   df1 <- osm.df %>%
     group_by(`ref:network`) %>%
@@ -1170,7 +1222,7 @@ diff_relations_route_tags <- function(force = TRUE, OsmChange = FALSE) {
     glimpse()
 # le gtfs
   carp("gtfs: les routes avec les stops")
-  dsn <- sprintf("%s/%s", transportDir, "gtfs2osm_routes_stops.csv")
+  dsn <- sprintf("%s/%s", transportDir, "gtfs2osm_relations_route_stops.csv")
   routes.df <- fread(dsn, encoding = "UTF-8") %>%
     rename(`ref:network` = ref_network) %>%
     arrange(`ref:network`) %>%
@@ -1546,6 +1598,70 @@ diff_relations_route_bus_stops_verif <- function(force = TRUE) {
     changeset_id <- osmapi_put("modify", text = osm, comment = "tentative de mise en place de la ref gtfs stop_id")
     confess("osm: %s---", changeset_id)
   }
+}
+#
+## les ways des relations route
+#
+#
+# source("geo/scripts/transport.R");diff_relations_route_ways(force = FALSE)
+diff_relations_route_ways <- function(force = TRUE, OsmChange = FALSE) {
+  library(janitor)
+  OsmChange <<- OsmChange
+  carp("osm: les relations %s", Config_operator)
+#  stop("$$$$$$$$$$$$$$$$$")
+  osm.df <- overpass_get(query = "relations_route_bus_network", format = "csv", force = force) %>%
+    clean_names()
+  if (! is.na(Config_route_id)) {
+    osm.df <- osm.df %>%
+      filter(grepl(Config_route_id, ref)) %>%
+      glimpse()
+  }
+  osm.df <- osm.df %>%
+    filter(!is.na(gtfs_shape_id)) %>%
+    glimpse()
+  josm.df <- tidytransit_lire("valhalla_shapes") %>%
+    glimpse()
+  df1 <- osm.df %>%
+    left_join(josm.df, by = c("gtfs_shape_id" = "shape_id")) %>%
+    filter(! is.na(osm)) %>%
+    glimpse()
+  for (i in 1:nrow(df1)) {
+    carp("i: %s/%s", i, nrow(df1))
+    shape_id <- df1[[i, "gtfs_shape_id"]]
+    diff_relation_route_ways(df1[[i, "id"]], df1[[i, "osm"]], OsmChange = OsmChange)
+  }
+  carp("fin")
+}
+#
+#
+diff_relation_route_ways <- function(id = id, osm = osm, force = TRUE, OsmChange = FALSE) {
+  OsmChange <<- OsmChange
+  txt <- osmapi_object_txt(ref = id, type = "relation", force = TRUE)
+  lignes <- unlist(str_split(txt, "\n"))
+  relation1 <- grep(" <relation id=", lignes, value = TRUE)
+  tags <- grep("  <tag ", lignes, value = TRUE)
+  members <- grep("  <member ", lignes, value = TRUE)
+  stops <- grep(' role="\\S+"', members, value = TRUE)
+  ways <- grep(' role=""', members, value = TRUE)
+  members_lg <- length(members)
+  stops_lg <- length(stops)
+  ways_lg <- length(ways)
+  if ( members_lg != (stops_lg + ways_lg)) {
+    osm <- paste(osm, "\n", collapse = "")
+    writeLines(osm)
+    carp("members_lg %s != (stops_lg %s + ways_lg %s", members_lg, stops_lg, ways_lg)
+    carp("vérifier les forward/backward")
+#    return(invisible(""))
+    stop("****")
+  }
+  if (ways_lg != 0) {
+    return(invisible(""))
+  }
+  osm <- paste(c(relation1, stops, osm, tags, " </relation>"), "\n", collapse = "")
+#  writeLines(osm);stop("llllllllllllllllllll")
+  changeset_id <- osmapi_put("modify", text = osm)
+  carp("osm: %s---", changeset_id)
+  return(invisible(osm))
 }
 #
 ## les relations route_master et route

@@ -324,6 +324,8 @@ osmose_issues_html <- function(get = "country", force = TRUE) {
   df4 <- osmose_issues_html_2141(classe = "21411", df1)
   html <- html_append(html, "<h2>21411 	Missing public_transport tag on a public transport stop</h2>")
   html <- html_append_df(html, df4)
+  dsn_rds <- sprintf("%s/%s_21411.rds", varDir, titre)
+  saveRDS(df4, dsn_rds)
 # 21412 	Missing legacy tag on a public transport stop
   df4 <- osmose_issues_html_2141(classe = "21412", df1)
   html <- html_append(html, "<h2>21412 	Missing legacy tag on a public transport stop</h2>")

@@ -269,7 +269,7 @@ gtfs2osm_relations_route <- function(rds = "gtfs2osm_relations_route", force_osm
   carp("dsn: %s", dsn)
 }
 # source("geo/scripts/transport.R");gtfs2osm_relations_route_stops()
-gtfs2osm_relations_route_stops <- function(rds = "gtfs2osm_relations_route_stop", force_osm = TRUE) {
+gtfs2osm_relations_route_stops <- function(rds = "gtfs2osm_relations_route_stops", force_osm = TRUE) {
   library(tidyverse)
   library(tidytransit)
   carp("selection de la route avec le plus de stops/voyages")
@@ -315,7 +315,8 @@ gtfs2osm_relations_route_shape_stops <- function(rds = "gtfs2osm_relations_route
     glimpse()
   df4 <- df4 %>%
     dplyr::select(colour, description, from, name, network, operator,`public_transport:version`
-      ,ref, ref_network, Ordre, shape_id, route, text_colour, to, type, stops, stops_code, stop_names = names
+      ,ref, ref_network, Ordre, shape_id, route, text_colour, to, type, route_short_name, route_long_name
+      , stops, stops_code, stop_names = names
       ,stops_osm_id, stops_osm_name, nb_stops, nb
     )
   tags <- Config_tags
@@ -357,8 +358,8 @@ gtfs2osm_routes_osm <- function(df1, stops_osm = TRUE, force_osm = TRUE) {
     mutate(to = str_glue('{last_city} ({last_name})')) %>%
     mutate(from_city = ifelse(str_detect(first_name, first_city), first_name, str_glue('{first_city} ({first_name})'))) %>%
     mutate(to_city = ifelse(str_detect(last_name, last_city), last_name, str_glue('{last_city} ({last_name})'))) %>%
-    mutate(name = str_glue('{Config_route_name} {route_short_name} : {first_name} -> {last_name}')) %>%
-    mutate(description = str_glue('Ligne {route_short_name} : {first_city} ({first_name}) -> {last_city} ({last_name})')) %>%
+    mutate(name = str_glue('{Config_route_name} {route_short_name} : {first_name} => {last_name}')) %>%
+    mutate(description = str_glue('Ligne {route_short_name} : {first_city} ({first_name}) => {last_city} ({last_name})')) %>%
     rename(colour = Route_color) %>%
     mutate(ref = route_short_name) %>%
     rename(text_colour = Route_text_color) %>%
@@ -374,7 +375,7 @@ gtfs2osm_routes_osm <- function(df1, stops_osm = TRUE, force_osm = TRUE) {
     df2 <- df2 %>%
       mutate(from = ifelse(str_detect(first_name, first_city), first_name, str_glue('{first_city} ({first_name})'))) %>%
       mutate(to = ifelse(str_detect(last_name, last_city), last_name, str_glue('{last_city} ({last_name})'))) %>%
-      mutate(name = str_glue('{Config_route_name} {route_long_name} : {from} -> {to}')) %>%
+      mutate(name = str_glue('{Config_route_name} {route_long_name} : {from} => {to}')) %>%
 #      filter(ref == "87") %>%
       glimpse()
 #    stop("***")
@@ -388,13 +389,13 @@ gtfs2osm_routes_osm <- function(df1, stops_osm = TRUE, force_osm = TRUE) {
   }
   if (grepl("breizhgo", Config_reseau)) {
     df2 <- df2 %>%
-      mutate(name = str_glue('{Config_route_name} {route_short_name} {route_long_name} : {from_city} -> {to_city}')) %>%
+      mutate(name = str_glue('{Config_route_name} {route_short_name} {route_long_name} : {from_city} => {to_city}')) %>%
       glimpse()
   }
   if (Reseau == "lorient") {
     df2 <- df2 %>%
-#      mutate(name = str_glue('{Config_route_name} {route_short_name} : {first_name} -> {last_name}')) %>%
-      mutate(name = str_glue('{Config_route_name} {route_short_name} : {first_city} ({first_name}) -> {last_city} ({last_name})')) %>%
+#      mutate(name = str_glue('{Config_route_name} {route_short_name} : {first_name} => {last_name}')) %>%
+      mutate(name = str_glue('{Config_route_name} {route_short_name} : {first_city} ({first_name}) => {last_city} ({last_name})')) %>%
       glimpse()
   }
   if (grepl("semo", Config_reseau)) {
@@ -493,6 +494,8 @@ relation
   description = {relation_description}
   from = {relation_from}
   gtfs:shape_id = {relation_shape_id}
+  gtfs:route_long_name = {relation_route_long_name}
+  gtfs:route_short_name = {relation_route_short_name}
   name = {relation_name}
   network = {relation_network}
   public_transport:version = 2

@@ -48,6 +48,7 @@ source("geo/scripts/misc_tex.R")
 source("geo/scripts/misc_tidytransit.R")
 source("geo/scripts/misc_transport.R")
 source("geo/scripts/misc_unicode.R")
+source("geo/scripts/transport_arrets.R"); # le nettoyage des arrêts
 source("geo/scripts/transport_carto.R"); # production des cartes
 source("geo/scripts/transport_config.R"); # lecture du fichier excel
 source("geo/scripts/transport_diff.R"); # différence entre gtfs et osm
@@ -167,7 +168,9 @@ Reseau <- "breizhgo_pennarbed"; # pseudo-réseau pour BreizhGo en Finistère
 Reseau <- "brest"; # Brest Bibus
 Reseau <- "atoumod"; # Normandie
 Reseau <- "rennes"; # Rennes STAR
+Reseau <- "cosibus50"; # les cars du département de la Manche/Coutances
 Reseau <- "nomad50"; # les cars du département de la Manche
+Reseau <- "nomad61"; # les cars du département de l'Orne
 config_xls(Reseau)
 Tex <- TRUE
 Wiki <- TRUE

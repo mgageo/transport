@@ -511,8 +511,8 @@ osm_routes_shapes_stops_fiche <- function(force = TRUE) {
   library(tidyverse)
   library(tidytransit)
   carp()
-  dsn <- osm_relations_route_bus_csv(force = force)
-  df1 <- fread(dsn, encoding = "UTF-8") %>%
+  df1 <- osm_relations_route_bus_csv(force = force)
+  df1 <- df1 %>%
     clean_names() %>%
     as.data.frame() %>%
     mutate(level0 = sprintf("[http://level0.osmz.ru/?url=%s%s level0]", "r", id)) %>%
@@ -520,7 +520,8 @@ osm_routes_shapes_stops_fiche <- function(force = TRUE) {
     arrange(ref, ref_network) %>%
     dplyr::select(level0, ref, ref_network, name, from, to) %>%
     glimpse()
-  mtime <- file.info(dsn)$mtime
+#  mtime <- file.info(dsn)$mtime
+  mtime <- "toto"
   page <- sprintf("User:Mga_geo/Transports_publics/%s/osm/%s", Config["wiki"], "osm_routes_shapes_stops_fiche") %>%
     glimpse()
   wiki <- sprintf("==%s==", mtime)
@@ -757,7 +758,8 @@ relation[route_master=bus][network="%s"];
 out;', Config[1, 'network'])
   overpass_query_csv(requete, fic, force = force)
 }
-osm_relations_route_bus_csv <- function(fic = 'relations_route_bus', force = FALSE) {
+# v0
+osm_relations_route_bus_csv_v0 <- function(fic = 'relations_route_bus', force = FALSE) {
   requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,name,ref,"ref:network","gtfs:shape_id",from,to;true;"|")];
 area[name="%s"]->.a;
 relation(area.a)[type=route][route=bus][network~"%s"];
@@ -766,6 +768,18 @@ out meta;', Config[1, 'zone'], Config[1, 'network'])
   carp("dsn: %s", dsn)
   return(invisible(dsn))
 }
+#
+osm_relations_route_bus_csv <- function(query = 'relations_route_bus_network_area', force = TRUE, force_osm = TRUE) {
+  df <- overpass_get(query = query, format = "csv", force = force_osm) %>%
+    glimpse()
+  if (! is.na(Config_route_id)) {
+    df <- df %>%
+      filter(grepl(Config_route_id, ref)) %>%
+      glimpse()
+  }
+  return(invisible(df))
+}
+
 osm_relations_route_bus_area_csv <- function(fic = 'relations_route_bus_area', force = FALSE) {
   requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,name,ref,"ref:network","gtfs:shape_id",from,to;true;"|")];
 relation(%s);map_to_area->.a;
