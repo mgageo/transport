@@ -132,7 +132,6 @@ Reseau <- "distribus"; # Lamballe / Côtes d'Armor
 Reseau <- "angers"; # Angers Irigo
 Reseau <- "semo"; # SEMO (pour Seine-Eure MObilités)
 Reseau <- "douarnenez"; # Douarnenez Tudbus
-Reseau <- "quimper"; # Quimper QUB
 Reseau <- "bretagne"; # pseudo-réseau pour la Bretagne
 Reseau <- "strasbourg"; # Strasbourg CTS
 Reseau <- "morlaix"; # Morlaix Linéotim
@@ -170,6 +169,7 @@ Reseau <- "atoumod"; # Normandie
 Reseau <- "rennes"; # Rennes STAR
 Reseau <- "cosibus50"; # les cars du département de la Manche/Coutances
 Reseau <- "nomad50"; # les cars du département de la Manche
+Reseau <- "quimper"; # Quimper QUB
 Reseau <- "nomad61"; # les cars du département de l'Orne
 config_xls(Reseau)
 Tex <- TRUE

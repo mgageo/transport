@@ -127,6 +127,9 @@ gtfs2osm_relations_routemaster <- function(rds = "gtfs2osm_routemasters", force_
       name = Name,
       ref = route_short_name,
       text_colour = Route_text_color,
+      "gtfs:route_short_name" = route_short_name,
+      "gtfs:route_long_name" = route_long_name,
+      "gtfs:route_id" = route_id
     ) %>%
     mutate(`public_transport:version` = 2) %>%
     mutate(`route_master` = "bus") %>%
@@ -186,6 +189,9 @@ relation
   public_transport:version = 2
   ref = {gtfs_ref}
   ref:network = {gtfs_ref_network}
+  gtfs:route_id = {gtfs_gtfs_route_id}
+  gtfs:route_short_name = {gtfs_gtfs_route_short_name}
+  gtfs:route_long_name = {gtfs_gtfs_route_long_name}
   route_master = bus
   text_colour = {gtfs_text_colour}
   type = route_master"
@@ -226,7 +232,7 @@ relation
   }
   page <- sprintf("User:Mga_geo/Transports_publics/%s/gtfs2osm/%s", Config["wiki"], "relations_routemaster_level0") %>%
     glimpse()
-  wiki_page_init(page = page, article = wiki, force = TRUE)
+#  wiki_page_init(page = page, article = wiki, force = TRUE)
 }
 #
 #################################################################################

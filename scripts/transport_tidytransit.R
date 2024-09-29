@@ -107,12 +107,15 @@ tidytransit_zip_lire <- function(rds = 'gtfs') {
   if (nrow(tt$trips) == 0) {
     confess("**** trips agency_id: %s", agency_id)
   }
+  mga <<- tt
 # que les shapes de ces voyages
-  tt$shapes <- tt$shapes %>%
-    filter(shape_id %in% tt$trips$shape_id) %>%
-    glimpse()
-  if (nrow(tt$shapes) == 0) {
-    confess("**** shapes agency_id: %s", agency_id)
+  if (!is.null(tt$shapes)) {
+    tt$shapes <- tt$shapes %>%
+      filter(shape_id %in% tt$trips$shape_id) %>%
+      glimpse()
+    if (nrow(tt$shapes) == 0) {
+      confess("**** shapes agency_id: %s", agency_id)
+    }
   }
 # que les horaires de ces voyages
   tt$stop_times <- tt$stop_times %>%

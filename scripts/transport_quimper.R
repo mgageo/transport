@@ -11,6 +11,7 @@
 # source("geo/scripts/transport.R");quimper_stops()
 quimper_stops <- function(stops.df, force = FALSE) {
   library(stringr)
+  library(stringi)
   carp("le gtfs")
   stops.df <- stops.df %>%
 #    distinct(stop_id, stop_name) %>%
