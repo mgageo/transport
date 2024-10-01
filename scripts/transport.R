@@ -67,6 +67,7 @@ source("geo/scripts/transport_osmar.R")
 source("geo/scripts/transport_osmose.R")
 source("geo/scripts/transport_osm2mga.R")
 source("geo/scripts/transport_postgis.R"); # avec importation par osm2pgsql
+source("geo/scripts/transport_ptna.R"); # pour configurer ptna
 source("geo/scripts/transport_ptv2.R"); # migation en PTv2
 source("geo/scripts/transport_reseau.R"); # les comparaisons osm gtfs
 source("geo/scripts/transport_route.R")

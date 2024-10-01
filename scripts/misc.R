@@ -960,6 +960,9 @@ misc_dfclass <- function(obj) {
 misc_list <- list()
 misc_lire <- function(rds = 'lire', dir = FALSE, force = FALSE) {
 #  carp("rds: %s force: %s", rds, force)
+  if (force == TRUE) {
+    return(invisible(FALSE))
+  }
   if (dir == FALSE) {
     dir = varDir
   }
