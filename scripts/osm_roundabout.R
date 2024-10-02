@@ -21,7 +21,11 @@ roundabout_parquet_lire  <- function(force = TRUE) {
   dsn <- sprintf("%s/roundabout_ways.parquet", duckdbDir)
   df1 <- arrow::read_parquet(dsn) %>%
     mutate(id = sprintf("w%s", id)) %>%
+#    glimpse() %>%
+#    rowwise() %>%
+#    mutate(Tags = deframe(tags[[1]])) %>%
     glimpse()
+  stop("****")
   df1 <- df1 %>%
     filter(pt1 != pt9)
   rp.df <- tibble()
