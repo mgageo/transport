@@ -123,7 +123,6 @@ Reseau <- "arcachon"; # Arcachon
 Reseau <- "toulouse"; # Toulouse Métropole
 Reseau <- "limoges"; # Limoges Métropole
 Reseau <- "bordeaux"; # Bordeaux Métropole
-Reseau <- "rmat"; # Saint-Malo
 Reseau <- "surf"; # Fougères
 Reseau <- "bibusM"; # Brest avec les données de MobiBreizh
 Reseau <- "ploermel"
@@ -137,15 +136,12 @@ Reseau <- "bretagne"; # pseudo-réseau pour la Bretagne
 Reseau <- "strasbourg"; # Strasbourg CTS
 Reseau <- "morlaix"; # Morlaix Linéotim
 Reseau <- "saintbrieuc"; # Saint-Brieuc TUB
-Reseau <- "guingamp"; # Guingmap Paimpol AxeoBus
 Reseau <- "landerneau"; # Landernaeau Le Bus/Ar Bus
 Reseau <- "pontivy"; # Pontivy PondiBus
 Reseau <- "vannes"; # Vannes Kicéo
 Reseau <- "guingamp"; # Guingamp AXEOBUS
 Reseau <- "quimperle"; # Quimperlé TBK
-Reseau <- "lannion"; # Lannion TILT
 Reseau <- "morlaix"; # LinéoTim
-Reseau <- "lorient"; # Lorient CTRL
 Reseau <- "breizhgo"; # BreizhGo en Bretagne, les lignes régionales
 Reseau <- "guingamp"; # Guingamp AXEOBUS
 Reseau <- "korrigo"; # les réseaux gérés en gtfs régionalement
@@ -155,7 +151,6 @@ Reseau <- "aleop_44"; # Pays de la Loire, réseau départemental 44
 Reseau <- "breizhgo_lrron"; # pseudo-réseau pour BreizhGo régional ouest nord
 Reseau <- "breizhgo_lrrns"; # pseudo-réseau pour BreizhGo régional nord sud
 Reseau <- "bretagne"; # les réseaux de la région Bretagne
-Reseau <- "concarneau"; # Concarneau Coralie
 Reseau <- "destineo"; # Pays de la Loire, les réseaux gérés au niveau de la région
 Reseau <- "aleop"; # Pays de la Loire
 Reseau <- "saintbrevin"; # Saint Brevin les Pins, Brévibus
@@ -165,16 +160,22 @@ Reseau <- "orleans"; # Orléans TAO
 Reseau <- "nantes"; # Nantes TAN/Naolib
 Reseau <- "breizhgo_illenoo2"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
 Reseau <- "breizhgo_pennarbed"; # pseudo-réseau pour BreizhGo en Finistère
-Reseau <- "brest"; # Brest Bibus
 Reseau <- "atoumod"; # Normandie
-Reseau <- "rennes"; # Rennes STAR
 Reseau <- "cosibus50"; # les cars du département de la Manche/Coutances
 Reseau <- "nomad50"; # les cars du département de la Manche
 Reseau <- "quimper"; # Quimper QUB
 Reseau <- "nomad61"; # les cars du département de l'Orne
+Reseau <- "brest"; # Brest Bibus
+Reseau <- "lannion"; # Lannion TILT
+Reseau <- "nomad61"; # les cars du département de l'Orne
+Reseau <- "guingamp"; # Guingmap Paimpol AxeoBus
+Reseau <- "lorient"; # Lorient CTRL
+Reseau <- "saintmalo"; # Saint-Malo
+Reseau <- "concarneau"; # Concarneau Coralie
+Reseau <- "rennes"; # Rennes STAR
 config_xls(Reseau)
 Tex <- TRUE
-Wiki <- TRUE
+Wiki <- FALSE
 HtmlBrowse <- FALSE
 OsmChange <- FALSE
 if ( interactive() ) {

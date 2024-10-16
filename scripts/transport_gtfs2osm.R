@@ -79,9 +79,14 @@ gtfs2osm_stops_create <- function(gtfs.sf) {
     mutate(k_ref = Config[1, "k_ref"]) %>%
     mutate(v_ref = sprintf("%s", stop_id))
 # le template level0
-  dsn <- sprintf("%s/transport_level0_node.txt", cfgDir)
-  carp("dsn: %s", dsn)
-  template <- readLines(dsn)
+  template <- 'node: {{stop_lat}}, {{stop_lon}}
+  highway = bus_stop
+  public_transport = platform
+  name = {{stop_name}}
+  {{k_ref}} = {{stop_id}}
+  gtfs:stop_id == {{stop_id}}
+  gtfs:stop_name = {{stop_name}}
+'
   osm <- misc_df2tpl(df1, template)
   dsn <- sprintf("%s/transport_level0_node.txt", transportDir)
   carp("dsn: %s", dsn)
@@ -94,7 +99,7 @@ gtfs2osm_stops_create <- function(gtfs.sf) {
 #
 # la conversion pour perl, fichier tsv
 # source("geo/scripts/transport.R");gtfs2osm_relations_routemaster()
-gtfs2osm_relations_routemaster <- function(rds = "gtfs2osm_routemasters", force_osm = TRUE) {
+gtfs2osm_relations_routemaster <- function(rds = "gtfs2osm_relations_routemaster", force_osm = TRUE) {
   library(tidyverse)
   library(tidytransit)
   carp()
@@ -155,14 +160,13 @@ gtfs2osm_relations_routemaster <- function(rds = "gtfs2osm_routemasters", force_
   carp("dsn: %s", dsn)
   page <- sprintf("User:Mga_geo/Transports_publics/%s/%s", Config["wiki"], rds)
   wiki <- wiki_df2table(df)
-#  page <- append(page, wiki)
   wiki_page_init(page = page, article = wiki, force = TRUE)
 }
 
 #
 # pour level0
 # source("geo/scripts/transport.R");gtfs2osm_relations_routemaster_level0()
-gtfs2osm_relations_routemaster_level0 <- function(rds = "gtfs2osm_routemasters", force_osm = TRUE) {
+gtfs2osm_relations_routemaster_level0 <- function(rds = "gtfs2osm_relations_routemaster", force_osm = TRUE) {
   library(stringr); # pour str_glue
   df <- misc.lire(rds, dir = transportDir) %>%
     arrange(ref) %>%
@@ -291,9 +295,14 @@ gtfs2osm_relations_route_stops <- function(rds = "gtfs2osm_relations_route_stops
     glimpse()
   df2 <- df2 %>%
     dplyr::select(colour, description, from, name, network, operator,`public_transport:version`
-      ,ref, ref_network, Ordre, shape_id, route, text_colour, to, type, stops, stops_code, stop_names = names
-      ,stops_osm_id, stops_osm_name) %>%
-    glimpse()
+      ,ref, ref_network, Ordre, shape_id, route, text_colour, to, type, route_short_name, route_long_name
+      , stops, stops_code, stop_names = names
+      , stops_osm_id, stops_osm_name, nb, nb_stops
+      , "gtfs:route_short_name" = route_short_name
+      , "gtfs:route_long_name" = route_long_name
+      , "gtfs:trip_id:sample" = trip_id
+      , "gtfs:route_id" = route_id
+    )
   tags <- Config_tags
   for (tag in tags) {
     col <- sprintf("Config_%s", tag)
@@ -321,9 +330,13 @@ gtfs2osm_relations_route_shape_stops <- function(rds = "gtfs2osm_relations_route
     glimpse()
   df4 <- df4 %>%
     dplyr::select(colour, description, from, name, network, operator,`public_transport:version`
-      ,ref, ref_network, Ordre, shape_id, route, text_colour, to, type, route_short_name, route_long_name
+      ,ref, ref_network, Ordre, shape_id, route, text_colour, to, type
       , stops, stops_code, stop_names = names
-      ,stops_osm_id, stops_osm_name, nb_stops, nb
+      , stops_osm_id, stops_osm_name, nb_stops, nb,
+      , "gtfs:route_short_name" = route_short_name
+      , "gtfs:route_long_name" = route_long_name
+      , "gtfs:trip_id:sample" = trip_id
+      , "gtfs:route_id" = route_id
     )
   tags <- Config_tags
   for (tag in tags) {
@@ -467,7 +480,7 @@ gtfs2osm_relations_route_level0 <- function(dessertes = "stops", force_osm = TRU
   if( Config[1, "shapes"] == "TRUE" ) {
     rds <- "gtfs2osm_relations_route_shape_stops"
   } else {
-    rds <- "gtfs2osm_relations_route_stop"
+    rds <- "gtfs2osm_relations_route_stops"
   }
   df <- transport_read(rds)
   if (dessertes == "toutes") {
@@ -487,7 +500,6 @@ gtfs2osm_relations_route_level0 <- function(dessertes = "stops", force_osm = TRU
 #  stop("******")
   wiki <-  stringr::str_glue('==relations route: les fichiers de configuration level0==')
   wiki <- ""
-  cols <- colnames(df)
   tpl <- "
 relation
   on_demand = yes
@@ -499,9 +511,10 @@ relation
   colour = {relation_colour}
   description = {relation_description}
   from = {relation_from}
+  gtfs:route_id = {relation_gtfs_route_id}
+  gtfs:route_long_name = {relation_gtfs_route_long_name}
+  gtfs:route_short_name = {relation_gtfs_route_short_name}
   gtfs:shape_id = {relation_shape_id}
-  gtfs:route_long_name = {relation_route_long_name}
-  gtfs:route_short_name = {relation_route_short_name}
   name = {relation_name}
   network = {relation_network}
   public_transport:version = 2
@@ -522,13 +535,18 @@ relation
   }
   tpl <- sprintf("%s
 {nodes}", tpl)
-
+  df <- df %>%
+    clean_names() %>%
+    select(order(colnames(.))) %>%
+    glimpse()
+  cols <- colnames(df)
   for (i in 1:nrow(df)) {
     for (j in 1:ncol(df)) {
       col <- sprintf("relation_%s", cols[j])
+#      Carp("%s => %s", col, df[[i, j]])
       assign(col, df[[i, j]])
     }
-
+#    glimpse(df[i, ])
     nodes.df <- data.frame(node = unlist(str_split(df[[i, "stops_osm_id"]], ","))) %>%
       mutate(level0 = sprintf("  %s platform", node))
     nodes <-  paste(nodes.df$level0,  collapse = "\n")

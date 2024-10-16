@@ -11,6 +11,7 @@
 # source("geo/scripts/transport.R");ign_stops_commune()
 ign_stops_commune <- function(territoire = FALSE) {
   library(readr)
+  library(sf)
   carp()
   communes.sf <- ign_adminexpress_lire_sf() %>%
     dplyr::select("city" = NOM, INSEE_DEP)
@@ -44,6 +45,7 @@ ign_stops_commune <- function(territoire = FALSE) {
 # source("geo/scripts/transport.R");ign_tidytransit_geocode(tt)
 ign_tidytransit_geocode <- function(tt) {
   library(readr)
+  library(sf)
   territoire <- Config[1, "territoire"]
   carp("territoire: %s", territoire)
   territoire <- unlist(strsplit(territoire, ",")) %>%

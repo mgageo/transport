@@ -11,6 +11,8 @@
 #
 # !! le fichier gtfs doit être nommé gtfs.zip
 #
+stop <- "Ploubezre"
+
 # source("geo/scripts/transport.R");tidytransit_jour()
 tidytransit_jour <- function(force = TRUE) {
   library(tidytransit)
@@ -77,12 +79,23 @@ tidytransit_zip_lire <- function(rds = 'gtfs') {
   carp("dsn: %s", dsn)
   options(encoding = "UTF-8")
   tt <<- tidytransit::read_gtfs(dsn, quiet = FALSE)
-  agency_id <- Config[[1, "agency_id"]]
-  tt$agency <- tt$agency %>%
+#  df0 <- tt$stops %>%
+#    filter(grepl(stop, stop_name)) %>%
+#    glimpse()
+#  if (nrow(df0) == 0) {
+#    glimpse(tt$stops)
+#    confess("***** gtfs.zip %s", stop)
+#  }
+  if (nrow(tt$agency) > 1) {
+    agency_id <- Config_agency_id
+    tt$agency <- tt$agency %>%
     filter(agency_id == !!agency_id) %>%
     glimpse()
-  if (nrow(tt$agency) != 1) {
-    confess("**** agency_id: %s", agency_id)
+    if (nrow(tt$agency) != 1) {
+      confess("**** agency_id: %s", agency_id)
+    }
+  } else {
+    agency_id <- tt$agency[[1, "agency_id"]]
   }
 # que les routes de cet agency
   tt$routes <- tt$routes %>%
@@ -124,7 +137,7 @@ tidytransit_zip_lire <- function(rds = 'gtfs') {
   if (nrow(tt$stop_times) == 0) {
     confess("**** stop_times agency_id: %s", agency_id)
   }
-  carp("les arrêts utilisés")
+  carp("les arrêts utilisés dans stop_times")
   df1 <- tt$stop_times %>%
     distinct(stop_id) %>%
     arrange(stop_id) %>%
@@ -133,18 +146,22 @@ tidytransit_zip_lire <- function(rds = 'gtfs') {
   tt$stops <- tt$stops %>%
     filter(stop_id %in% df1$stop_id) %>%
     glimpse()
-  if (nrow(tt$stops) == 0) {
-    confess("**** stops agency_id: %s", agency_id)
-  }
-#  tt$stops %>%
-#    filter(!grepl("ATOUMOD040", stop_id)) %>%
+#  tt$stops <- tt$stops %>%
+#    filter(grepl("^TILT\\:", stop_id)) %>%
 #    glimpse()
-#  stop("*****")
+#  if (nrow(tt$stops) == 0) {
+#    confess("**** stops agency_id: %s", agency_id)
+#  }
+#  df0 <- tt$stops %>%
+#    filter(grepl(stop, stop_name)) %>%
+#    glimpse()
+#  if (nrow(df0) == 0) {
+#    confess("***** %s", stop)
+#  }
   tt$stops <- tt$stops %>%
     glimpse() %>%
     (function(.df){
       cls <- c("stop_desc", "stop_code") # columns I need
-    # adding cls columns with NAs if not present in the piped data.frame
       .df[cls[!(cls %in% colnames(.df))]] = NA
       return(.df)
     }) %>%
@@ -152,7 +169,6 @@ tidytransit_zip_lire <- function(rds = 'gtfs') {
   tt$routes <- tt$routes %>%
     (function(.df){
       cls <- c("route_desc", "route_url") # columns I need
-    # adding cls columns with NAs if not present in the piped data.frame
       .df[cls[!(cls %in% colnames(.df))]] = NA
       return(.df)
     }) %>%
@@ -166,7 +182,7 @@ tidytransit_zip_lire <- function(rds = 'gtfs') {
       mutate(stop_lon = ifelse(stop_name == "Kerberennez", -4.127847, stop_lon))
 #    glimpse(tt$stops); stop("****")
   }
-  tt <- tidytransit_donnees_utiles(tt)
+#  tt <- tidytransit_donnees_utiles(tt)
   if (nrow(tt$stops) == 0) {
     confess("bug donnees_utiles tt$stops")
   }
@@ -262,7 +278,20 @@ tidytransit_shapes_stops <- function() {
   df1 <- tidytransit_lire("gtfs_shapes") %>%
     st_drop_geometry() %>%
     glimpse()
-  df2 <- tidytransit_lire("tidytransit_trips_stops") %>%
+  df11 <- df1 %>%
+      filter(shape_id == "")
+  if (nrow(df11) > 0) {
+    carp("***** shape sans shape_id")
+    glimpse(df11)
+  }
+  df2 <- tidytransit_lire("tidytransit_trips_stops")
+  df21 <- df2 %>%
+      filter(shape_id == "")
+  if (nrow(df21) > 0) {
+    carp("***** trips_stops sans shape")
+    glimpse(df21)
+  }
+  df2 <- df2 %>%
       filter(shape_id != "")
   df11 <- df2 %>%
     left_join(df1, by = c("shape_id"))
@@ -273,7 +302,6 @@ tidytransit_shapes_stops <- function() {
     filter(row_number() == 1) %>%
     ungroup() %>%
     glimpse()
-#  stop("******")
   tidytransit_sauve(df3, "tidytransit_shapes_stops")
 #  return(invisible(df3))
 #  stop("*****")
@@ -326,6 +354,9 @@ tidytransit_shapes_stops_tex <- function() {
       à
     )
   tex_df2kable(df4, num = TRUE)
+  if (Wiki != TRUE) {
+    return(invisible(df2))
+  }
 #  tex_df2longtblr(df4)
 #  return(invisible(df3))
   page <- sprintf("User:Mga_geo/Transports_publics/%s/gtfs/%s", Config["wiki"], "tidytransit_shapes_stops") %>%
@@ -517,6 +548,7 @@ tidytransit_routes_shapes_stops <- function(rds = "tidytransit_routes_shapes_sto
   tt <- tidytransit_lire("gtfs")
   df1 <- tidytransit_lire("tidytransit_shapes_stops") %>%
     glimpse()
+#  stop("****")
 
 #  df1 %>%
 #    filter(grepl("^0806", shape_id)) %>%
@@ -574,6 +606,9 @@ tidytransit_routes_shapes_stops_tex <- function(rds = "tidytransit_routes_shapes
   }
   write(tex, file = TEX, append = FALSE)
   close(TEX)
+  if (Wiki != TRUE) {
+    return(invisible())
+  }
   df1 <- df %>%
     mutate(from = sprintf("%s/%s", first_city, first_name)) %>%
     mutate(to = sprintf("%s/%s", last_city, last_name)) %>%
@@ -800,7 +835,7 @@ tidytransit_routes_stops <- function(rds = "tidytransit_routes_stops", force = T
   carp()
   df4 <- tidytransit_lire("tidytransit_trips_stops")
   df5 <- df4 %>%
-    group_by(route_id, direction_id) %>%
+    group_by(route_id, direction_id, nb_stops, stops_code) %>%
     arrange(route_id, direction_id, desc(nb_stops)) %>%
     mutate(Ordre = row_number()) %>%
     filter(row_number() == 1) %>%
@@ -826,6 +861,12 @@ tidytransit_trips_stops <- function(rds = "tidytransit_trips_stops", force = TRU
   if (nrow(df0) > 0) {
     misc_print(df0)
   }
+#  df0 <- tt$stops %>%
+#    filter(grepl(stop, stop_name)) %>%
+#    glimpse()
+#  if (nrow(df0) < 1) {
+#    confess("****** stops stop: %s", stop)
+#  }
   trips.df <- tt$trips %>%
     dplyr::select(trip_id, service_id, route_id, direction_id, shape_id)
   stops.df <- tt$stops %>%
@@ -860,7 +901,9 @@ tidytransit_trips_stops <- function(rds = "tidytransit_trips_stops", force = TRU
   df3 <- df2 %>%
 #    dplyr::select(-trip_id) %>%
     dplyr::select(-service_id) %>%
-    group_by(route_id, direction_id, trip_id, shape_id
+    group_by(route_id
+      , direction_id
+      , trip_id, shape_id
       , nb_stops, stops, first_stop, last_stop
       , names , first_name, last_name
       , descs , first_desc, last_desc
@@ -883,6 +926,14 @@ tidytransit_trips_stops <- function(rds = "tidytransit_trips_stops", force = TRU
     arrange(ref_network, desc(nb), desc(nb_stops)) %>%
     glimpse()
   tidytransit_sauve(df4, rds)
+#
+# problème sur Tilt/Lannion
+#  df14 <- df4 %>%
+#    filter(grepl(stop, stops)) %>%
+#    glimpse()
+#  if (nrow(df14) < 1) {
+#    confess("****** stop: %s", stop)
+#  }
   return(invisible(df4))
 }
 # source("geo/scripts/transport.R");tidytransit_routes_stops_tex()
@@ -899,6 +950,7 @@ tidytransit_routes_stops_tex <- function(rds = "tidytransit_routes_stops") {
   df3$network <- Config[[1, "network"]]
   df3 <- df3 %>%
     select(order(colnames(.))) %>%
+#    filter(Ordre == 1) %>%
     glimpse()
   for (i in 1:nrow(df3)) {
     tpl <- tex_df2tpl(df3, i, template)
@@ -948,9 +1000,17 @@ tidytransit_shapes_gpx <- function(rds = 'gtfs_shapes') {
     dsn <- sprintf("%s/shape_%s.gpx", josmDir, shape)
     carp("dsn: %s", dsn)
     st_sf2gpx(shapes.sf[i, ], dsn, shape)
+    nc1 <- shapes.sf[i, ] %>%
+      st_transform(4326)
     dsn <- sprintf("%s/shape_%s.geojson", josmDir, shape)
     carp("dsn: %s", dsn)
-    st_write(st_transform(shapes.sf[i, ], 4326), dsn, delete_dsn = TRUE, driver = "GeoJSON")
+    st_write(nc1, dsn, delete_dsn = TRUE, driver = "GeoJSON")
+    nc2 <<- st_line_sample(st_transform(nc1, 2154), density = 1/100) %>%
+      st_transform(4326)
+    dsn <- sprintf("%s/shape_%s_points.geojson", josmDir, shape)
+    carp("dsn: %s", dsn)
+    st_write(nc2, dsn, delete_dsn = TRUE, driver = "GeoJSON")
+    break
 #    st_write(shapes.sf[i, ], dsn, delete_dsn = TRUE, overwrite_layer = TRUE, driver = 'GPX', GPX_USE_EXTENSIONS = "yes")
 #    confess;
 #    spdf <- as_Spatial(shapes.sf[i, ])
@@ -1023,6 +1083,7 @@ tidytransit_stops_sf <- function(rds = "tidytransit_stops_sf") {
       glimpse()
 #    stop("µµµµµµµµµµµµµµµµµµµµµµ")
   }
+  tidytransit_sauve(stops.sf, rds)
 
   return(invisible(stops.sf))
 }
@@ -1439,18 +1500,15 @@ tidytransit_routes_trips_stops <- function() {
   carp('ajout trajet')
   trips.df <-tt$trips
   df3 <- df2 %>%
-    left_join(trips.df, c("trip_id"="trip_id")) %>%
+    left_join(trips.df, c("trip_id" = "trip_id")) %>%
     glimpse()
   carp('ajout route')
   routes.df <- tt$routes
   df4 <- df3 %>%
-    left_join(routes.df, c("route_id"="route_id")) %>%
+    left_join(routes.df, c("route_id" = "route_id")) %>%
 #    filter(agency_id==agency) %>%
     glimpse()
-  df10 <- df4 %>%
-    filter(route_long_name == "Lianes 1" & direction_id == 1) %>%
-    glimpse()
-#  stop("*****")
+
   carp('parcours differents')
   df5 <- df4 %>%
     group_by(route_short_name, route_long_name, direction_id, depart, arrivee, arrets) %>%

@@ -19,6 +19,7 @@ source("geo/scripts/mga.R")
 source("geo/scripts/misc_overpass.R");
 source("geo/scripts/osm_roundabout.R"); # pour les ronds-points
 source("geo/scripts/osm_eumapper.R"); # pour les ronds-points modifiés par EUMapper
+source("geo/scripts/osm_ptna.R"); # pour les erreurs signalées par ptna
 if ( interactive() ) {
   DEBUG <- TRUE
   graphics.off()

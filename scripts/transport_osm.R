@@ -506,29 +506,30 @@ osm_valid_relations_route_bus_network <- function(force = TRUE) {
 
   return(invisible())
 }
-# source("geo/scripts/transport.R");osm_routes_shapes_stops_fiche()
-osm_routes_shapes_stops_fiche <- function(force = TRUE) {
+# source("geo/scripts/transport.R");osm_routes_fiche()
+osm_routes_fiche <- function(force = TRUE) {
   library(tidyverse)
   library(tidytransit)
+  library(janitor)
   carp()
   df1 <- osm_relations_route_bus_csv(force = force)
   df1 <- df1 %>%
-    clean_names() %>%
+#    clean_names() %>%
     as.data.frame() %>%
-    mutate(level0 = sprintf("[http://level0.osmz.ru/?url=%s%s level0]", "r", id)) %>%
-    dplyr::select(-type) %>%
-    arrange(ref, ref_network) %>%
-    dplyr::select(level0, ref, ref_network, name, from, to) %>%
+    mutate(liens = sprintf("[http://level0.osmz.ru/?url=%s%s level0]", "r", `@id`)) %>%
+    mutate(liens = sprintf("%s[https://ptna.openstreetmap.de/relation.php?id=%s&lang=fr ptna]", liens, `@id`)) %>%
+    arrange(ref, `ref:network`) %>%
+    dplyr::select(liens, ref, `ref:network`, name, from, to, `gtfs:trip_id:sample`) %>%
     glimpse()
-#  mtime <- file.info(dsn)$mtime
-  mtime <- "toto"
-  page <- sprintf("User:Mga_geo/Transports_publics/%s/osm/%s", Config["wiki"], "osm_routes_shapes_stops_fiche") %>%
+
+  page <- sprintf("User:Mga_geo/Transports_publics/%s/osm/%s", Config["wiki"], "osm_routes_fiche") %>%
     glimpse()
-  wiki <- sprintf("==%s==", mtime)
+  wiki <- sprintf("==%s==", overpass_mtime)
   wiki <- sprintf("
 %s
-===par ref shape_id===
+===avec référence gtfs:shape_id / gtfs:trip_id:sample===
 %s", wiki, wiki_df2table(df1, num = TRUE))
+  writeLines(wiki)
   wiki_page_init(page = page, article = wiki, force = TRUE)
 
   return(invisible())
@@ -757,16 +758,6 @@ osm_relations_routemaster_bus_csv <- function(fic = 'relations_routemaster_bus',
 relation[route_master=bus][network="%s"];
 out;', Config[1, 'network'])
   overpass_query_csv(requete, fic, force = force)
-}
-# v0
-osm_relations_route_bus_csv_v0 <- function(fic = 'relations_route_bus', force = FALSE) {
-  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,name,ref,"ref:network","gtfs:shape_id",from,to;true;"|")];
-area[name="%s"]->.a;
-relation(area.a)[type=route][route=bus][network~"%s"];
-out meta;', Config[1, 'zone'], Config[1, 'network'])
-  dsn <- overpass_query_csv(requete, fic, force = force)
-  carp("dsn: %s", dsn)
-  return(invisible(dsn))
 }
 #
 osm_relations_route_bus_csv <- function(query = 'relations_route_bus_network_area', force = TRUE, force_osm = TRUE) {

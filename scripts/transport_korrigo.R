@@ -50,33 +50,19 @@ korrigo_dl <- function(reseau = "korrigo", force = TRUE) {
 # extraction par réseau et production du gtfs.zip
 #
 # source("geo/scripts/transport.R");korrigo_reseaux()
-korrigo_reseaux <- function() {
+korrigo_reseaux <- function(reseau = "korrigo") {
   library(tidyverse)
   library(rio)
   Tex <<- FALSE
   Wiki <<- FALSE
-  df <- korrigo_agency_lire() %>%
-    filter(agency_id != "") %>%
-    filter(grepl("KORRIGO", gtfs_dir)) %>%
+  library(rio)
+  config_xls(reseau)
+  dsn <- sprintf("%s/agency.txt", gtfsDir)
+  carp("dsn: %s", dsn)
+  df <- rio::import(dsn, col_names = TRUE, na = "") %>%
+    replace(is.na(.), '') %>%
     glimpse()
-#  return()
   for (i in 1:nrow(df)) {
-    Reseau <- df[i, "reseau"]
-    agency_id <- df[i, "agency_id"]
-    gtfs_dir <- df[i, "gtfs_dir"]
-#    korrigo_gtfs_reseau(Reseau, agency_id, gtfs_dir)
-    config_xls(Reseau)
-#    wiki_pages_init();    next
-    shapes_dsn <- sprintf("%s/%s/shapes.txt", varDir, gtfs_dir)
-    if (file.exists(shapes_dsn)) {
-      size <- file.info(shapes_dsn)$size
-      shapes <- df[i, "shapes"]
-      if (size > 50000 & shapes != TRUE) {
-        carp("reseau: %s shapes_dsn: %s size: %s", Reseau, shapes_dsn, format(size, big.mark = " "))
-        carp("reseau: %s shapes: %s", Reseau, shapes)
-      }
-    }
-#    config_xls(Reseau);tidytransit_jour()
   }
 }
 #
@@ -153,17 +139,15 @@ korrigo_gtfs_reseaux <- function(reseau = "Kiceo") {
   }
 }
 
-# source("geo/scripts/transport.R");korrigo_gtfs_reseau("auray", "AURAYBUS")
-korrigo_gtfs_reseau <- function(reseau, agency_id, gtfs_dir) {
+# source("geo/scripts/transport.R");korrigo_gtfs_reseau("MAT")
+korrigo_gtfs_reseau <- function(agency_id) {
   library(tidyverse)
   library(rio)
   library(stringr)
   library(archive)
-  carp("reseau: %s agency_id: %s gtfs_dir: %s", reseau, agency_id, gtfs_dir)
-  if ( reseau == "star") {
-    return()
-  }
-  reseau_dir <- sprintf("%s/%s", varDir, gtfs_dir)
+  carp("agency_id: %s", agency_id)
+  reseau_dir <- sprintf("%s/%s", gtfsDir, agency_id)
+  odDir <- gtfsDir
   dir.create(reseau_dir, showWarnings = FALSE, recursive = TRUE)
 #  regex <- sprintf("^%s:", agency_id)
   regex <- sprintf("^(%s):", agency_id)

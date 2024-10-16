@@ -396,6 +396,7 @@ overpass_get <- function(query, format = "xml", force_osm = TRUE) {
 #    carp("fic: %s", fic)
 #    query <- gsub(';true;"\t"', ';true;"µ"', query)
     dsn <- overpass_query_csv(query = query, fic = fic, force = force_osm)
+    overpass_mtime <<- file.info(dsn)$mtime
 # , sep = "\t"
 #    res <- fread(dsn, encoding = "UTF-8", header = TRUE, sep = "|") %>%
     res <- fread(dsn, encoding = "UTF-8", header = TRUE, sep = "\t") %>%
@@ -404,6 +405,7 @@ overpass_get <- function(query, format = "xml", force_osm = TRUE) {
   }
   if (format == "od") {
     dsn <- overpass_query(query, fic, force = force_osm)
+    overpass_mtime <<- file.info(dsn)$mtime
     res <- osmdata::osmdata_sf(, dsn)
     return(invisible(res))
   }
@@ -414,6 +416,7 @@ overpass_get <- function(query, format = "xml", force_osm = TRUE) {
   }
   if (format == "json") {
     dsn <- overpass_query_json(query, fic, force = force_osm)
+    overpass_mtime <<- file.info(dsn)$mtime
     json.list <- jsonlite::fromJSON(dsn, simplifyVector = FALSE, simplifyDataFrame = FALSE)
     return(invisible(json.list))
   }
@@ -442,7 +445,6 @@ overpass_query_csv <- function(query, fic = "test", force = TRUE) {
   library(httr)
   library(tidyverse)
   dsn <- sprintf("%s/%s.csv", osmDir, fic)
-  mga <<- force
   carp("dsn: %s", dsn)
   if (! file.exists(dsn) | force == TRUE) {
     carp("query: %s", query)
@@ -643,7 +645,7 @@ out meta;', Config[1, 'zone'], Config[1, 'network'])
   return(invisible(requete))
 }
 overpass_query_relations_route_bus_network_csv <- function() {
-  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,type,route,"disused:route",operator,name,description,ref,"ref:network","gtfs:shape_id",from,to,colour,text_colour,"network:wikidata","network:wikipedia";true;"\t")];
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,type,route,"disused:route",operator,name,description,ref,"ref:network","gtfs:shape_id","gtfs:route_short_name","gtfs:route_long_name","gtfs:route_id","gtfs:trip_id:sample",from,to,colour,text_colour,"network:wikidata","network:wikipedia";true;"\t")];
 area[name="%s"]->.a;
 relation(area.a)[type=route][route=bus][network="%s"];
 out meta;', Config[1, 'zone'], Config[1, 'network'])
@@ -657,7 +659,7 @@ out meta;', Config[1, 'zone_relation'])
   return(invisible(requete))
 }
 overpass_query_relations_route_bus_network_area_csv <- function() {
-  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,name,ref,"ref:network","gtfs:shape_id",from,to;true;"\t")];
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,name,ref,"ref:network","gtfs:shape_id","gtfs:trip_id:sample",from,to;true;"\t")];
 relation(%s);map_to_area->.a;
 relation(area.a)[route=bus][network="%s"];
 out meta;', Config[1, 'zone_relation'], Config[1, 'network'])
@@ -990,6 +992,15 @@ overpass_query_eumapper_csv <- function() {
   requete <- '[out:csv(::type,::id,::version,::timestamp,::user,::changeset,::lat,::lon,name;"\t")];
 area[name="Bretagne"]->.a;
 way(area.a)[junction="roundabout"](user:EUMapper);
+out meta center;
+'
+  return(invisible(requete))
+}
+overpass_query_ptna_csv <- function() {
+  requete <- '[out:csv(::type,::id,::lat,::lon,access,bus,busway,psv;"\t")];
+area[name="Bretagne"]["boundary"="administrative"]["admin_level"="4"]->.a;
+relation(area.a)[type=route][route=bus][network="FR:STAR"]->.rbus;
+way(r.rbus)[access=no];
 out meta center;
 '
   return(invisible(requete))
