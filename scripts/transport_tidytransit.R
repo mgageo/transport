@@ -72,38 +72,36 @@ tidytransit_jour_shapes <- function(force = TRUE) {
 # https://eu.ftp.opendatasoft.com/star/gtfs/GTFS_2022.1.2.0_20221003_20221023.zip
 # source("geo/scripts/transport.R");tidytransit_zip_lire()
 tidytransit_zip_lire <- function(rds = 'gtfs') {
-  carp()
+  carp("Reseau: %s", Reseau)
   library(tidytransit)
 #  dsn <- sprintf("%s/20190805/mobibreizh-bd-gtfs.zip", transportDir)
   dsn <- sprintf("%s/gtfs.zip", gtfsDir)
   carp("dsn: %s", dsn)
   options(encoding = "UTF-8")
   tt <<- tidytransit::read_gtfs(dsn, quiet = FALSE)
-#  df0 <- tt$stops %>%
-#    filter(grepl(stop, stop_name)) %>%
-#    glimpse()
-#  if (nrow(df0) == 0) {
-#    glimpse(tt$stops)
-#    confess("***** gtfs.zip %s", stop)
-#  }
-  if (nrow(tt$agency) > 1) {
-    agency_id <- Config_agency_id
+  carp("Config_agency_id: %s", Config_agency_id)
+  if (! is.na(Config_agency_id)) {
     tt$agency <- tt$agency %>%
-    filter(agency_id == !!agency_id) %>%
-    glimpse()
+      filter(agency_id == !!Config_agency_id) %>%
+      glimpse()
     if (nrow(tt$agency) != 1) {
-      confess("**** agency_id: %s", agency_id)
+      confess("**** agency_id: %s", Config_agency_id)
     }
-  } else {
-    agency_id <- tt$agency[[1, "agency_id"]]
   }
 # que les routes de cet agency
+  if (! is.na(Config_agency_id)) {
+    tt$routes <- tt$routes %>%
+      filter(agency_id == !!agency_id) %>%
+      glimpse()
+  }
+
   tt$routes <- tt$routes %>%
-    filter(agency_id == !!agency_id) %>%
+    filter(route_type == 3) %>%
     glimpse()
   if (nrow(tt$routes) == 0) {
     confess("**** routes agency_id: %s", agency_id)
   }
+
   if (grepl("nomad", Reseau)) {
     tt$routes <- tt$routes %>%
       filter(grepl(Config_route_id, route_short_name)) %>%
@@ -630,16 +628,20 @@ tidytransit_routes_shapes_stops_tex <- function(rds = "tidytransit_routes_shapes
 #
 ## les shapes des routes avec la carto
 #
-
+# source("geo/scripts/transport.R");tidytransit_toto()
+tidytransit_toto <- function(force = TRUE) {
+  reseau_tpl_tex()
+  tidytransit_refs_shapes_stops_carto(force = FALSE)
+}
 #
-# source("geo/scripts/transport.R");tidytransit_refs_shapes_stops_carto()
+# source("geo/scripts/transport.R");tidytransit_refs_shapes_stops_carto(force = FALSE)
 tidytransit_refs_shapes_stops_carto <- function(force = TRUE) {
   library(tidyverse)
   library(tidytransit)
   carp()
   df1 <- tidytransit_lire(rds = "tidytransit_shapes_stops")
   df1 <- df1 %>%
-    filter(! grepl("^S", ref_network)) %>%
+#    filter(! grepl("^S", ref_network)) %>%
     group_by(ref_network, shape_id) %>%
     arrange(desc(nb), desc(nb_stops)) %>%
     filter(row_number() == 1) %>%
@@ -654,9 +656,11 @@ tidytransit_refs_shapes_stops_carto <- function(force = TRUE) {
     df <- df1 %>%
       group_by(route_sort_order, ref_network, route_long_name) %>%
       summarize(nb = n())
+#    df1 <- df1 %>%
+#      filter(grepl("^38", ref_network))
   }
   glimpse(df1)
-#  stop("****")
+#  writeLines(df1$shape_id);  stop("****")
   df2 <- df1 %>%
     dplyr::select(ref_network, shape_id, route_desc, nb, nb_stops) %>%
     arrange(ref_network, desc(nb), desc(nb_stops)) %>%
@@ -674,7 +678,9 @@ tidytransit_refs_shapes_stops_carto <- function(force = TRUE) {
 #    tpl <- escapeLatexSpecials(tpl)
     tex <- append(tex, tpl)
     df2 <- df1 %>%
-      filter(ref_network == df[[i, "ref_network"]])
+      filter(ref_network == df[[i, "ref_network"]]) %>%
+      glimpse()
+#    stop("*****")
     ref_network <- df[[i, "ref_network"]]
     dsn <- misc_dsn(suffixe = ref_network, dossier = "images", extension = "pdf")
     if (! file.exists(dsn) | force == TRUE) {
@@ -979,7 +985,7 @@ tidytransit_shapes_sf <- function(rds = "gtfs_shapes") {
   return(invisible(shapes.sf))
 }
 #
-# la conversion en format gpx pour josm
+# la conversion en format gpx pour josm et valhalla
 # https://r-spatial.org/r/2023/05/15/evolution4.html
 #
 # source("geo/scripts/transport.R");config_xls(Reseau);nc <- tidytransit_shapes_gpx()
@@ -1010,7 +1016,7 @@ tidytransit_shapes_gpx <- function(rds = 'gtfs_shapes') {
     dsn <- sprintf("%s/shape_%s_points.geojson", josmDir, shape)
     carp("dsn: %s", dsn)
     st_write(nc2, dsn, delete_dsn = TRUE, driver = "GeoJSON")
-    break
+#    break
 #    st_write(shapes.sf[i, ], dsn, delete_dsn = TRUE, overwrite_layer = TRUE, driver = 'GPX', GPX_USE_EXTENSIONS = "yes")
 #    confess;
 #    spdf <- as_Spatial(shapes.sf[i, ])
@@ -1393,8 +1399,13 @@ tidytransit_routes_fiche <- function() {
     summarize(nb = n()) %>%
     left_join(tt$routes, by = c("route_id")) %>%
     arrange(route_id, direction_id, nb) %>%
-    dplyr::select(route_short_name, route_id, d = direction_id,  nb, route_long_name) %>%
     arrange(route_short_name, route_id) %>%
+    dplyr::select(
+      short = route_short_name,
+      route_id, d = direction_id,
+      nb, route_long_name,
+      colour = route_color,
+      text = route_text_color) %>%
     glimpse()
   tex_df2kable(df1, num = TRUE)
   misc_print(df1)
@@ -1402,7 +1413,8 @@ tidytransit_routes_fiche <- function() {
   page <- sprintf("User:Mga_geo/Transports_publics/%s/gtfs/%s", Config["wiki"], "tidytransit_routes_fiche") %>%
     glimpse()
   wiki <- sprintf("==Fiche des routes==
-%s",
+===routes.txt %s===
+%s", mtime,
     wiki_df2table(df1, num = TRUE)
   )
   wiki_page_init(page = page, article = wiki, force = TRUE)

@@ -36,6 +36,8 @@ star_gtfs_dl <- function(reseau = "rennes", force = FALSE) {
   fn_source <- gsub("^.*/", "", gtfs_source)
   dsn_source <- sprintf("%s/%s", gtfsDir, fn_source)
   carp("dsn_source: %s", dsn_source)
+  carp("gtfs_source: %s", gtfs_source)
+
   if (!file.exists(dsn_source)) {
     download.file(gtfs_source, dsn_source)
   }

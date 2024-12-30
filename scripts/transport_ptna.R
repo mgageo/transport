@@ -12,10 +12,63 @@
 # source("geo/scripts/transport.R");ptna_jour()
 ptna_jour <- function() {
   ptna_gtfs_lire()
+  ptna_wiki()
 }
+#
+# source("geo/scripts/transport.R");ptna_wiki()
+ptna_wiki <- function() {
+  df1 <- ptna_gtfs_lire() %>%
+    dplyr::select(wikidata = item, entité = itemLabel)
+  wikidata <- wiki_df2table(df1)
+  stops.df <- tt$stops
+  master.df <- misc.lire("gtfs2osm_relations_routemaster", dir = transportDir) %>%
+    glimpse()
+  route.df <- misc.lire("gtfs2osm_relations_route_stops", dir = transportDir) %>%
+    glimpse()
+  tpl <- sprintf("%s/transport_wiki.txt", scriptsDir)
+  parametres <- readLines(tpl)
+  variables <- list(
+    network_name = Config_name,
+    gtfs = Config_gtfs_source,
+    k_ref = Config_k_ref,
+    datawiki = wikidata,
+    stop_name = stops.df[[1, "stop_name"]],
+    stop_id = stops.df[[1, "stop_id"]],
+    colour = master.df[[1, "colour"]],
+    text_colour = master.df[[1, "text_colour"]],
+    master_ref = master.df[[1, "ref"]],
+    master_name = master.df[[1, "name"]],
+    master_description = master.df[[1, "description"]],
+    gestionnaire = Config_gestionnaire,
+    network = Config_network,
+    operator = Config_operator,
+    wikidata = Config_wikidata,
+    wiki = Config_wiki,
+    url = Config_website,
+    route_from = route.df[[1, "from"]],
+    route_to = route.df[[1, "to"]],
+    route_ref = route.df[[1, "ref"]],
+    route_ref_network = route.df[[1, "ref_network"]],
+    route_name = route.df[[1, "name"]],
+    route_description = route.df[[1, "description"]],
+    shape_id = route.df[[1, "shape_id"]],
+    "route_short_name" = route.df[[1, "gtfs:route_short_name"]],
+    "route_long_name" = route.df[[1, "gtfs:route_long_name"]],
+    "trip_id:sample" = route.df[[1, "gtfs:trip_id:sample"]],
+    "route_id" = route.df[[1, "gtfs:route_id"]]
+  )
+  parametres <- misc_list2tpl(variables, parametres)
+#  writeLines(parametres)
+  Wiki <<- TRUE
+  wiki <- paste(parametres,  collapse = "\n")
+  page <- sprintf("User:Mga_geo/Transports_publics/%s/PTNA", Config_wiki)
+  wiki_page_init(page = page, article = wiki, force = TRUE)
+}
+# source("geo/scripts/transport.R");ptna_gtfs_lire()
 ptna_gtfs_lire <- function() {
   library(tidytransit)
-  config_xls("korrigo")
+  library(sf)
+#  config_xls("landerneau")
   dsn <- sprintf("%s/gtfs.zip", gtfsDir)
   tt <<- tidytransit::read_gtfs(dsn, quiet = FALSE)
 # un voyage pour tous les stops
@@ -24,6 +77,12 @@ ptna_gtfs_lire <- function() {
     group_by(stop_id) %>%
     filter(row_number() == 1) %>%
     glimpse()
+  df2 <- tt$stops %>%
+    filter(stop_id %in% df1$stop_id) %>%
+    glimpse()
+  df3 <- ptna_englobante(df2)
+  misc_print(df3)
+  return(invisible(df3))
 }
 pnta_config <- function() {
   df <- config_agency_lire() %>%
@@ -40,15 +99,16 @@ pnta_config <- function() {
   misc_print(df)
   return(invisible(df))
 }
-ptna_gtfs_lire <- function() {
+ptna_gtfs_lire_v2 <- function() {
   library(tidytransit)
-  config_xls("korrigo")
+  config_xls("fougeres")
   communes.sf <<- ign_adminexpress_lire_sf() %>%
     dplyr::select("city" = NOM, INSEE_COM, INSEE_CAN, INSEE_ARR, INSEE_DEP)
   dsn <- sprintf("%s/gtfs.zip", gtfsDir)
-  if ( ! exists("tt")) {
+  carp("dsn: %s", dsn)
+#  if ( ! exists("tt")) {
     tt <<- tidytransit::read_gtfs(dsn, quiet = FALSE)
-  }
+#  }
   wikidata.df <<- misc.lire("ptna_wikidata")
   config.df <- pnta_config()
 # les stops sont préfixés avec l'agency_id
@@ -76,6 +136,8 @@ ptna_gtfs_lire <- function() {
 }
 ptna_englobante <- function(stops.df) {
   library(tidytransit)
+  wikidata.df <- misc.lire("ptna_wikidata") %>%
+    mutate(inseeCode = sprintf("%s", inseeCode))
   stops.sf <- st_as_sf(stops.df, coords = c("stop_lon", "stop_lat"), crs = 4326, remove = FALSE) %>%
     st_transform(2154)
   df1 <- stops.sf %>%
@@ -111,7 +173,7 @@ ptna_englobante <- function(stops.df) {
 }
 #
 # source("geo/scripts/transport.R");ptna_wiki()
-ptna_wiki <- function() {
+ptna_wikidata_wiki <- function() {
   library(rio)
   library(tidyverse)
   wikidata.df <- misc.lire("ptna_wikidata")
@@ -140,6 +202,7 @@ ptna_wiki <- function() {
 ptna_wikidata <- function() {
   library(tidyverse)
 #  library(wikidataR)
+  library(WikidataQueryServiceR)
 # P2585 pour le code INSEE d'une région
   df1 <- tribble(
     ~entité, ~propriété,

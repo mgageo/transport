@@ -291,11 +291,13 @@ carto_ref_shapes_stops_mapsf <- function(df, force = TRUE) {
   carp()
   df <- df %>%
     filter(shape_id != "") %>%
-    mutate(dsn_shape = sprintf("%s/shape_%s.gpx", josmDir, shape_id)) %>%
+    mutate(dsn_shape = sprintf("%s/shape_stops_%s.gpx", josmDir, shape_id)) %>%
+    glimpse() %>%
     filter(file.exists(dsn_shape)) %>%
     glimpse()
   if (nrow(df) < 1) {
-    carp("pas de shape")
+    carp("pas de shape: %s", shape_id)
+    stop("******")
     return()
   }
   departs.df <- tibble()

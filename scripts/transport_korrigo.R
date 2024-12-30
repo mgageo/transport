@@ -16,7 +16,7 @@ korrigo_jour <- function(reseau = "korrigo", force = TRUE) {
   library(archive)
   carp()
   config_xls(reseau)
-#  korrigo_dl()
+  korrigo_dl()
   korrigo_reseaux()
 }
 #
@@ -63,6 +63,7 @@ korrigo_reseaux <- function(reseau = "korrigo") {
     replace(is.na(.), '') %>%
     glimpse()
   for (i in 1:nrow(df)) {
+    korrigo_gtfs_reseau(df[[i, "agency_id"]])
   }
 }
 #

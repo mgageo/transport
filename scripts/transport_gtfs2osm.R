@@ -30,6 +30,7 @@ gtfs2osm_jour <- function(force = TRUE, force_osm = TRUE) {
     gtfs2osm_relations_route_level0(dessertes = "arrets")
 #    gtfs2osm_relations_route_shape_wiki("gtfs2osm_routes_shapes_stops")
   }
+  carp("fin")
   return(invisible())
 }
 # mise au format interne des fichiers gtfs pour les relations route_master
@@ -312,6 +313,7 @@ gtfs2osm_relations_route_stops <- function(rds = "gtfs2osm_relations_route_stops
     }
   }
   transport_sauve(df2, rds)
+  misc.ecrire(df2, rds, dir = transportDir)
   dsn <- sprintf("%s/%s.csv", transportDir, rds)
   readr::write_tsv(df2, file = dsn)
   carp("dsn: %s", dsn)
@@ -515,6 +517,7 @@ relation
   gtfs:route_long_name = {relation_gtfs_route_long_name}
   gtfs:route_short_name = {relation_gtfs_route_short_name}
   gtfs:shape_id = {relation_shape_id}
+  gtfs:trip_id:sample = {relation_gtfs_trip_id_sample}
   name = {relation_name}
   network = {relation_network}
   public_transport:version = 2

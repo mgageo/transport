@@ -162,7 +162,7 @@ st_set_utf8 = function(x) {
 }
 #
 # conversion en format gpx compatble osm
-st_sf2gpx <- function(nc1, name) {
+st_sf2gpx_v1 <- function(nc1, name) {
   library(lubridate)
   library(sf)
   carp("début name: %s", name)
@@ -208,6 +208,8 @@ st_sf2gpx <- function(nc, dsn, name = "sf2gpx") {
   if (nrow(nc1) > 0) {
     points <- st_cast(nc1[, "geometry"], "POINT")
     df <- as_tibble(st_coordinates(points))
+    nc1 <- nc1 %>%
+      mutate(name = gsub("&", "&amp;", name))
     for (i in 1:nrow(nc1)) {
       wkpt <- sprintf('<wpt lat="%s" lon="%s">', df[i, "Y"], df[i, "X"])
       gpx <- append(gpx, wkpt)

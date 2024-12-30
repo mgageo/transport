@@ -9,6 +9,7 @@
 DEBUG <- FALSE
 source("geo/scripts/misc.R")
 baseDir <- sprintf("%s/web", Drive)
+scriptsDir <- sprintf("%s/web/geo/scripts", Drive)
 cfgDir <- sprintf("%s/web/geo/TRANSPORT", Drive)
 imagesDir <- sprintf("%s/web/geo/TRANSPORT/images", Drive)
 texDir <- sprintf("%s/web/geo/TRANSPORT", Drive)
@@ -123,7 +124,6 @@ Reseau <- "arcachon"; # Arcachon
 Reseau <- "toulouse"; # Toulouse Métropole
 Reseau <- "limoges"; # Limoges Métropole
 Reseau <- "bordeaux"; # Bordeaux Métropole
-Reseau <- "surf"; # Fougères
 Reseau <- "bibusM"; # Brest avec les données de MobiBreizh
 Reseau <- "ploermel"
 Reseau <- "morlaix"; #
@@ -131,12 +131,10 @@ Reseau <- "dinan"; # Dinan / Côtes d'Armor
 Reseau <- "distribus"; # Lamballe / Côtes d'Armor
 Reseau <- "angers"; # Angers Irigo
 Reseau <- "semo"; # SEMO (pour Seine-Eure MObilités)
-Reseau <- "douarnenez"; # Douarnenez Tudbus
 Reseau <- "bretagne"; # pseudo-réseau pour la Bretagne
 Reseau <- "strasbourg"; # Strasbourg CTS
 Reseau <- "morlaix"; # Morlaix Linéotim
 Reseau <- "saintbrieuc"; # Saint-Brieuc TUB
-Reseau <- "landerneau"; # Landernaeau Le Bus/Ar Bus
 Reseau <- "pontivy"; # Pontivy PondiBus
 Reseau <- "vannes"; # Vannes Kicéo
 Reseau <- "guingamp"; # Guingamp AXEOBUS
@@ -165,17 +163,21 @@ Reseau <- "cosibus50"; # les cars du département de la Manche/Coutances
 Reseau <- "nomad50"; # les cars du département de la Manche
 Reseau <- "quimper"; # Quimper QUB
 Reseau <- "nomad61"; # les cars du département de l'Orne
-Reseau <- "brest"; # Brest Bibus
 Reseau <- "lannion"; # Lannion TILT
 Reseau <- "nomad61"; # les cars du département de l'Orne
 Reseau <- "guingamp"; # Guingmap Paimpol AxeoBus
-Reseau <- "lorient"; # Lorient CTRL
-Reseau <- "saintmalo"; # Saint-Malo
-Reseau <- "concarneau"; # Concarneau Coralie
+Reseau <- "brest"; # Brest Bibus
+Reseau <- "fougeres"; # Fougères Surf
+Reseau <- "landerneau"; # Landernaeau Le Bus/Ar Bus
+Reseau <- "douarnenez"; # Douarnenez Tudbus
 Reseau <- "rennes"; # Rennes STAR
+Reseau <- "saintmalo"; # Saint-Malo
+Reseau <- "coutances"; # Coutances Cosibus
+Reseau <- "lorient"; # Lorient CTRL IZILO
+Reseau <- "concarneau"; # Concarneau Coralie
 config_xls(Reseau)
 Tex <- TRUE
-Wiki <- FALSE
+Wiki <- TRUE
 HtmlBrowse <- FALSE
 OsmChange <- FALSE
 if ( interactive() ) {

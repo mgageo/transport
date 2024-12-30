@@ -146,6 +146,24 @@ out meta;
   article <- wiki_dfi2tpl(Config, 1, article)
   page <- sprintf("User:Mga_geo/Transports_publics/%s", wiki_page)
   wiki_page_init(page = page, article = article, force = TRUE)
+  wiki_pages_init_conf()
+}
+wiki_pages_init_conf <- function() {
+  if (is.na(Config[1, "wiki"])) {
+     stop("*****")
+  }
+  Wiki <<- TRUE
+  wiki_page <- Config[[1, "wiki"]]
+  article <- '
+==Mes pages filles==
+* [http://wiki.openstreetmap.org/w/index.php?title=Special%3APrefixIndex&prefix=Mga_geo/Transports_publics/{wiki_page}/{p}&namespace=2 mes pages sur le wiki]
+'
+  for (p in c("osm", "gtfs", "gtfs2osm")) {
+    page <- sprintf("User:Mga_geo/Transports_publics/%s/%s", wiki_page, p)
+    art <- str_glue(article)
+    wiki_page_init(page = page, article = art, force = TRUE)
+  }
+  stop("*****")
   for (p in c("osm/network", "osm/route_master", "osm/route", "gtfs/tidytransit_routes_shapes", "gtfs/tidytransit_routes", "gtfs/tidytransit_routes_stops", "gtfs/tidytransit_shapes")) {
     page <- sprintf("User:Mga_geo/Transports_publics/%s/%s", wiki_page, p) %>%
       glimpse()
