@@ -201,7 +201,7 @@ st_sf2gpx <- function(nc, dsn, name = "sf2gpx") {
 <gpx version="1.1" creator="sf2gpx" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ogr="http://osgeo.org/gdal" xmlns="http://www.topografix.com/GPX/1/1" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
 '
 #
-# pour les point
+# pour les points
   nc1 <- nc %>%
     filter(st_geometry_type(.) == "POINT") %>%
     glimpse()

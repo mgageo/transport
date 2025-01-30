@@ -95,20 +95,23 @@ carto_route_shape_stops <- function(df, nc1) {
   carp("les points proches")
   points.sf <<- nc2 %>%
     filter(distance < 50)
-  carp("les points dans le buffer")
+  points_out.sf <- data.frame()
+  if (nrow(points.sf) > 0) {
+    carp("les points dans le buffer")
 # pas dans le buffer côté droit
-  points.sf$within <- st_within(points.sf, cote_droit.sf, sparse = F)
-  points_out.sf <- points.sf %>%
-    filter(within == FALSE) %>%
-    filter(id != 1) %>%
-    filter(id != point_dernier)
+    points.sf$within <- st_within(points.sf, cote_droit.sf, sparse = F)
+    points_out.sf <- points.sf %>%
+      filter(within == FALSE) %>%
+      filter(id != 1) %>%
+      filter(id != point_dernier)
 # dans le buffer côte gauche
-  points.sf$within <- st_within(points.sf, cote_gauche.sf, sparse = F)
-  points_out.sf <- points.sf %>%
-    filter(within == TRUE) %>%
-    filter(id != 1) %>%
-    filter(id != point_dernier)
-  plot(st_geometry(points_out.sf), col = "orange", lwd = 3, pch = 19, add = TRUE)
+    points.sf$within <- st_within(points.sf, cote_gauche.sf, sparse = F)
+    points_out.sf <- points.sf %>%
+      filter(within == TRUE) %>%
+      filter(id != 1) %>%
+      filter(id != point_dernier)
+    plot(st_geometry(points_out.sf), col = "orange", lwd = 3, pch = 19, add = TRUE)
+  }
   if (nrow(points_out.sf) > 0) {
 #    stop("*****")
   }
@@ -351,7 +354,7 @@ carto_route_shape_mapsf <- function(id, shape, force = TRUE, force_osm = TRUE) {
   point1_distance <- -1
   osm.sf <- osm.sf %>%
     st_transform(2154)
-  mf_init(osm.sf, expandBB = c(0.1, 0.1, 0.1, 0.1))
+  mf_init(osm.sf, expandBB = c(0.2, 0.2, 0.2, 0.2))
   mf_map(x = osm.sf, col = "blue", lwd = 3, add = TRUE)
   osm_points.sf <- st_sf(st_cast(st_geometry(osm.sf), "POINT"))
   mf_annotation(osm_points.sf[1, ], txt = "Départ", col_txt = "blue", col_arrow = "blue")
@@ -401,20 +404,49 @@ carto_route_shape_mapsf <- function(id, shape, force = TRUE, force_osm = TRUE) {
 # la carte de la ligne avec les stops en provenance d'osm
 # l'id de la relation et l'identification du shape
 # source("geo/scripts/transport.R");carto_route_shape_stops_mapsf(id = "10554878", shape = "Din1R1AL10")
+# source("geo/scripts/transport.R");carto_route_shape_stops_mapsf(id = "12636105", shape = "01R006AL11")
+# source("geo/scripts/transport.R");carto_route_shape_stops_mapsf(id = "8827605", shape = "Asd0010")
+# source("geo/scripts/transport.R");carto_route_shape_stops_mapsf(id = "18557184", shape = "P1720018")
 carto_route_shape_stops_mapsf <- function(id, shape, force = TRUE, force_osm = TRUE) {
   library(tidyverse)
   library(sf)
   library(mapsf)
   carp("id: %s shape: %s", id, shape)
   rc <- osmapi_get_transport(ref = id, force = force, force_osm = force_osm)
-
+  mga <<- rc
+  rc$erreur <- ""
+  if (rc$cr != "") {
+    rc$erreur <- sprintf("***id: %s rc: %s" , id, rc$cr)
+    return(invisible(rc))
+  }
   if (st_is_empty(rc$ways.sf[1,]) ) {
     carp("***id: %s", id)
+    rc$erreur <- sprintf("***id: %s pas de ways", id)
+    return(invisible(rc))
+  }
+  ref_network <- rc$relation[1, "ref:network"]
+  shape_id <- rc$relation[1, "gtfs:shape_id"]
+  if (shape_id != shape) {
+    erreur <- sprintf("shape: %s # shape_id: %s", shape, shape_id)
+    stop(erreur)
+  }
+  dsn_shape <- sprintf("%s/shape_%s.gpx", josmDir, shape)
+  if (! file.exists(dsn_shape)) {
+    shape <- sprintf("%s absent", shape)
+    rc$erreur <- shape
     return(invisible(rc))
   }
   osm.sf <- rc$ways.sf %>%
-    st_transform(2154)
-  mf_init(osm.sf, expandBB = c(0.1, 0.1, 0.1, 0.1))
+    st_transform(2154) %>%
+    glimpse()
+
+  shape.sf <- st_read(dsn_shape, layer = "tracks", quiet = TRUE) %>%
+    st_transform(2154) %>%
+    glimpse()
+  emprise.sfg <- st_union(osm.sf$geometry, shape.sf$geometry) %>%
+    glimpse()
+#  stop("*****")
+  mf_init(emprise.sfg, expandBB = c(0.1, 0.1, 0.1, 0.1))
   mf_map(x = osm.sf, col = "blue", lwd = 3, add = TRUE)
   points.sf <- st_sf(st_cast(st_geometry(osm.sf), "POINT"))
   mf_annotation(points.sf[1, ], txt = "Départ", col_txt = "blue", col_arrow = "blue")
@@ -423,7 +455,8 @@ carto_route_shape_stops_mapsf <- function(id, shape, force = TRUE, force_osm = T
     mutate(Id = row_number()) %>%
     mutate(Name = sprintf("%s-%s", Id, name)) %>%
     mutate(lat = as.numeric(lat)) %>%
-    mutate(lon = as.numeric(lon))
+    mutate(lon = as.numeric(lon)) %>%
+    filter(row_number() == 1 | row_number() == n())
   platforms.sf <- st_as_sf(platforms.df, coords = c("lon", "lat"), crs = 4326, remove = TRUE) %>%
     st_transform(2154) %>%
     glimpse()
@@ -433,19 +466,13 @@ carto_route_shape_stops_mapsf <- function(id, shape, force = TRUE, force_osm = T
     overlap = FALSE,
     lines = TRUE
   )
-  dsn_shape <- sprintf("%s/shape_%s.gpx", josmDir, shape)
-  if (! file.exists(dsn_shape)) {
-    shape <- sprintf("%s absent", shape)
-  } else {
-    shape.sf <- st_read(dsn_shape, layer = "tracks", quiet = TRUE) %>%
-      st_transform(2154)
-    mf_map(x = shape.sf, col = "green", lwd = 3, add = TRUE)
-    inters <- st_intersection(st_buffer(shape.sf, 10), osm.sf)
-    mf_map( x = inters, add = TRUE, col = "grey", lwd = 3)
-    points.sf <- st_sf(st_cast(st_geometry(shape.sf), "POINT"))
-    mf_annotation(points.sf[1, ], txt = "Départ", col_txt = "green", col_arrow = "green")
-  }
-  mf_title(sprintf("r%s %s", id, shape))
+  mf_map(x = shape.sf, col = "green", lwd = 3, add = TRUE)
+  inters <- st_intersection(st_buffer(shape.sf, 10), osm.sf)
+  mf_map( x = inters, add = TRUE, col = "grey", lwd = 3)
+  points.sf <- st_sf(st_cast(st_geometry(shape.sf), "POINT"))
+  mf_annotation(points.sf[1, ], txt = "Départ", col_txt = "green", col_arrow = "green")
+  mf_title(sprintf("ref: %s id: r%s shape: %s", ref_network, id, shape), inner = TRUE)
+  return(invisible(rc))
 }
 #
 # la carte de la ligne

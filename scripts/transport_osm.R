@@ -138,46 +138,92 @@ osm_relations_route_bus_history_stat <- function(force = FALSE) {
 osm_relations_route_bus_stops <- function(force = FALSE) {
   library(tidyverse)
   carp()
-  dsn_rds <- sprintf("%s/osm_relations_route_bus_stops.rds", osmDir)
-  if (file.exists(dsn_rds) && force == FALSE) {
-    relations.df <- readRDS(dsn_rds)
-    return(invisible(relations.df))
-  }
   df1 <- overpass_get(query = "relations_route_bus_network", format = "csv", force = force) %>%
     clean_names() %>%
+    filter(grepl("^\\d", ref_network)) %>%
     glimpse()
+  osm <- ""
   for (i1 in 1:nrow(df1)) {
-    carp("i1: %s/%s", i1, nrow(df1))
-    osm_relation_route_bus_stops(ref = df1[i1, "id"], type = df1[i1, "type"], force = force)
+    carp("i1: %s/%s ref: %s", i1, nrow(df1), df1[i1, "id"])
+    o <- osm_relation_route_bus_stops(ref = df1[i1, "id"], type = df1[i1, "type"], force = force, OsmChange = TRUE)
+#    break
+    if (o != "") {
+      osm <- sprintf("%s\n%s", osm, o)
+#      break
+    }
   }
+#  OsmChange <<- TRUE
+#  changeset_id <- osmapi_put("modify", text = osm, comment = "retrait des stops hors ways de la relation")
+#  confess("osm ref: %s changeset: %s---", ref, changeset_id)
+  return(invisible())
 }
 # Bordeaux Lianes 4
-# source("geo/scripts/transport.R");osm_relation_route_bus_stops(ref = "1601972", force = FALSE, force_osm = FALSE) %>% glimpse()
-osm_relation_route_bus_stops <- function(ref = "16017716", type = "relation", force = TRUE, force_osm = TRUE) {
+# source("geo/scripts/transport.R");osm_relation_route_bus_stops(ref = "3213546", force = FALSE, force_osm = FALSE) %>% glimpse()
+# source("geo/scripts/transport.R");osm_relation_route_bus_stops(ref = "8478440", force = FALSE, force_osm = FALSE) %>% glimpse()
+osm_relation_route_bus_stops <- function(ref = "16017716", type = "relation", force = TRUE, force_osm = TRUE, OsmChange = FALSE) {
   library(tidyverse)
-  library(digest)
-  rc <- osm_relation_route_members(ref, force = force, force_osm = force_osm)
-  platforms.df <- rc$members.sf %>%
-    st_drop_geometry() %>%
-    filter(grepl("platform", role))
-  if(Config_k_ref %notin% names(platforms.df)) {
-    carp("*** pas de tag k_ref: %s", Config_k_ref)
-    return(invisible())
+  OsmChange <<- OsmChange
+  osm <- ""
+  rc <- osmapi_get_transport(ref = ref, force = force, force_osm = force_osm)
+  mga <<- rc
+#
+# pour les stops
+  stops.df <- rc$members.df %>%
+    filter(grepl("stop", role)) %>%
+    glimpse()
+  if (nrow(stops.df) == 0) {
+    return(invisible(""))
   }
-  gtfs.df <- platforms.df %>%
-    filter(! is.na(!!Config_k_ref))
-  if (nrow(platforms.df) != nrow(gtfs.df)) {
-    carp("*** manque des tags k_ref: %s", Config_k_ref)
-    return(invisible())
+  df1 <- tribble(~ref, ~role, ~member_no)
+  nb_ko <- 0
+  ways.sf <- rc$ways.sf
+  for (i in 1:nrow(stops.df)) {
+    carp("i: %s/%s", i, nrow(stops.df))
+    if (stops.df[i, "type"] != "node") {
+      confess();
+    }
+    stop_ref <<- stops.df[[i, "ref"]]
+    iway <- -1
+    for (iw in 1:nrow(ways.sf)) {
+      way_name <-  ways.sf[[iw, "name"]]
+#      carp("stop_ref: %s iw: %s way_name: %s", stop_ref, iw, way_name)
+      nodes <<- ways.sf[iw, "nodes"]$nodes[[1]]
+      if (stop_ref %in% nodes) {
+        iway <- iw
+        break
+      }
+#      if (iw == 11) {
+#        stop("****")
+#      }
+    }
+    if (iway < 0) {
+      erreur <- sprintf("relation: r%s stop: n%s", ref, stop_ref)
+      carp(erreur)
+      nb_ko <- nb_ko + 1
+    } else {
+      df1 <- df1 %>%
+        add_row(ref = stop_ref, member_no = ways.sf[[iw, "member_no"]], role = stops.df[[i, "role"]])
+    }
+#    break
   }
-  misc_print(gtfs.df)
-  stops <- paste(gtfs.df[, Config_k_ref], collapse = ",")
-  tags <- list(
-    "gtfs:stops" = digest::md5(stops)
-  )
-  type <- "relation"
-  osmchange_object_modify_tags(id = ref, type = type, tags = tags)
-#  stop("******")
+  if (nb_ko == 0) {
+    return(invisible(""))
+  }
+  if (nrow(df1) == 0) {
+    return(invisible(""))
+  }
+  df1 <- df1 %>%
+    arrange(member_no) %>%
+    mutate(osm = sprintf("  <member type=\"%s\" ref=\"%s\" role=\"%s\"/>", "node", ref, role)) %>%
+    glimpse()
+# transport_diff.R ligne 1925
+  misc_print(df1)
+  rc <- osmapi_object_txt_transport(ref)
+  rc$stops <- df1$osm
+  osm <- osmapi_object_txt_osm(rc)
+  changeset_id <- osmapi_put("modify", text = osm, comment = "retrait des stops hors ways de la relation")
+  carp("osm ref: %s changeset: %s---", ref, changeset_id)
+  return(invisible(osm))
 }
 #
 ## les relations route_master

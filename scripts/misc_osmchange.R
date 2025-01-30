@@ -114,7 +114,8 @@ osmchange_object_modify_tags <- function(id = "13400195", type = "relation", tag
   delete.df <- tags.df %>%
     filter(grepl("^-", name))
   tags.df <- tags.df %>%
-    filter(! grepl("^-", name))
+    filter(! grepl("^-", name)) %>%
+    mutate(value = gsub("&", "&amp;", value))
   nb_modifs <- 0
   for (i in 1:nrow(tags.df)) {
     gtfs <- sprintf('  <tag k="%s" v="%s"/>', tags.df[[i, "name"]], tags.df[[i, "value"]])

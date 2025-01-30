@@ -84,10 +84,6 @@ reseau_osm_jour <- function(force = TRUE, force_members = TRUE, force_osm = TRUE
   library(janitor)
   osm_jour(force = force)
 }
-
-
-
-
 #
 ########################################################################################
 #
@@ -107,9 +103,7 @@ reseau_osm_routes_shapes <- function(force = TRUE) {
   library(sf)
   library(janitor)
   carp()
-  dsn <- osm_relations_route_bus_csv(force = force)
-  df <- fread(dsn, encoding = "UTF-8") %>%
-    as.data.table() %>%
+  df <- osm_relations_route_bus_csv(force = force) %>%
     clean_names() %>%
     mutate(shape = transport_shape2fic(gtfs_shape_id)) %>%
     arrange(ref_network)
@@ -159,12 +153,17 @@ reseau_osm_routes_shapes <- function(force = TRUE) {
 #      next
     }
     dsn <- sprintf("%s/reseau_osm_routes_shapes_%s.pdf", imagesDir, id)
-    rc <- carto_route_shape_mapsf(id, shape)
+    rc <- carto_route_shape_stops_mapsf(id, shape)
     if (is.logical(rc)) {
       next
     }
+    mga1 <<- rc
     lg.df <- lg.df %>%
-      bind_rows(as_tibble(rc))
+      bind_rows(tibble(enframe(rc)))
+    mga <<- lg.df
+    if (rc$erreur != "") {
+      next
+    }
     dsn <- dev2pdf(suffixe = id, dossier = "images")
 # pour le latex
 #    tex <- append(tex, sprintf("\\mongraphique{images/reseau_routes_shapes_%s.pdf}", id))
@@ -465,4 +464,109 @@ reseau_relations_routemaster_valid <- function(force = TRUE) {
   write(level0, dsn)
   carp("dsn: %s", dsn)
   return(invisible())
+}
+#
+# les départs/arrivées osm versus shape
+# source("geo/scripts/transport.R");reseau_da()
+reseau_da <- function(force = TRUE, force_osm = TRUE) {
+  library(tidyverse)
+  library(sf)
+  df1 <- overpass_get(query = "relations_route_bus_network", format = "csv", force = force)
+  for (i1 in 1:nrow(df1)) {
+    id <- df1[[i1, "@id"]]
+    shape <- df1[[i1, "gtfs:shape_id"]]
+    rc <- reseau_route_shape_da(id, shape)
+    df1[i1, "rc"] <- rc
+  }
+  df2 <- df1 %>%
+    filter(rc == -2) %>%
+    dplyr::select("ref", "@id", "ref:network", "gtfs:shape_id") %>%
+    arrange(ref) %>%
+    mutate(sens = str_sub(`ref:network`, -1)) %>%
+    glimpse() %>%
+    dplyr::select(-"ref:network") %>%
+    pivot_wider(
+      names_from = c("sens"),
+      values_from = c("@id", "gtfs:shape_id")
+    )
+  misc_print(df2)
+  sauve_rds(df2)
+}
+# source("geo/scripts/transport.R");reseau_da_change()
+reseau_da_change <- function(OsmChange = FALSE) {
+  carp()
+  df2 <- lire_rds("reseau_da") %>%
+    glimpse()
+  OsmChange <<- OsmChange
+  osm <- ""
+  nb_changes <- 0
+  for (i2 in 1:nrow(df2)) {
+    id <- df2[[i2, "@id_A"]]
+    shape  <- df2[[i2, "gtfs:shape_id_B"]]
+    tags.df <- tribble(~name, ~value,
+"gtfs:shape_id", shape
+)
+    type <- "relation"
+    o <- osmchange_object_modify_tags(id = id, type = type, tags = tags.df, Change = FALSE)
+    nb_changes <- nb_changes + 1
+#    writeLines(o)
+    osm <- sprintf("%s\n%s", osm, o)
+    id <- df2[[i2, "@id_B"]]
+    shape  <- df2[[i2, "gtfs:shape_id_A"]]
+    tags.df <- tribble(~name, ~value,
+"gtfs:shape_id", shape
+)
+    type <- "relation"
+    o <- osmchange_object_modify_tags(id = id, type = type, tags = tags.df, Change = FALSE)
+    nb_changes <- nb_changes + 1
+#    writeLines(o)
+    osm <- sprintf("%s\n%s", osm, o)
+  }
+  osm <- paste(osm, "\n", collapse = "")
+#  writeLines(osm);stop("****")
+  changeset_id <- osmapi_put("modify", text = osm, comment = "maj des attributs gtfs")
+}
+#
+# les départs/arrivées osm versus shape
+# l'id de la relation et l'identification du shape
+# quimper
+# source("geo/scripts/transport.R");reseau_route_shape_da(id = "4050450", shape = "32236")
+reseau_route_shape_da <- function(id, shape, force = TRUE, force_osm = TRUE) {
+  library(tidyverse)
+  library(sf)
+  carp("id: %s shape: %s", id, shape)
+  rc <- osmapi_get_transport(ref = id, force = force, force_osm = force_osm)
+  glimpse(rc)
+  if (rc$cr != "") {
+    carp("***id: %s cr: %s", id, rc$cr)
+    return(invisible(rc))
+  }
+  if (st_is_empty(rc$ways.sf[1,]) ) {
+    carp("***id: %s", id)
+    return(invisible(rc))
+  }
+  osm.sf <- rc$ways.sf %>%
+    st_transform(2154)
+  osm_points.sf <<- st_sf(st_cast(st_geometry(osm.sf), "POINT"))
+  dsn_shape <- sprintf("%s/shape_%s.gpx", josmDir, shape)
+  if (! file.exists(dsn_shape)) {
+    carp("shape absent: %s", dsn_shape)
+    return(-1)
+  }
+  shape.sf <- st_read(dsn_shape, layer = "tracks", quiet = TRUE) %>%
+    st_transform(2154)
+  shape_points.sf <<- st_sf(st_cast(st_geometry(shape.sf), "POINT"))
+  osm_d <- osm_points.sf[1, ]
+  osm_a <- osm_points.sf %>% slice(n())
+  shape_d <- shape_points.sf[1, ]
+  shape_a <- shape_points.sf %>% slice(n())
+  dd <- as.integer(st_distance(osm_d, shape_d))
+  da <- as.integer(st_distance(osm_d, shape_a))
+  ad <- as.integer(st_distance(osm_a, shape_d))
+  aa <- as.integer(st_distance(osm_a, shape_a))
+  if ((dd+aa) > (da+ad)) {
+    carp("inversion tracé id: r%s", id)
+    return(-2)
+  }
+  return(0)
 }

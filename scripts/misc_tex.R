@@ -137,7 +137,7 @@ tex_dsn <- function(dsn = FALSE, suffixe = "", dossier = "") {
 # conversion en table latex
 # http://math.furman.edu/~dcs/courses/math47/R/library/xtable/html/print.xtable.html
 # pas en utf-8
-tex_df2table <- function(df, dsn=FALSE, suffixe="", dossier="", entete = FALSE, num=FALSE, nb_lignes=50, digits = 0) {
+tex_df2table <- function(df, dsn = FALSE, suffixe = "", dossier = "", entete = FALSE, num = FALSE, nb_lignes = 50, digits = 0) {
   library(xtable)
 #  library("Hmisc")
   options("encoding" = "UTF-8")
@@ -211,7 +211,7 @@ tex_df2table <- function(df, dsn=FALSE, suffixe="", dossier="", entete = FALSE, 
   t <- readLines(dsn)
   return(invisible(t))
 }
-tex_df2kable <- function(df, dsn = FALSE, suffixe = "", dossier = "", nb_lignes = 0, num = FALSE, digits = 1, font_size = 9, longtable = TRUE, extra = FALSE, escape = TRUE) {
+tex_df2kable <- function(df, dsn = FALSE, suffixe = "", dossier = "", nb_lignes = 0, num = FALSE, digits = 1, font_size = 7, longtable = TRUE, extra = FALSE, escape = TRUE) {
   library(knitr)
   library(kableExtra)
   options("encoding" = "UTF-8")

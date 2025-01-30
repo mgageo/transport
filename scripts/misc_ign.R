@@ -32,7 +32,9 @@ ign_departement_lire_sf_v1 <- function(les_departements) {
 # limite des départements
 ign_departement_lire_sf <- function(les_departements) {
   require(sf)
+  stop("****")
   dsn <-  sprintf('%s/bvi35/CouchesIGN/ADE_1-1_SHP_LAMB93_FR/DEPARTEMENT.SHP', Drive)
+  dsn <- "D:/bvi35/CouchesIGN/ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2024-05-16/ADMIN-EXPRESS/1_DONNEES_LIVRAISON_2024-05-00047/ADE_3-2_SHP_LAMB93_FXX-ED2024-05-16/DEPARTEMENT.shp"
   nc <- st_read(dsn, stringsAsFactors=FALSE) %>%
     glimpse()
   nc <- nc[nc$INSEE_DEP %in% les_departements, ]

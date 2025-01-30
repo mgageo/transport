@@ -12,7 +12,96 @@
 # source("geo/scripts/transport.R");ptna_jour()
 ptna_jour <- function() {
   ptna_gtfs_lire()
-  ptna_wiki()
+  ptna_wiki_ptna()
+  ptna_wiki_config()
+}
+#
+# source("geo/scripts/transport.R");ptna_wiki_ptna()
+ptna_wiki_ptna <- function() {
+  df1 <- ptna_gtfs_lire() %>%
+    dplyr::select(wikidata = item, entité = itemLabel)
+  wikidata <- wiki_df2table(df1)
+  tpl <- sprintf("%s/transport_wiki_ptna.txt", cfgDir)
+  parametres <- readLines(tpl)
+  variables <- list(
+    name = Config_name,
+    nom = Config_nom,
+    PTNA = Config_PTNA,
+    network_name = Config_name,
+    gtfs = Config_gtfs_source,
+    k_ref = Config_k_ref,
+    datawiki = wikidata,
+    gestionnaire = Config_gestionnaire,
+    network = Config_network,
+    operator = Config_operator,
+    wikidata = Config_wikidata,
+    wiki = Config_wiki,
+    url = Config_website
+  )
+  parametres <- misc_list2tpl(variables, parametres)
+#  writeLines(parametres)
+  Wiki <<- TRUE
+  wiki <- paste(parametres,  collapse = "\n")
+  page <- sprintf("User:Mga_geo/Transports en commun/%s/PTNA", Config_name)
+  wiki_page_init(page = page, article = wiki, force = TRUE)
+}
+#
+# source("geo/scripts/transport.R");ptna_wiki_config()
+ptna_wiki_config <- function() {
+  if ( ! exists("tt")) {
+    dsn <- sprintf("%s/gtfs.zip", gtfsDir)
+    carp("dsn: %s", dsn)
+    tt <<- tidytransit::read_gtfs(dsn, quiet = FALSE)
+  }
+  route_type.df <- tribble(
+    ~type, ~libelle, ~code,
+    1, "== Lignes de métro","subway",
+    3, "== Lignes de bus","bus",
+    4, "== Lignes de ferry","ferry"
+  )
+  routes.df <- tt$routes %>%
+    glimpse()
+  config <- ""
+  for (i in 1:nrow(route_type.df)) {
+    df <- routes.df %>%
+      filter(route_type == route_type.df[[i, "type"]])
+    if (nrow(df) == 0) {
+      next
+    }
+    config <- append(config, route_type.df[[i, "libelle"]])
+    for (j in 1:nrow(df)) {
+      route <- sprintf("%s;%s;;;;;%s;%s",
+        df[[j, "route_short_name"]],
+        route_type.df[[i, "code"]],
+        Config_PTNA,
+        df[[j, "route_id"]]
+      )
+      config <- append(config, route)
+    }
+  }
+  config <- paste(config,  collapse = "\n")
+#  writeLines(config);stop("****")
+  dsn <- sprintf("%s/transport_wiki_ptna_config.txt", cfgDir)
+  tpl <- readLines(dsn)
+  variables <- list(
+    name = Config_name,
+    nom = Config_nom,
+    gtfs = Config_gtfs_source,
+    k_ref = Config_k_ref,
+    gestionnaire = Config_gestionnaire,
+    network = Config_network,
+    operator = Config_operator,
+    wikidata = Config_wikidata,
+    wiki = Config_wiki,
+    url = Config_website,
+    lignes= config
+  )
+  parametres <- misc_list2tpl(variables, tpl)
+#  writeLines(parametres)
+  Wiki <<- TRUE
+  wiki <- paste(parametres,  collapse = "\n")
+  page <- sprintf("User:Mga_geo/Transports en commun/%s/PTNA csv", Config_name)
+  wiki_page_init(page = page, article = wiki, force = TRUE)
 }
 #
 # source("geo/scripts/transport.R");ptna_wiki()
@@ -25,7 +114,7 @@ ptna_wiki <- function() {
     glimpse()
   route.df <- misc.lire("gtfs2osm_relations_route_stops", dir = transportDir) %>%
     glimpse()
-  tpl <- sprintf("%s/transport_wiki.txt", scriptsDir)
+  tpl <- sprintf("%s/transport_wiki.txt", cfgDir)
   parametres <- readLines(tpl)
   variables <- list(
     network_name = Config_name,
@@ -102,13 +191,15 @@ pnta_config <- function() {
 ptna_gtfs_lire_v2 <- function() {
   library(tidytransit)
   config_xls("fougeres")
-  communes.sf <<- ign_adminexpress_lire_sf() %>%
-    dplyr::select("city" = NOM, INSEE_COM, INSEE_CAN, INSEE_ARR, INSEE_DEP)
-  dsn <- sprintf("%s/gtfs.zip", gtfsDir)
-  carp("dsn: %s", dsn)
-#  if ( ! exists("tt")) {
+  if (! exists("communes.sf") ) {
+    communes.sf <<- ign_adminexpress_lire_sf() %>%
+      dplyr::select("city" = NOM, INSEE_COM, INSEE_CAN, INSEE_ARR, INSEE_DEP)
+  }
+  if ( ! exists("tt")) {
+    dsn <- sprintf("%s/gtfs.zip", gtfsDir)
+    carp("dsn: %s", dsn)
     tt <<- tidytransit::read_gtfs(dsn, quiet = FALSE)
-#  }
+  }
   wikidata.df <<- misc.lire("ptna_wikidata")
   config.df <- pnta_config()
 # les stops sont préfixés avec l'agency_id
@@ -136,6 +227,10 @@ ptna_gtfs_lire_v2 <- function() {
 }
 ptna_englobante <- function(stops.df) {
   library(tidytransit)
+  if (! exists("communes.sf") ) {
+    communes.sf <<- ign_adminexpress_lire_sf() %>%
+      dplyr::select("city" = NOM, INSEE_COM, INSEE_CAN, INSEE_ARR, INSEE_DEP)
+  }
   wikidata.df <- misc.lire("ptna_wikidata") %>%
     mutate(inseeCode = sprintf("%s", inseeCode))
   stops.sf <- st_as_sf(stops.df, coords = c("stop_lon", "stop_lat"), crs = 4326, remove = FALSE) %>%

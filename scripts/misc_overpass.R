@@ -645,7 +645,7 @@ out meta;', Config[1, 'zone'], Config[1, 'network'])
   return(invisible(requete))
 }
 overpass_query_relations_route_bus_network_csv <- function() {
-  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,type,route,"disused:route",operator,name,description,ref,"ref:network","gtfs:shape_id","gtfs:route_short_name","gtfs:route_long_name","gtfs:route_id","gtfs:trip_id:sample",from,to,colour,text_colour,"network:wikidata","network:wikipedia";true;"\t")];
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,type,route,"disused:route",operator,name,description,ref,"ref:network","gtfs:shape_id","gtfs:route_short_name","gtfs:route_long_name","gtfs:route_id","gtfs:trip_id:sample",from,to,colour,text_colour,"network:wikidata","network:wikipedia","note:mga","note:mga_geo";true;"\t")];
 area[name="%s"]->.a;
 relation(area.a)[type=route][route=bus][network="%s"];
 out meta;', Config[1, 'zone'], Config[1, 'network'])
@@ -1001,6 +1001,17 @@ overpass_query_ptna_csv <- function() {
 area[name="Bretagne"]["boundary"="administrative"]["admin_level"="4"]->.a;
 relation(area.a)[type=route][route=bus][network="FR:STAR"]->.rbus;
 way(r.rbus)[access=no];
+out meta center;
+'
+  return(invisible(requete))
+}
+#
+## les requêtes pour les carrières
+#
+overpass_query_carrieres_csv <- function() {
+  requete <- '[out:csv(::type,::id,::timestamp,::user,::lat,::lon,name,operator,disused;"\t")];
+area[name="Bretagne"]["boundary"="administrative"]["admin_level"="4"]->.zone;
+way["landuse"="quarry"](area.zone);
 out meta center;
 '
   return(invisible(requete))

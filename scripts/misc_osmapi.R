@@ -93,6 +93,51 @@ osmapi_object_txt <- function(ref, type = "relation", force = TRUE) {
   }
   return(invisible(txt))
 }
+osmapi_object_txt_transport <- function(ref, force = TRUE) {
+  library(tidyverse)
+  txt <- osmapi_object_txt(ref = ref, type = "relation", force = force)
+#  writeLines(txt);stop("mmmmmm")
+#  osm <- txt
+#  osm <- stringr::str_replace(osm, regex(".*<(node|way|relation)", dotall = TRUE), "<\\1");
+#  osm <- stringr::str_replace(osm, regex("</(node|way|relation)>.*", dotall = TRUE), "</\\1>")
+  rc <- list()
+  lignes <- unlist(str_split(txt, "\n"))
+  relation1 <- grep(" <relation id=", lignes, value = TRUE)
+  tags <- grep("  <tag ", lignes, value = TRUE)
+  members <- grep("  <member ", lignes, value = TRUE)
+  platforms <- grep(' role="platform', members, value = TRUE)
+  stops <- grep(' role="stop', members, value = TRUE)
+  ways <- grep(' role=""', members, value = TRUE)
+  members_lg <- length(members)
+  platforms_lg <- length(platforms)
+  stops_lg <- length(stops)
+  ways_lg <- length(ways)
+  if ( members_lg != (platforms_lg + stops_lg + ways_lg)) {
+    osm <- paste(osm, "\n", collapse = "")
+    writeLines(osm)
+    carp("members_lg %s != (platforms_lg %s + stops_lg %s + ways_lg %s", members_lg, platforms_lg, stops_lg, ways_lg)
+    carp("vérifier les forward/backward")
+#    return(invisible(""))
+    stop("****")
+  }
+  rc <- list(
+    relation1 = relation1,
+    tags = tags,
+    platforms = platforms,
+    stops = stops,
+    ways = ways
+  )
+  glimpse(rc)
+  return(invisible(rc))
+}
+#
+# reconversion eon objet osm
+osmapi_object_txt_osm <- function(rc) {
+  library(tidyverse)
+  osm <- paste(c(rc$relation1, rc$platforms, rc$stops, rc$ways, rc$tags, " </relation>"), "\n", collapse = "")
+#  writeLines(osm);stop("llllllllllllllllllll")
+  return(invisible(osm))
+}
 osmapi_object_full <- function(ref, type = "relation", force = FALSE) {
   library(readr)
   library(tidyverse)
@@ -510,8 +555,7 @@ osmapi_get_transport <- function(ref = "11920346", force = FALSE, force_osm = FA
     dplyr::bind_rows(dplyr::tibble(name = character(), public_transport = character())) %>%
     dplyr::select(id = "@id", lat = "@lat", lon = "@lon", name, public_transport, matches("^(bus|ref)")) %>%
     mutate(lat = as.numeric(lat)) %>%
-    mutate(lon = as.numeric(lon)) %>%
-    glimpse()
+    mutate(lon = as.numeric(lon))
 #
 # les ways
   carp("les ways")
@@ -524,8 +568,7 @@ osmapi_get_transport <- function(ref = "11920346", force = FALSE, force_osm = FA
         cls <- c("name", "highway", "junction", "oneway", "oneway:bus", "ref")
         .df[cls[!(cls %in% colnames(.df))]] = NA
         return(.df)
-      }) %>%
-      glimpse()
+      })
 #  stop("*****")
 #  print(xml_structure(ways[[1]]))
     ls.v <- c()
@@ -572,15 +615,25 @@ osmapi_get_transport <- function(ref = "11920346", force = FALSE, force_osm = FA
     members.list[[attr]] <- members %>% xml_attr(attr)
   }
   df10 <- as_tibble(members.list) %>%
-    mutate(member_no = row_number()) %>%
-    glimpse()
+    mutate(member_no = row_number())
+  if (nrow(df10) == 0) {
+    rc <- list("cr" = "df10")
+    saveRDS(rc, dsn_rds)
+    return(invisible(rc))
+  }
 #
 # on peut enfin s'attaquer au rapprochement pour les nodes
   df11 <- df10 %>%
     filter(type == "node") %>%
     left_join(nodes.df, by = c("ref" = "id"))
   df12 <- df10 %>%
-    filter(type == "way") %>%
+    filter(type == "way")
+  if (nrow(df12) == 0) {
+    rc <- list("cr" = "df12")
+    saveRDS(rc, dsn_rds)
+    return(invisible(rc))
+  }
+  df12 <- df12 %>%
     left_join(ways.df, by = c("ref" = "id")) %>%
     dplyr::select(-nb_nodes, -node1, -node9, -nodes)
   df1 <- bind_rows(df11, df12)
@@ -603,12 +656,11 @@ osmapi_get_transport <- function(ref = "11920346", force = FALSE, force_osm = FA
       rename(id = ref)
     sf11 <- st_as_sf(df11, geometry = st_as_sfc(df11$wkt, crs = 4326)) %>%
       mutate(way_no = row_number()) %>%
-      st_transform(2154) %>%
-      glimpse()
+      st_transform(2154)
   } else {
     sf11 <- tribble()
   }
-  rc <- list("relation" = relation.df, "members.df" = members.df, "ways.sf" = sf11, "nodes.df" = nodes.df)
+  rc <- list("cr" = "", "relation" = relation.df, "members.df" = members.df, "ways.sf" = sf11, "nodes.df" = nodes.df)
   saveRDS(rc, dsn_rds)
   return(invisible(rc))
 }
@@ -774,14 +826,16 @@ osmapi_api <- function(path, xml = '', methode = "PUT", debug = FALSE) {
     req <- request(url) |>
       req_method(methode) |>
       req_body_raw(xml)
-    resp <- req |>
+    req <- req |>
       httr2::req_oauth_auth_code(
         client = client,
         auth_url = auth_url,
         scope = paste(c("write_api"), collapse = " "),
         redirect_uri = client_redirect
-      ) |>
-      req_perform()
+      )
+    mga <<- req
+    try(req |> req_perform())
+    resp <- last_response()
   }
   if (methode == "GET") {
     req <- request(url) |>
@@ -791,7 +845,9 @@ osmapi_api <- function(path, xml = '', methode = "PUT", debug = FALSE) {
   }
   status <- resp |> resp_status_desc()
   if (status != "OK") {
-    writeLines(xml)
+    msg <- last_response() |>
+      resp_body_string()
+    writeLines(msg)
     stop(
       sprintf(
         "osm API request failed [%s]",

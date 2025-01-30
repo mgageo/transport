@@ -16,7 +16,7 @@ star_jour <- function(reseau = "rennes", force = TRUE) {
   carp()
   config_xls(reseau)
   star_gtfs_dl(reseau = reseau)
-#  tidytransit_jour(force = TRUE)
+  tidytransit_jour(force = TRUE)
 }
 #
 # https://themockup.blog/posts/2020-12-13-extracting-json-from-websites-and-public-apis-with-r/
@@ -31,7 +31,7 @@ star_gtfs_dl <- function(reseau = "rennes", force = FALSE) {
   json_data <- fromJSON(star_json_url)
   df1 <- dplyr::bind_rows(json_data, .id = "id")
   i1 <- nrow(df1)
-  i1 <- 1
+#  i1 <- 1
   gtfs_source <- df1[i1, "url"]
   fn_source <- gsub("^.*/", "", gtfs_source)
   dsn_source <- sprintf("%s/%s", gtfsDir, fn_source)

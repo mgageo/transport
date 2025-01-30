@@ -126,12 +126,14 @@ gtfs2osm_relations_routemaster <- function(rds = "gtfs2osm_relations_routemaster
       mutate(Name = str_glue('{Config_route_name} {route_short_name} : {route_long_name}')) %>%
       glimpse()
   }
+
   df <- df %>%
     dplyr::select(
       description = route_long_name,
       colour = Route_color,
       name = Name,
-      ref = route_short_name,
+#      ref = route_short_name,
+      ref = route_id,
       text_colour = Route_text_color,
       "gtfs:route_short_name" = route_short_name,
       "gtfs:route_long_name" = route_long_name,
@@ -140,6 +142,9 @@ gtfs2osm_relations_routemaster <- function(rds = "gtfs2osm_relations_routemaster
     mutate(`public_transport:version` = 2) %>%
     mutate(`route_master` = "bus") %>%
     mutate(`type` = "route_master")
+  if (Reseau %in% c("lamballe", "quimper")) {
+    df$ref <- df$"gtfs:route_short_name"
+  }
   tags <- c("network", "operator", "website", "network:wikidata", "network:wikipedia", "operator:wikidata", "operator:wikipedia")
   for (tag in tags) {
     col <- sprintf("Config_%s", tag)
@@ -413,6 +418,15 @@ gtfs2osm_routes_osm <- function(df1, stops_osm = TRUE, force_osm = TRUE) {
       mutate(name = str_glue('{Config_route_name} {route_short_name} {route_long_name} : {from_city} => {to_city}')) %>%
       glimpse()
   }
+  if (Reseau %in% c("lamballe", "quimper")) {
+    df2$ref <- df2$"route_short_name"
+  }
+  if (Reseau == "lannion") {
+    df2 <- df2 %>%
+#      mutate(name = str_glue('{Config_route_name} {route_short_name} : {first_name} => {last_name}')) %>%
+      mutate(name = str_glue('{Config_route_name} {route_short_name} : {first_city} ({first_name}) => {last_city} ({last_name})')) %>%
+      glimpse()
+  }
   if (Reseau == "lorient") {
     df2 <- df2 %>%
 #      mutate(name = str_glue('{Config_route_name} {route_short_name} : {first_name} => {last_name}')) %>%
@@ -452,7 +466,7 @@ gtfs2osm_routes_osm <- function(df1, stops_osm = TRUE, force_osm = TRUE) {
   }
   for (i2 in 1:nrow(df2)) {
     stops <- df2[[i2, stops_zone]]
-    stops.df <- data.frame(stop = unlist(strsplit(stops, ";"))) %>%
+    stops.df <- data.frame(stop = unlist(strsplit(stops, "; "))) %>%
       left_join(osm_stops.df, by = c("stop" = "k_ref")) %>%
       mutate(type = dplyr::recode(type,
         "way" = "wy",

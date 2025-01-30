@@ -884,6 +884,7 @@ lire_rds <- function(dsn = FALSE, suffixe = "", dossier = "") {
   if (file.exists(dsn)) {
     object <- readRDS(dsn)
   } else {
+    carp("dsn: %s FALSE", dsn)
     object <- FALSE
   }
   return(invisible(object))

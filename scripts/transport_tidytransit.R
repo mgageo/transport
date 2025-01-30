@@ -31,11 +31,13 @@ tidytransit_jour <- function(force = TRUE) {
   gtfs_stops_geocode()
   tidytransit_trips_stops()
 #  glimpse(tt); stop("****")
-  tidytransit_routes_fiche()
-  tidytransit_routes_stops()
-  tidytransit_routes_stops_tex()
-  tidytransit_routes_trips_stops()
-  tex_pdflatex(sprintf("%s_gtfs.tex", Reseau))
+  if (1 == 2) {
+    tidytransit_routes_fiche()
+    tidytransit_routes_stops()
+    tidytransit_routes_stops_tex()
+    tidytransit_routes_trips_stops()
+    tex_pdflatex(sprintf("%s_gtfs.tex", Reseau))
+  }
   if( Config[1, "shapes"] == "TRUE" ) {
     tidytransit_jour_shapes()
 #    valhalla_jour()
@@ -97,6 +99,7 @@ tidytransit_zip_lire <- function(rds = 'gtfs') {
 
   tt$routes <- tt$routes %>%
     filter(route_type == 3) %>%
+    mutate(route_long_name = gsub("  ", "", route_long_name)) %>%
     glimpse()
   if (nrow(tt$routes) == 0) {
     confess("**** routes agency_id: %s", agency_id)
@@ -194,7 +197,7 @@ tidytransit_zip_lire <- function(rds = 'gtfs') {
       mutate(route_short_name = gsub("^0", "", route_short_name))
   }
   if (Reseau == "quimper") {
-    tt$stops <- quimper_stops(tt$stops)
+#    tt$stops <- quimper_stops(tt$stops)
   }
 # https://stackoverflow.com/questions/45857787/adding-column-if-it-does-not-exist
   tt$trips <- tt$trips %>%
@@ -378,8 +381,7 @@ tidytransit_shapes_stops_coord <- function() {
   carp()
   tt <- tidytransit_lire("gtfs")
   df2 <- tt$stops %>%
-    dplyr::select(stop_id, stop_name, stop_desc, stop_lat, stop_lon) %>%
-    glimpse()
+    dplyr::select(stop_id, stop_name, stop_desc, stop_lat, stop_lon)
   df1 <- tidytransit_lire("tidytransit_shapes_stops") %>%
     ungroup() %>%
     group_by(shape_id) %>%
@@ -397,15 +399,13 @@ tidytransit_shapes_stops_coord <- function() {
     filter(! is.na(stop_lat)) %>%
     filter(! is.na(stop_lon))
   nc1 <- st_as_sf(df3, coords = c("stop_lon", "stop_lat"), crs = 4326, remove = TRUE) %>%
-    st_transform(4326) %>%
-    glimpse()
+    st_transform(4326)
   tidytransit_sauve(nc1, "tidytransit_shapes_stops_coord")
   loins.df <- tibble()
   nc2 <- tidytransit_lire("gtfs_shapes") %>%
     st_transform(4326) %>%
     dplyr::select(name = shape_id) %>%
-    mutate(id = 1:n()) %>%
-    glimpse()
+    mutate(id = 1:n())
   for (i in 1:nrow(nc2)) {
     shape_id <- nc2[[i, "name"]]
     nc3 <- nc1 %>%
@@ -427,7 +427,7 @@ tidytransit_shapes_stops_coord <- function() {
       rbind(nc2[i, ])
     shape_id <- gsub("[:$/]", "_", shape_id)
     dsn <- sprintf("%s/shape_stops_%s.geojson", josmDir, shape_id)
-    st_write(nc3, dsn, delete_dsn = TRUE)
+    st_write(nc3, dsn, delete_dsn = TRUE, quiet = TRUE)
     carp("dsn: %s", dsn)
     dsn <- sprintf("%s/shape_stops_%s.gpx", josmDir, shape_id)
     st_sf2gpx(nc3, dsn, shape_id)
@@ -647,8 +647,10 @@ tidytransit_refs_shapes_stops_carto <- function(force = TRUE) {
     filter(row_number() == 1) %>%
     ungroup() %>%
     arrange(ref_network)
+  df1$Ref_network <- escapeLatexSpecials(df1$ref_network)
+  df1$network <- Config_network
   df <- df1 %>%
-    group_by(ref_network, route_long_name) %>%
+    group_by(ref_network, Ref_network, route_long_name) %>%
     summarize(nb = n())
   if (Reseau == "rennes") {
     df1 <- df1 %>%
@@ -660,6 +662,7 @@ tidytransit_refs_shapes_stops_carto <- function(force = TRUE) {
 #      filter(grepl("^38", ref_network))
   }
   glimpse(df1)
+#  stop("*****")
 #  writeLines(df1$shape_id);  stop("****")
   df2 <- df1 %>%
     dplyr::select(ref_network, shape_id, route_desc, nb, nb_stops) %>%
@@ -705,7 +708,7 @@ tidytransit_toto2 <- function(force = TRUE) {
   library(tidytransit)
   library(archive)
   reseau_tpl_tex()
-#  tidytransit_routes_shapes_stops_carto()
+  tidytransit_routes_shapes_stops_carto()
   tidytransit_routes_shapes_stops_carto_verif()
   tex_pdflatex(sprintf("%s_tidytransit_routes_shapes_stops_carto.tex", Reseau))
 }
@@ -756,7 +759,7 @@ tidytransit_routes_shapes_stops_carto <- function(rds = "gtfs_routes_shapes_stop
       glimpse()
   }
   df <- df %>%
-#    filter(shape_id == "POSB-POSD-alsac-LYH") %>%
+#    filter(shape_id == "CALC_3414000") %>%
     glimpse()
 #  stop("*****")
   rc.df <- data.frame()
@@ -888,12 +891,13 @@ tidytransit_trips_stops <- function(rds = "tidytransit_trips_stops", force = TRU
       , last_stop = last(stop_id)
       , first_stop_code = first(stop_code)
       , last_stop_code = last(stop_code)
-      , stops = paste(stop_id, collapse = ";")
-      , stops_code = paste(stop_code, collapse = ";")
-      , stops_id = paste(stop_id, collapse = ";")
-      , first_name = first(stop_name), last_name = last(stop_name), names = paste(stop_name, collapse = ";")
-      , first_desc = first(stop_desc), last_desc = last(stop_desc), descs = paste(stop_desc, collapse = ";")
+      , stops = paste(stop_id, collapse = "; ")
+      , stops_code = paste(stop_code, collapse = "; ")
+      , stops_id = paste(stop_id, collapse = "; ")
+      , first_name = first(stop_name), last_name = last(stop_name), names = paste(stop_name, collapse = "; ")
+      , first_desc = first(stop_desc), last_desc = last(stop_desc), descs = paste(stop_desc, collapse = "; ")
       , first_city = first(city), last_city = last(city)
+      , citys = paste(city, collapse = "; ")
       , nb_stops = n()
     )
 # on trouve la route
@@ -914,7 +918,7 @@ tidytransit_trips_stops <- function(rds = "tidytransit_trips_stops", force = TRU
       , names , first_name, last_name
       , descs , first_desc, last_desc
       , stops_code, first_stop_code, last_stop_code
-      , first_city, last_city
+      , first_city, last_city, citys
     ) %>%
     summarize(nb = n())
 # ajout des infos route

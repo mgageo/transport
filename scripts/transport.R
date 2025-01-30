@@ -63,6 +63,7 @@ source("geo/scripts/transport_menu.R"); # les différents traitements suite à m
 source("geo/scripts/transport_misc.R")
 # source("geo/scripts/transport_mobibreizh.R"); # pour le gtfs de la région
 source("geo/scripts/transport_oapi.R")
+source("geo/scripts/transport_open.R"); # édition des fichiers
 source("geo/scripts/transport_osm.R"); # les interrogations osm soit via l'api soit via l'overpass
 source("geo/scripts/transport_osmar.R")
 source("geo/scripts/transport_osmose.R")
@@ -94,8 +95,10 @@ source("geo/scripts/transport_breizhgo.R")
 source("geo/scripts/transport_bretagne.R")
 source("geo/scripts/transport_concarneau.R")
 source("geo/scripts/transport_ctrl.R")
+source("geo/scripts/transport_datagouv.R"); # pour les gtfs sur transport.data.gouv.fr
 source("geo/scripts/transport_destineo.R"); # pour le gtfs de la région Pays de la Loire
 source("geo/scripts/transport_distribus.R")
+source("geo/scripts/transport_izilo.R")
 source("geo/scripts/transport_kiceo.R")
 source("geo/scripts/transport_korrigo.R"); # pour le gtfs de la région Bretagne
 source("geo/scripts/transport_landerneau.R")
@@ -128,7 +131,6 @@ Reseau <- "bibusM"; # Brest avec les données de MobiBreizh
 Reseau <- "ploermel"
 Reseau <- "morlaix"; #
 Reseau <- "dinan"; # Dinan / Côtes d'Armor
-Reseau <- "distribus"; # Lamballe / Côtes d'Armor
 Reseau <- "angers"; # Angers Irigo
 Reseau <- "semo"; # SEMO (pour Seine-Eure MObilités)
 Reseau <- "bretagne"; # pseudo-réseau pour la Bretagne
@@ -136,7 +138,6 @@ Reseau <- "strasbourg"; # Strasbourg CTS
 Reseau <- "morlaix"; # Morlaix Linéotim
 Reseau <- "saintbrieuc"; # Saint-Brieuc TUB
 Reseau <- "pontivy"; # Pontivy PondiBus
-Reseau <- "vannes"; # Vannes Kicéo
 Reseau <- "guingamp"; # Guingamp AXEOBUS
 Reseau <- "quimperle"; # Quimperlé TBK
 Reseau <- "morlaix"; # LinéoTim
@@ -161,29 +162,30 @@ Reseau <- "breizhgo_pennarbed"; # pseudo-réseau pour BreizhGo en Finistère
 Reseau <- "atoumod"; # Normandie
 Reseau <- "cosibus50"; # les cars du département de la Manche/Coutances
 Reseau <- "nomad50"; # les cars du département de la Manche
-Reseau <- "quimper"; # Quimper QUB
 Reseau <- "nomad61"; # les cars du département de l'Orne
-Reseau <- "lannion"; # Lannion TILT
 Reseau <- "nomad61"; # les cars du département de l'Orne
 Reseau <- "guingamp"; # Guingmap Paimpol AxeoBus
 Reseau <- "brest"; # Brest Bibus
 Reseau <- "fougeres"; # Fougères Surf
 Reseau <- "landerneau"; # Landernaeau Le Bus/Ar Bus
 Reseau <- "douarnenez"; # Douarnenez Tudbus
-Reseau <- "rennes"; # Rennes STAR
 Reseau <- "saintmalo"; # Saint-Malo
 Reseau <- "coutances"; # Coutances Cosibus
-Reseau <- "lorient"; # Lorient CTRL IZILO
+Reseau <- "lannion"; # Lannion TILT
+Reseau <- "rennes"; # Rennes STAR
 Reseau <- "concarneau"; # Concarneau Coralie
+Reseau <- "vannes"; # Vannes Kicéo
+Reseau <- "lamballe"; # Lamballe / Côtes d'Armor / Distribus
+Reseau <- "lorient"; # Lorient CTRL IZILO
+Reseau <- "quimper"; # Quimper QUB
 config_xls(Reseau)
 Tex <- TRUE
 Wiki <- TRUE
-HtmlBrowse <- FALSE
+HtmlBrowse <- TRUE
 OsmChange <- FALSE
 if ( interactive() ) {
   DEBUG <- TRUE
   graphics.off()
-#  shapes()
+#  menu()
 } else {
-  menu()
 }

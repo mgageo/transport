@@ -168,8 +168,8 @@ geocode_direct_nominatim <- function(adresse, countrycodes = 'FR', force = FALSE
 }
 # source("geo/scripts/clochouette35.R"); df <- geocode_direct_test() %>% glimpse()
 geocode_direct_test <- function() {
-  df <- tribble(~lieudit,~commune,
-"L'aurore","Cancale"
+  df <- tribble(~lieudit,~commune,~departement,
+"L'aurore","Cancale","35"
 )
   df <- geocode_direct_geopf(df, force = TRUE)
   return(invisible(df))
@@ -202,6 +202,9 @@ geocode_direct_geopf_get <- function(df, i, force = FALSE) {
     "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:51.0) Gecko/20100101 Firefox/51.0"
   )
   tpl <- 'https://data.geopf.fr/geocodage/completion?text={{lieudit}},{{commune}}&type=StreetAddress,PositionOfInterest&maximumResponses=15'
+  if ("departement" %in% names(df)) {
+    tpl <- 'https://data.geopf.fr/geocodage/completion?text={{lieudit}},{{commune}},{{departement}}&type=StreetAddress,PositionOfInterest&maximumResponses=15'
+  }
   url <- misc_dfi2tpl(df, i, tpl)
   url <- URLencode(url)
   writeLines(url)
@@ -310,15 +313,16 @@ geocode_reverse_datagouv <- function(points, force = FALSE) {
 #
 # géocodage inverse avec http://api-adresse.data.gouv.fr
 # https://cran.r-project.org/web/packages/curl/vignettes/intro.html
-# source("geo/scripts/coj.R");geocode_reverse_csv_datagouv_test()
+# source("geo/scripts/coj.R"); df <- geocode_reverse_csv_datagouv_test() %>% glimpse()
 #
 geocode_reverse_csv_datagouv_test <- function() {
+  library(rio)
   csv <- 'lat,lon,name
 48.670333,6.1468826,École Claude Déruet
 48.6495464,6.1521676,École Gilberte Monne
 48.6470103,6.2075765,École maternelle Victor Hugo
 48.7277223,6.1578988,École maternelle Buffon'
-  csv <- 'lat,lon,name
+  csv2 <- 'lat,lon,name
 44.83665,-0.511508,toto'
   f_orig <- sprintf("%s/geocode_reverse.csv", cfgDir);
   F <- file(f_orig, encoding="UTF-8")
@@ -326,7 +330,9 @@ geocode_reverse_csv_datagouv_test <- function() {
   close(F)
   f_reverse <- sprintf("%s/geocode_reverse_geo.csv", cfgDir);
   carp("f_reverse: %s", f_reverse)
-  geocode_reverse_csv_datagouv(f_orig, f_reverse)
+  dsn <- geocode_reverse_csv_datagouv(f_orig, f_reverse)
+  df <- rio::import(dsn)
+  return(invisible(df))
 }
 #
 geocode_reverse_csv_datagouv <- function(f_orig, f_reverse, url = datagouv_url) {

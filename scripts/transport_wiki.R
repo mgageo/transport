@@ -148,6 +148,7 @@ out meta;
   wiki_page_init(page = page, article = article, force = TRUE)
   wiki_pages_init_conf()
 }
+# source("geo/scripts/transport.R");wiki_pages_init_conf()
 wiki_pages_init_conf <- function() {
   if (is.na(Config[1, "wiki"])) {
      stop("*****")
@@ -163,7 +164,7 @@ wiki_pages_init_conf <- function() {
     art <- str_glue(article)
     wiki_page_init(page = page, article = art, force = TRUE)
   }
-  stop("*****")
+#  stop("*****")
   for (p in c("osm/network", "osm/route_master", "osm/route", "gtfs/tidytransit_routes_shapes", "gtfs/tidytransit_routes", "gtfs/tidytransit_routes_stops", "gtfs/tidytransit_shapes")) {
     page <- sprintf("User:Mga_geo/Transports_publics/%s/%s", wiki_page, p) %>%
       glimpse()
