@@ -16,7 +16,7 @@ menu <- function() {
     "diff_relations_route_bus", "diff_relations_route_bus",
     "diff_relations_routemaster_bus", "diff_relations_routemaster_bus",
     "reseau_osm_routes_shapes_pdf", "reseau_osm_routes_shapes_pdf",
-    "reseau valhalla", "reseau_valhalla",
+    "reseau valhalla", "valhalla_jour",
     "reseau départ arrivée", "reseau_da",
     "open scite", "open_scite",
     "open pdf", "open_pdf",

@@ -16,6 +16,7 @@ conflicts_prefer(dplyr::first(), .quiet = TRUE)
 conflicts_prefer(dplyr::last(), .quiet = TRUE)
 conflicts_prefer(dplyr::recode, .quiet = TRUE)
 conflicts_prefer(purrr::map, .quiet = TRUE)
+conflicts_prefer(jsonlite::fromJSON, .quiet = TRUE)
 #conflicts_prefer(tidyr::extract(), .quiet = TRUE)
 library(tidyverse)
 library(janitor)
@@ -1216,4 +1217,34 @@ misc_cache_read <- function() {
 misc_scite <- function(dsn) {
   scite <- "C:\\Program Files (x86)\\AutoIt3\\SciTE\\SciTE.exe"
   system2(scite, dsn)
+}
+# source("geo/scripts/misc.R"); misc_df2hoist(j)
+misc_df2hoist <- function(df) {
+  cols.df <- df %>%
+    dplyr::summarise_all(class) %>%
+    tidyr::gather(variable, class)
+  misc_print(cols.df)
+  lignes <- ""
+  for (i in 1:nrow(cols.df)) {
+    if (cols.df[[i, "class"]] != "list") {
+      next
+    }
+    df1 <<- df[[1, i]][[1]]
+    cols1 <<- names(df1)
+    for (col1 in cols1) {
+      ligne <- sprintf('  hoist(%s, %s.%s = "%s") |>', cols.df[[i, "variable"]], cols.df[[i, "variable"]], col1, col1)
+      lignes <- append(lignes , ligne)
+    }
+#    ligne <- sprintf('  select(-%s) |>', cols.df[[i, "variable"]])
+#    lignes <- append(lignes , ligne)
+#    break
+  }
+  for (i in 1:nrow(cols.df)) {
+    if (cols.df[[i, "class"]] == "list") {
+      next
+    }
+    ligne <- sprintf('  select(-%s) |>', cols.df[[i, "variable"]])
+    lignes <- append(lignes , ligne)
+  }
+  writeLines(lignes)
 }

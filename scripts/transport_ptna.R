@@ -61,6 +61,19 @@ ptna_wiki_config <- function() {
   )
   routes.df <- tt$routes %>%
     glimpse()
+  if (Config_reseau == "saintmalo") {
+    routes.df <- routes.df %>%
+      filter(!grepl("^S", route_id)) %>%
+#      filter(!grepl("[ABC]$", route_id)) %>%
+      glimpse()
+  }
+  if (Config_reseau == "nantes") {
+    routes.df <- routes.df %>%
+      mutate(route_sort_order = as.numeric(route_sort_order)) %>%
+      glimpse()
+#    stop("*****")
+  }
+#  stop("*****")
   config <- ""
   for (i in 1:nrow(route_type.df)) {
     df <- routes.df %>%
@@ -114,6 +127,13 @@ ptna_wiki <- function() {
     glimpse()
   route.df <- misc.lire("gtfs2osm_relations_route_stops", dir = transportDir) %>%
     glimpse()
+  if (Config_reseau == "saintmalo") {
+    route.df <- route.df %>%
+      filter(!grepl("^S", ref)) %>%
+      filter(!grepl("[AB]$", ref)) %>%
+      glimpse()
+  }
+#  stop("*****")
   tpl <- sprintf("%s/transport_wiki.txt", cfgDir)
   parametres <- readLines(tpl)
   variables <- list(
@@ -309,7 +329,7 @@ ptna_wikidata <- function() {
   )
   query <- 'SELECT ?item ?itemLabel ?inseeCode {
   ?item wdt:%s ?inseeCode .
-  FILTER regex(?inseeCode, "^(22|29|35|56|50|53)", "i")
+  FILTER regex(?inseeCode, "^(22|29|35|56|50|53|44|49)", "i")
   SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],fr" }
 }'
   df2 <- data.frame()

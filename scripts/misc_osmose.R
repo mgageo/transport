@@ -38,6 +38,7 @@ osmose_area_jour <- function(force = TRUE) {
     confess("zone_osmose")
   }
   osmose_country_get(country = Config[1, "zone_osmose"], force = force)
+#  stop("*****")
   osmose_issues_get(get = "country", force = force)
   osmose_issues_html(get = "country")
 }
@@ -240,8 +241,8 @@ osmose_issues_html <- function(get = "country", force = TRUE) {
   df2 <- issues.df %>%
     group_by(item, class, title.auto) %>%
     summarize(nb = n()) %>%
-    mutate(url = sprintf("<a href='%s/issues?country=%s&item=%s&class=%s&limit=2000'>osmose</a>", osmose_host, country, item, class)) %>%
-
+    mutate(url = sprintf("<a href='%s/issues?country=%s&item=%s&class=%s&limit=2000' target='osmose'>osmose</a>", osmose_host, country, item, class)) %>%
+    mutate(url = sprintf("<a href='%s/issues?country=%s&item=%s&class=%s&limit=50' target='osmose'>osmose</a>", osmose_host, country, item, class)) %>%
     glimpse()
   misc_print(df2)
   html <- html_append(html, sprintf("<h1>%s</h1>", titre))
@@ -260,9 +261,9 @@ osmose_issues_html <- function(get = "country", force = TRUE) {
     glimpse()
   df4 <- df3 %>%
     mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
-    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
-    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
-    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>"
+    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s' target='josm'>josm</a>", josm)) %>%
+    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s' target='osmose'>osmose</a>", uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s' target='level0'>level0</a>"
       , str_sub(elems.1.type,1, 1),  elems.1.id
     )) %>%
     glimpse()
@@ -276,10 +277,10 @@ osmose_issues_html <- function(get = "country", force = TRUE) {
     glimpse()
   df4 <- df3 %>%
     mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
-    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
-    mutate(josm = sprintf("<a href='http://localhost:8111/load_object?new_layer=false&relation_members=true&objects=r%s'>josm</a>", elems.1.id)) %>%
-    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
-    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>"
+    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s' target='josm'>josm</a>", josm)) %>%
+    mutate(josm = sprintf("<a href='http://localhost:8111/load_object?new_layer=false&relation_members=true&objects=r%s' target='josm'>josm</a>", elems.1.id)) %>%
+    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s' target='osmose'>osmose</a>", uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s' target='level0'>level0</a>"
       , str_sub(elems.1.type,1, 1),  elems.1.id
     )) %>%
     glimpse()
@@ -293,9 +294,9 @@ osmose_issues_html <- function(get = "country", force = TRUE) {
     glimpse()
   df4 <- df3 %>%
     mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
-    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
-    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
-    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>"
+    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s' target='josm'>josm</a>", josm)) %>%
+    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s' target='osmose'>osmose</a>", uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s' target='level0'>level0</a>"
       , str_sub(elems.1.type,1, 1),  elems.1.id
     )) %>%
     glimpse()
@@ -312,9 +313,9 @@ osmose_issues_html <- function(get = "country", force = TRUE) {
     glimpse()
   df4 <- df3 %>%
     mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
-    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
-    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
-    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>"
+    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s' target='josm'>josm</a>", josm)) %>%
+    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s' target='osmose'>osmose</a>", uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s' target='level0'>level0</a>"
       , str_sub(elems.1.type,1, 1),  elems.1.id
     )) %>%
     glimpse()
@@ -346,9 +347,9 @@ osmose_issues_html <- function(get = "country", force = TRUE) {
     glimpse()
   df4 <- df3 %>%
     mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
-    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
-#    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
-    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>"
+    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s' target='josm'>josm</a>", josm)) %>%
+#    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s' target='osmose'>osmose</a>", uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s' target='level0'>level0</a>"
       , str_sub(elems.1.type,1, 1),  elems.1.id
     )) %>%
     glimpse()
@@ -364,9 +365,9 @@ osmose_issues_html <- function(get = "country", force = TRUE) {
     glimpse()
   df4 <- df3 %>%
     mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
-    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
-    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
-    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s, %s%s'>level0</a>"
+    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s' target='josm'>josm</a>", josm)) %>%
+    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s' target='osmose'>osmose</a>", uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s, %s%s' target='level0'>level0</a>"
       , str_sub(elems.1.type,1, 1),  elems.1.id
       , str_sub(elems.2.type,1, 1),  elems.2.id
     )) %>%
@@ -385,9 +386,9 @@ osmose_issues_html <- function(get = "country", force = TRUE) {
     glimpse()
   df4 <- df3 %>%
     mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
-    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
-    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
-    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>"
+    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s' target='josm'>josm</a>", josm)) %>%
+    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s' target='osmose'>osmose</a>", uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s' target='level0'>level0</a>"
       , str_sub(elems.1.type,1, 1),  elems.1.id
     )) %>%
     glimpse()
@@ -401,10 +402,10 @@ osmose_issues_html <- function(get = "country", force = TRUE) {
     glimpse()
   df4 <- df3 %>%
     mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
-    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
-    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
-    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>", str_sub(elems.1.type,1, 1), elems.1.id)) %>%
-    mutate(PTNA = sprintf("<a href='https://ptna.openstreetmap.de/relation.php?id=%s&lang=fr'>PTNA</a>", elems.1.id)) %>%
+    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s' target='josm'>josm</a>", josm)) %>%
+    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s' target='osmose'>osmose</a>", uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s' target='level0'>level0</a>", str_sub(elems.1.type,1, 1), elems.1.id)) %>%
+    mutate(PTNA = sprintf("<a href='https://ptna.openstreetmap.de/relation.php?id=%s&lang=fr' target='PTNA'>PTNA</a>", elems.1.id)) %>%
     glimpse()
   html <- html_append(html, "<h2>Diff ordre des stops</h2>")
 #  html <- html_append_df(html, df4)
@@ -420,10 +421,10 @@ osmose_issues_html <- function(get = "country", force = TRUE) {
     glimpse()
   df4 <- df3 %>%
     mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
-    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
-    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
-    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>", str_sub(elems.1.type,1, 1), elems.1.id)) %>%
-    mutate(PTNA = sprintf("<a href='https://ptna.openstreetmap.de/relation.php?id=%s&lang=fr'>PTNA</a>", elems.1.id)) %>%
+    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s' target='josm'>josm</a>", josm)) %>%
+    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s' target='osmose'>osmose</a>", uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s' target='level0'>level0</a>", str_sub(elems.1.type,1, 1), elems.1.id)) %>%
+    mutate(PTNA = sprintf("<a href='https://ptna.openstreetmap.de/relation.php?id=%s&lang=fr' target='PTNA'>PTNA</a>", elems.1.id)) %>%
     mutate(map = sprintf("<a href='https://osmose.openstreetmap.fr/fr/map/#item=1260&zoom=17&lat=%s&lon=%s&level=1%s'>map</a>", lat, lon, '%2C2%2C3')) %>%
     glimpse()
   html <- html_append(html, "<h2>Diff gap</h2>")
@@ -440,9 +441,9 @@ osmose_issues_html <- function(get = "country", force = TRUE) {
     glimpse()
   df4 <- df3 %>%
     mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
-    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
-    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
-    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>"
+    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s' target='josm'>josm</a>", josm)) %>%
+    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s' target='osmose'>osmose</a>", uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s' target='level0'>level0</a>"
       , str_sub(elems.1.type,1, 1), elems.1.id
     )) %>%
     glimpse()
@@ -458,9 +459,9 @@ osmose_issues_html <- function(get = "country", force = TRUE) {
     glimpse()
   df4 <- df3 %>%
     mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
-    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
-    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
-    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>"
+    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s' target='josm'>josm</a>", josm)) %>%
+    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s' target='osmose'>osmose</a>", uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s' target='level0'>level0</a>"
       , str_sub(elems.1.type,1, 1), elems.1.id
     )) %>%
     glimpse()
@@ -479,14 +480,14 @@ osmose_issues_html <- function(get = "country", force = TRUE) {
     filter(tags.1.network == osmose_network) %>%
     glimpse() %>%
 #    mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
-#    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
+#    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s' target='josm'>josm</a>", josm)) %>%
     mutate(elem1 = sprintf("%s%s",  str_sub(elems.1.type, 1, 1), elems.1.id)) %>%
     mutate(elem2 = sprintf("%s%s",  str_sub(elems.2.type, 1, 1), elems.2.id)) %>%
     mutate(select = sprintf("%s,%s", elem1, elem2)) %>%
     mutate(zoom = sprintf(zoom, lon - .005, lon + .005, lat + .005, lat - .005)) %>%
-    mutate(josm = sprintf("<a href='http://127.0.0.1:8111/load_object?new_layer=true&relation_members=true&objects=%s' target='hiddenIframe'>josm</a>", select)) %>%
-    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
-    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>"
+    mutate(josm = sprintf("<a href='http://127.0.0.1:8111/load_object?new_layer=true&relation_members=true&objects=%s' target='josm'>josm</a>", select)) %>%
+    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s' target='osmose'>osmose</a>", uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s' target='level0'>level0</a>"
       , str_sub(elems.1.type,1, 1), elems.1.id
     )) %>%
     dplyr::select(-elem1, -select, -zoom, -lon, -lat) %>%
@@ -506,9 +507,9 @@ osmose_issues_html <- function(get = "country", force = TRUE) {
     filter(tags.1.network == osmose_network) %>%
     glimpse() %>%
     mutate(josm = if_else(elems.1.type == "relation", sprintf("%s/%s/full", elems.1.type,  elems.1.id), sprintf("%s/%s",  elems.1.type,  elems.1.id))) %>%
-    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s'>josm</a>", josm)) %>%
-    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>osmose</a>", uuid)) %>%
-    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s'>level0</a>"
+    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/%s' target='josm'>josm</a>", josm)) %>%
+    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s' target='osmose'>osmose</a>", uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s' target='level0'>level0</a>"
       , str_sub(elems.1.type,1, 1), elems.1.id
     )) %>%
     glimpse()
@@ -550,9 +551,9 @@ osmose_issues_html_2141 <- function(classe, df1) {
     mutate(elem1 = sprintf("%s%s",  str_sub(elems.1.type, 1, 1), elems.1.id)) %>%
     mutate(select = sprintf("%s%s", elems.1.type, elems.1.id)) %>%
     mutate(zoom = sprintf(zoom, lon - .005, lon + .005, lat + .005, lat - .005)) %>%
-    mutate(josm = sprintf("<a href='http://127.0.0.1:8111/load_and_zoom?%s&select=%s' target='hiddenIframe'>josm</a>", zoom, select)) %>%
-    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s' target='hiddenIframe'>osmose</a>", uuid)) %>%
-    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s' target='hiddenIframe'>level0</a>", elem1)) %>%
+    mutate(josm = sprintf("<a href='http://127.0.0.1:8111/load_and_zoom?%s&select=%s' target='josm'>josm</a>", zoom, select)) %>%
+    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s' target='osmose'>osmose</a>", uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s' target='level0'>level0</a>", elem1)) %>%
     dplyr::select(osmose, subtitle = subtitle.auto, elem1, tags.1.network
       , josm, level0
     ) %>%
@@ -571,9 +572,9 @@ osmose_issues_html_1260_rn <- function(classe, df1) {
     mutate(elem1 = sprintf("%s%s",  str_sub(elems.1.type, 1, 1), elems.1.id)) %>%
     mutate(elem2 = sprintf("%s%s",  str_sub(elems.2.type, 1, 1), elems.2.id)) %>%
     mutate(zoom = sprintf(zoom, lon - .005, lon + .005, lat + .005, lat - .005)) %>%
-    mutate(josm = sprintf("<a href='http://127.0.0.1:8111/load_and_zoom?%s&select=%s' target='hiddenIframe'>josm</a>", zoom, select)) %>%
-    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s' target='hiddenIframe'>%s</a>", uuid, uuid)) %>%
-    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s,%s' target='hiddenIframe'>level0</a>", elem1, elem2)) %>%
+    mutate(josm = sprintf("<a href='http://127.0.0.1:8111/load_and_zoom?%s&select=%s' target='josm'>josm</a>", zoom, select)) %>%
+    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s'>%s</a>", uuid, uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s,%s' target='level0'>level0</a>", elem1, elem2)) %>%
     dplyr::select(osmose, subtitle.auto, elem1,  elem2, tags.1.network
       , josm, level0
     ) %>%
@@ -589,15 +590,15 @@ osmose_issues_html_1260 <- function(classe, df1) {
     filter(class == classe) %>%
     mutate(select = sprintf(select1, elems.1.type, elems.1.id)) %>%
     mutate(zoom = sprintf(zoom, lon - .005, lon + .005, lat + .005, lat - .005)) %>%
-    mutate(josm = sprintf("<a href='http://127.0.0.1:8111/load_and_zoom?%s&select=%s' target='hiddenIframe'>josm</a>", zoom, select)) %>%
+    mutate(josm = sprintf("<a href='http://127.0.0.1:8111/load_and_zoom?%s&select=%s' target='josm'>josm</a>", zoom, select)) %>%
     dplyr::select(-select, -zoom) %>%
     dplyr::select(uuid, class, elems.1.id,  elems.1.type
       , tags.1.network, josm
     ) %>%
     glimpse()
   df4 <- df3 %>%
-    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s' target='hiddenIframe'>osmose</a>", uuid)) %>%
-    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s' target='hiddenIframe'>level0</a>"
+    mutate(osmose = sprintf("<a href='http://osmose.openstreetmap.fr/api/0.3/issue/%s' target='osmose'>osmose</a>", uuid)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s%s' target='level0'>level0</a>"
       , str_sub(elems.1.type,1, 1), elems.1.id
     )) %>%
     glimpse()
@@ -673,6 +674,7 @@ osmose_country_item_get <- function(country, item, force = TRUE) {
   library(httr)
   library(data.table)
   url <- sprintf("%s/issues?country=%s&item=%s&limit=2000", osmose_host, country, item)
+  url <- sprintf("%s/issues?country=%s&item=%s&limit=50", osmose_host, country, item)
   carp("url: %s", url)
   resp <- GET(url)
   stop_for_status(resp)
@@ -692,6 +694,7 @@ osmose_country_item_class_get <- function(country, item, class, force = TRUE) {
   library(httr)
   library(data.table)
   url <- sprintf("%s/issues?country=%s&item=%s&class=%s&limit=2000", osmose_host, country, item, class)
+  url <- sprintf("%s/issues?country=%s&item=%s&class=%s&limit=50", osmose_host, country, item, class)
   carp("url: %s", url)
   resp <- GET(url)
   stop_for_status(resp)
@@ -778,10 +781,10 @@ osmose_issues_gap <- function(force = TRUE, force_osm = TRUE) {
     left_join(relations.df, by = c("r_id" = "id")) %>%
     dplyr::select(id = r_id, no, network, name.x, version, timestamp, user, name.y) %>%
 # http://127.0.0.1:8111/load_object?new_layer=false&relation_members=true&objects=r11246461
-    mutate(josm = sprintf("<a href='http://localhost:8111/load_object?new_layer=false&relation_members=true&objects=r%s'>josm</a>", id)) %>%
-#    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/relation/%s/full'>josm</a>", id)) %>%
-    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=r%s'>level0</a>", id)) %>%
-    mutate(PTNA = sprintf("<a href='https://ptna.openstreetmap.de/relation.php?id=%s&lang=fr'>PTNA</a>", id)) %>%
+    mutate(josm = sprintf("<a href='http://localhost:8111/load_object?new_layer=false&relation_members=true&objects=r%s' target='josm'>josm</a>", id)) %>%
+#    mutate(josm = sprintf("<a href='http://localhost:8111/import?url=https://api.openstreetmap.org/api/0.6/relation/%s/full' target='josm'>josm</a>", id)) %>%
+    mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=r%s' target='level0'>level0</a>", id)) %>%
+    mutate(PTNA = sprintf("<a href='https://ptna.openstreetmap.de/relation.php?id=%s&lang=fr' target='PTNA'>PTNA</a>", id)) %>%
 
     glimpse()
   misc_html_df2fic(gaps.df, suffixe = sprintf("gaps_%s", Config[1, "reseau"]))

@@ -30,7 +30,8 @@ osmdata_query <- function(query, fic, force = FALSE) {
   library(readr)
   library(tidyverse)
   library(osmdata)
-  dsn <- overpass_query(query, fic, force)
+  dsn <- overpass_query(query, fic, force) %>%
+    glimpse()
   res <- osmdata_sf(, dsn)
   return(invisible(res))
 }

@@ -58,7 +58,7 @@ valhalla_shapes <- function(force = TRUE) {
     rc <- valhalla_shape(shape = df1[[i1, "dsn_shape"]], force = force)
     if (is.logical(rc)) {
       carp("erreur valhalla")
-      next
+      confess;
     }
     josm.df <- josm.df %>%
       add_row(

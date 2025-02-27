@@ -9,7 +9,7 @@
 ## script pour les comparaisons
 #
 # distance max entre osm et le gtfs
-stop_loin <- 250
+stop_loin <- 100
 # le réseau est configuré en variable globale dans transport.R
 #
 # source("geo/scripts/transport.R");diff_jour()
@@ -192,7 +192,7 @@ diff_stops <- function(force_osm = TRUE, OsmChange = FALSE) {
     glimpse()
 #  misc_print(df11[, c("stop_id", "stop_name", "name")])
   if (nrow(osm.sf) > 0) {
-    carp("***** les stops trop loin: %s", stop_loin)
+    carp("***** les stops trop éloigné: %s", stop_loin)
     df4 <- df3 %>%
       mutate(distance = round(sqrt((X.x - X.y)^2 + (Y.x - Y.y)^2), 0))
     df4 <- df4 %>%
@@ -201,6 +201,20 @@ diff_stops <- function(force_osm = TRUE, OsmChange = FALSE) {
       carp("différence de position")
       misc_print(df4[, c("@id", "stop_id", "stop_name", "name", "distance")])
       misc.ecrire(df4, "diff_stops_absents_gtfs", dir = transportDir)
+      df5 <- df4 %>%
+        mutate(name = sprintf("%s/%s", stop_name, stop_id)) %>%
+        dplyr::select(name, stop_lat, stop_lon)
+      nc5 <- st_as_sf(df5,  coords = c("stop_lon", "stop_lat"), crs = 4326, remove = TRUE)
+      dsn <- sprintf("%s/transport_df4html.geojson", webDir)
+      st_write(nc5, dsn, delete_dsn = TRUE, quiet = TRUE)
+      carp("dsn: %s", dsn)
+      dsn <- sprintf("%s/transport_df4html.gpx", web_dir)
+      st_sf2gpx(nc5, dsn)
+      carp("dsn: %s", dsn)
+      transport_df4html(df4, titre = "les arrêts trop éloigné")
+      confess("***** les stops trop éloigné: %s", stop_loin)
+#    misc_print(df4[, c("@id", "stop_id", "stop_name", "name", "distance")])
+    transport_df4html(df4, titre = "les arrêts trop loin")
       diff_stops_absents_gtfs(force = force)
       confess("***** les stops trop loin: %s", stop_loin)
     }
@@ -230,7 +244,30 @@ diff_stops <- function(force_osm = TRUE, OsmChange = FALSE) {
       confess("crée les stops avec level0: %s", nrow(df2))
     }
   }
+  mga <<- df
+  df4 <- df %>%
+    mutate(distance = round(sqrt((X.x - X.y)^2 + (Y.x - Y.y)^2), 0))
+  stop_loin <- 50
+  df4 <- df4 %>%
+    filter(distance > stop_loin)
+  if (nrow(df4) > 0) {
+    carp("différence de position stop_loin: %s", stop_loin)
+    df5 <- df4 %>%
+      mutate(name = sprintf("%s/%s", stop_name, stop_id)) %>%
+      dplyr::select(name, stop_lat, stop_lon)
+    nc5 <- st_as_sf(df5,  coords = c("stop_lon", "stop_lat"), crs = 4326, remove = TRUE)
+    dsn <- sprintf("%s/transport_df4html.geojson", webDir)
+    st_write(nc5, dsn, delete_dsn = TRUE, quiet = TRUE)
+    carp("dsn: %s", dsn)
+    dsn <- sprintf("%s/transport_df4html.gpx", web_dir)
+    st_sf2gpx(nc5, dsn)
+    carp("dsn: %s", dsn)
+#    misc_print(df4[, c("@id", "stop_id", "stop_name", "name", "distance")])
+    transport_df4html(df4, titre = "les arrêts trop loin")
+#    confess("***** les stops trop loin: %s", stop_loin)
+  }
   carp("c'est tout bon")
+  return(invisible())
 #
 # modification du name si tout en majuscule
   df12 <- df11 %>%
@@ -542,7 +579,7 @@ diff_stops_absents_osm <- function(force_osm = TRUE, OsmChange = FALSE) {
 #  writeLines(paste(names(osm.list), "\n", collapse = ""));  stop("****")
   osm <- paste(osm, "\n", collapse = "")
   changeset_id <- osmapi_put("modify", text = osm)
-  confess("######## %s", nrow(df1))
+#  confess("######## %s", nrow(df1))
 }
 #
 # pour trouver d'éventuels stops osm pour les stops solitaires du gtfs

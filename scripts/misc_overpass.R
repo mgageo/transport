@@ -1009,9 +1009,9 @@ out meta center;
 ## les requêtes pour les carrières
 #
 overpass_query_carrieres_csv <- function() {
-  requete <- '[out:csv(::type,::id,::timestamp,::user,::lat,::lon,name,operator,disused;"\t")];
+  requete <- '[out:csv(::type,::id,::timestamp,::user,::lat,::lon,name,operator,disused,landuse,"was:landuse","was:name";"\t")];
 area[name="Bretagne"]["boundary"="administrative"]["admin_level"="4"]->.zone;
-way["landuse"="quarry"](area.zone);
+nwr[~"landuse"~"quarry"](area.zone);
 out meta center;
 '
   return(invisible(requete))

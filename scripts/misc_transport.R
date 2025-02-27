@@ -181,3 +181,15 @@ transport_df2html <- function(df1, dsn = FALSE, titre = "Titre") {
     glimpse()
   html_df2fic(df2, dsn = dsn, titre = titre)
 }
+#
+# le cas des stops
+transport_df4html <- function(df1, dsn = FALSE, titre = "Titre") {
+  df2 <- df1 %>%
+    glimpse() %>%
+    dplyr::select(stop_id, stop_name, name, distance, lat, lon, ,`@type`, `@id`) %>%
+#    rename_with(~str_remove(., "@")) %>%
+    mutate(josm = sprintf("<a href='http://localhost:8111/load_object?objects=%s%s,relation_members=true&referrers=true' target='hiddenframe'>josm</a>", str_sub(`@type`, 1, 1), `@id`)) %>%
+    mutate(osm = sprintf("<a href='https://www.openstreetmap.org/%s/%s#map=18/%s/%s' target='osm'>osm</a>",`@type`, `@id`, lat, lon)) %>%
+    glimpse()
+  html_df2fic(df2, dsn = dsn, titre = titre)
+}

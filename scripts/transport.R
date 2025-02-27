@@ -18,7 +18,8 @@ varDir <- sprintf("%s/web.var/TRANSPORT", Drive)
 odDir <- sprintf("%s/STAR", varDir)
 transportDir <- sprintf("%s", varDir)
 odDir <- sprintf("%s/MOBIBREIZH", varDir)
-webDir <- sprintf("%s/web.heb/bv/transport", Drive)
+webDir <- sprintf("%s/web.heb/transport", Drive)
+web_dir <- sprintf("%s/web.heb/transport", Drive)
 osmDir <- sprintf("%s/OSM", varDir)
 reseauDir <- sprintf("%s/SURF", varDir)
 dir.create(cfgDir, showWarnings = FALSE, recursive = TRUE)
@@ -26,6 +27,7 @@ dir.create(varDir, showWarnings = FALSE, recursive = TRUE)
 dir.create(osmDir, showWarnings = FALSE, recursive = TRUE)
 dir.create(texDir, showWarnings = FALSE, recursive = TRUE)
 dir.create(imagesDir, showWarnings = FALSE, recursive = TRUE)
+dir.create(webDir, showWarnings = FALSE, recursive = TRUE)
 source("geo/scripts/mga.R")
 source("geo/scripts/misc_docker.R")
 source("geo/scripts/misc_datagouv.R")
@@ -78,6 +80,7 @@ source("geo/scripts/transport_tidytransit.R"); # lecture du fichier gtfs.zip
 source("geo/scripts/transport_train.R");# les réseaux de train
 source("geo/scripts/transport_txt.R")
 source("geo/scripts/transport_valhalla.R"); # le routage avec les shapes
+source("geo/scripts/transport_web.R"); # pour le site web local
 source("geo/scripts/transport_wiki.R")
 source("geo/scripts/transport_zone.R")
 #
@@ -156,7 +159,6 @@ Reseau <- "saintbrevin"; # Saint Brevin les Pins, Brévibus
 Reseau <- "aleop44"; # Pays de la Loire, réseau départemental 44
 Reseau <- "saintnazaire"; # Saint-Nazaire STRAN
 Reseau <- "orleans"; # Orléans TAO
-Reseau <- "nantes"; # Nantes TAN/Naolib
 Reseau <- "breizhgo_illenoo2"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
 Reseau <- "breizhgo_pennarbed"; # pseudo-réseau pour BreizhGo en Finistère
 Reseau <- "atoumod"; # Normandie
@@ -165,19 +167,20 @@ Reseau <- "nomad50"; # les cars du département de la Manche
 Reseau <- "nomad61"; # les cars du département de l'Orne
 Reseau <- "nomad61"; # les cars du département de l'Orne
 Reseau <- "guingamp"; # Guingmap Paimpol AxeoBus
-Reseau <- "brest"; # Brest Bibus
 Reseau <- "fougeres"; # Fougères Surf
 Reseau <- "landerneau"; # Landernaeau Le Bus/Ar Bus
 Reseau <- "douarnenez"; # Douarnenez Tudbus
-Reseau <- "saintmalo"; # Saint-Malo
 Reseau <- "coutances"; # Coutances Cosibus
 Reseau <- "lannion"; # Lannion TILT
-Reseau <- "rennes"; # Rennes STAR
 Reseau <- "concarneau"; # Concarneau Coralie
 Reseau <- "vannes"; # Vannes Kicéo
-Reseau <- "lamballe"; # Lamballe / Côtes d'Armor / Distribus
-Reseau <- "lorient"; # Lorient CTRL IZILO
 Reseau <- "quimper"; # Quimper QUB
+Reseau <- "lorient"; # Lorient CTRL IZILO
+Reseau <- "brest"; # Brest Bibus
+Reseau <- "rennes"; # Rennes STAR
+Reseau <- "nantes"; # Nantes TAN/Naolib
+Reseau <- "saintmalo"; # Saint-Malo
+Reseau <- "lamballe"; # Lamballe / Côtes d'Armor / Distribus
 config_xls(Reseau)
 Tex <- TRUE
 Wiki <- TRUE

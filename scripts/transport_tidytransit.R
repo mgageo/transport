@@ -30,10 +30,10 @@ tidytransit_jour <- function(force = TRUE) {
   tidytransit_stops_sf()
   gtfs_stops_geocode()
   tidytransit_trips_stops()
+  tidytransit_routes_stops(); # pour valhalla
 #  glimpse(tt); stop("****")
   if (1 == 2) {
     tidytransit_routes_fiche()
-    tidytransit_routes_stops()
     tidytransit_routes_stops_tex()
     tidytransit_routes_trips_stops()
     tex_pdflatex(sprintf("%s_gtfs.tex", Reseau))
@@ -99,7 +99,7 @@ tidytransit_zip_lire <- function(rds = 'gtfs') {
 
   tt$routes <- tt$routes %>%
     filter(route_type == 3) %>%
-    mutate(route_long_name = gsub("  ", "", route_long_name)) %>%
+    mutate(route_long_name = gsub("  ", " ", route_long_name)) %>%
     glimpse()
   if (nrow(tt$routes) == 0) {
     confess("**** routes agency_id: %s", agency_id)
@@ -113,6 +113,7 @@ tidytransit_zip_lire <- function(rds = 'gtfs') {
       confess("**** routes agency_id: %s", agency_id)
     }
   }
+
 #  stop("*****")
 # que les voyages de ces routes
   tt$trips <- tt$trips %>%
@@ -656,7 +657,7 @@ tidytransit_refs_shapes_stops_carto <- function(force = TRUE) {
     df1 <- df1 %>%
       arrange(route_sort_order, ref_network, desc(nb), desc(nb_stops))
     df <- df1 %>%
-      group_by(route_sort_order, ref_network, route_long_name) %>%
+      group_by(route_sort_order, ref_network, Ref_network, route_long_name) %>%
       summarize(nb = n())
 #    df1 <- df1 %>%
 #      filter(grepl("^38", ref_network))
@@ -676,6 +677,7 @@ tidytransit_refs_shapes_stops_carto <- function(force = TRUE) {
   template <- readLines(dsn)
   dsn <- sprintf("%s/tidytransit_refs_shapes_stops_carto_tpl.tex", tplDir)
   template_ref <- readLines(dsn)
+#  glimpse(df);stop("*****")
   for (i in 1:nrow(df)) {
     tpl <- tex_df2tpl(df, i, template_ref)
 #    tpl <- escapeLatexSpecials(tpl)

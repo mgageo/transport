@@ -407,6 +407,7 @@ carto_route_shape_mapsf <- function(id, shape, force = TRUE, force_osm = TRUE) {
 # source("geo/scripts/transport.R");carto_route_shape_stops_mapsf(id = "12636105", shape = "01R006AL11")
 # source("geo/scripts/transport.R");carto_route_shape_stops_mapsf(id = "8827605", shape = "Asd0010")
 # source("geo/scripts/transport.R");carto_route_shape_stops_mapsf(id = "18557184", shape = "P1720018")
+# source("geo/scripts/transport.R");carto_route_shape_stops_mapsf(id = "6230932", shape = "10003")
 carto_route_shape_stops_mapsf <- function(id, shape, force = TRUE, force_osm = TRUE) {
   library(tidyverse)
   library(sf)
@@ -436,6 +437,8 @@ carto_route_shape_stops_mapsf <- function(id, shape, force = TRUE, force_osm = T
     rc$erreur <- shape
     return(invisible(rc))
   }
+  carp("dsn_shape: %s", dsn_shape)
+#  stop("*****")
   osm.sf <- rc$ways.sf %>%
     st_transform(2154) %>%
     glimpse()
