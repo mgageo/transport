@@ -62,7 +62,7 @@ ign_tidytransit_geocode <- function(tt) {
   df2 <- df1 %>%
     filter(is.na(city))
 # trop d'échecs
-  if (nrow(df2) > 5) {
+  if (nrow(df2) > 30) {
     misc_print(df2)
     confess("échec geocode nb: %s", nrow(df2))
   }

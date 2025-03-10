@@ -55,7 +55,7 @@ source("geo/scripts/transport_arrets.R"); # le nettoyage des arrêts
 source("geo/scripts/transport_carto.R"); # production des cartes
 source("geo/scripts/transport_config.R"); # lecture du fichier excel
 source("geo/scripts/transport_diff.R"); # différence entre gtfs et osm
-# source("geo/scripts/transport_gtfs.R")
+source("geo/scripts/transport_gtfs.R"); # la valadité, les différences entre versions
 source("geo/scripts/transport_gtfs2mga.R")
 source("geo/scripts/transport_gtfs2osm.R"); # mise en format compatible perl
 source("geo/scripts/transport_ign.R"); # pour la détermination des communes des arrêts
@@ -76,11 +76,12 @@ source("geo/scripts/transport_ptv2.R"); # migation en PTv2
 source("geo/scripts/transport_reseau.R"); # les comparaisons osm gtfs
 source("geo/scripts/transport_route.R")
 source("geo/scripts/transport_routes.R"); # cohérence route route_master
+source("geo/scripts/transport_shapes.R"); # validation des tracés du fichier shapes
 source("geo/scripts/transport_tidytransit.R"); # lecture du fichier gtfs.zip
 source("geo/scripts/transport_train.R");# les réseaux de train
 source("geo/scripts/transport_txt.R")
 source("geo/scripts/transport_valhalla.R"); # le routage avec les shapes
-source("geo/scripts/transport_web.R"); # pour le site web local
+source("geo/scripts/transport_web.R"); # pour le site web local avec gtfs-to-html
 source("geo/scripts/transport_wiki.R")
 source("geo/scripts/transport_zone.R")
 #
@@ -147,8 +148,6 @@ Reseau <- "morlaix"; # LinéoTim
 Reseau <- "breizhgo"; # BreizhGo en Bretagne, les lignes régionales
 Reseau <- "guingamp"; # Guingamp AXEOBUS
 Reseau <- "korrigo"; # les réseaux gérés en gtfs régionalement
-Reseau <- "breizhgo_tim"; # pseudo-réseau pour BreizhGo en Côtes d'Armor
-Reseau <- "breizhgo_tibus"; # pseudo-réseau pour BreizhGo en Morbihan
 Reseau <- "aleop_44"; # Pays de la Loire, réseau départemental 44
 Reseau <- "breizhgo_lrron"; # pseudo-réseau pour BreizhGo régional ouest nord
 Reseau <- "breizhgo_lrrns"; # pseudo-réseau pour BreizhGo régional nord sud
@@ -159,12 +158,9 @@ Reseau <- "saintbrevin"; # Saint Brevin les Pins, Brévibus
 Reseau <- "aleop44"; # Pays de la Loire, réseau départemental 44
 Reseau <- "saintnazaire"; # Saint-Nazaire STRAN
 Reseau <- "orleans"; # Orléans TAO
-Reseau <- "breizhgo_illenoo2"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
-Reseau <- "breizhgo_pennarbed"; # pseudo-réseau pour BreizhGo en Finistère
 Reseau <- "atoumod"; # Normandie
 Reseau <- "cosibus50"; # les cars du département de la Manche/Coutances
 Reseau <- "nomad50"; # les cars du département de la Manche
-Reseau <- "nomad61"; # les cars du département de l'Orne
 Reseau <- "nomad61"; # les cars du département de l'Orne
 Reseau <- "guingamp"; # Guingmap Paimpol AxeoBus
 Reseau <- "fougeres"; # Fougères Surf
@@ -175,12 +171,16 @@ Reseau <- "lannion"; # Lannion TILT
 Reseau <- "concarneau"; # Concarneau Coralie
 Reseau <- "vannes"; # Vannes Kicéo
 Reseau <- "quimper"; # Quimper QUB
-Reseau <- "lorient"; # Lorient CTRL IZILO
-Reseau <- "brest"; # Brest Bibus
-Reseau <- "rennes"; # Rennes STAR
 Reseau <- "nantes"; # Nantes TAN/Naolib
-Reseau <- "saintmalo"; # Saint-Malo
 Reseau <- "lamballe"; # Lamballe / Côtes d'Armor / Distribus
+Reseau <- "brest"; # Brest Bibus
+Reseau <- "saintmalo"; # Saint-Malo
+Reseau <- "lorient"; # Lorient CTRL IZILO
+Reseau <- "breizhgo_tim"; # pseudo-réseau pour BreizhGo en Morbihan
+Reseau <- "breizhgo_tibus"; # pseudo-réseau pour BreizhGo en Côtes d'Armor
+Reseau <- "breizhgo_illenoo2"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
+Reseau <- "breizhgo_pennarbed"; # pseudo-réseau pour BreizhGo en Finistère
+Reseau <- "rennes"; # Rennes STAR
 config_xls(Reseau)
 Tex <- TRUE
 Wiki <- TRUE

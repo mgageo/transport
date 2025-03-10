@@ -171,6 +171,20 @@ wiki_pages_init_conf <- function() {
     wiki_page_init(page = page, article = "roro", force = TRUE)
   }
 }
+# source("geo/scripts/transport.R");config_xls('breizhgo_pennarbed');wiki_pages_filles_init()
+wiki_pages_filles_init <- function() {
+  if (is.na(Config[1, "wiki"])) {
+     stop("*****")
+  }
+  Wiki <<- TRUE
+  wiki_page <- Config[[1, "wiki"]]
+  for (p in c("osm/network", "osm/route_master", "osm/route", "gtfs/tidytransit_routes_shapes", "gtfs/tidytransit_routes", "gtfs/tidytransit_routes_stops", "gtfs/tidytransit_shapes")) {
+    page <- sprintf("User:Mga_geo/Transports_publics/%s/%s", wiki_page, p) %>%
+      glimpse()
+    carp("page: %s", page)
+    wiki_page_init(page = page, article = "roro", force = TRUE)
+  }
+}
 #
 # template du pauvre
 wiki_dfi2tpl <- function(df, i, tpl) {

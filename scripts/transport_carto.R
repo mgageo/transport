@@ -294,7 +294,8 @@ carto_ref_shapes_stops_mapsf <- function(df, force = TRUE) {
   carp()
   df <- df %>%
     filter(shape_id != "") %>%
-    mutate(dsn_shape = sprintf("%s/shape_stops_%s.gpx", josmDir, shape_id)) %>%
+    mutate(shape = gsub("[$:/]", "_", shape_id)) %>%
+    mutate(dsn_shape = sprintf("%s/shape_stops_%s.gpx", josmDir, shape)) %>%
     glimpse() %>%
     filter(file.exists(dsn_shape)) %>%
     glimpse()
@@ -427,6 +428,7 @@ carto_route_shape_stops_mapsf <- function(id, shape, force = TRUE, force_osm = T
   }
   ref_network <- rc$relation[1, "ref:network"]
   shape_id <- rc$relation[1, "gtfs:shape_id"]
+  shape_id <- gsub("[$:/]", "_", shape_id)
   if (shape_id != shape) {
     erreur <- sprintf("shape: %s # shape_id: %s", shape, shape_id)
     stop(erreur)

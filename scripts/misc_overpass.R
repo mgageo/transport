@@ -674,7 +674,7 @@ out meta;', Config[1, 'network'])
   return(invisible(requete))
 }
 overpass_query_relations_routemaster_bus_network_csv <- function() {
-  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,name,ref;true;"\t")];
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,name,ref,on_demand;true;"\t")];
 relation[type=route_master][route_master=bus][network="%s"];
 out meta;', Config[1, 'network'])
   return(invisible(requete))

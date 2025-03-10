@@ -29,6 +29,7 @@ tidytransit_jour <- function(force = TRUE) {
   tidytransit_zip_lire()
   tidytransit_stops_sf()
   gtfs_stops_geocode()
+#  return()
   tidytransit_trips_stops()
   tidytransit_routes_stops(); # pour valhalla
 #  glimpse(tt); stop("****")
@@ -62,12 +63,13 @@ tidytransit_jour_shapes <- function(force = TRUE) {
   tidytransit_routes_shapes_stops_tex()
   tidytransit_shapes_stops_coord()
   tidytransit_routes_shapes_fiche()
+  tidytransit_refs_shapes_stops_carto()
+  return(invisible())
   tidytransit_routes_shapes_stops_carto(force = force)
   tidytransit_routes_shapes_stops_carto_verif(force = force)
   tex_pdflatex(sprintf("%s_tidytransit_routes_shapes_stops.tex", Reseau))
   tex_pdflatex(sprintf("%s_tidytransit_routes_shapes_stops_carto.tex", Reseau))
   tex_pdflatex(sprintf("%s_tidytransit_shapes.tex", Reseau))
-  tidytransit_refs_shapes_stops_carto()
 }
 
 # lecture des routes, données GTFS
@@ -93,16 +95,16 @@ tidytransit_zip_lire <- function(rds = 'gtfs') {
 # que les routes de cet agency
   if (! is.na(Config_agency_id)) {
     tt$routes <- tt$routes %>%
-      filter(agency_id == !!agency_id) %>%
+      filter(agency_id == !!Config_agency_id) %>%
       glimpse()
   }
-
+# https://developers.google.com/transit/gtfs/reference/extended-route-types?hl=fr
   tt$routes <- tt$routes %>%
-    filter(route_type == 3) %>%
+    filter(route_type %in% c(3, 200, 204)) %>%
     mutate(route_long_name = gsub("  ", " ", route_long_name)) %>%
     glimpse()
   if (nrow(tt$routes) == 0) {
-    confess("**** routes agency_id: %s", agency_id)
+    confess("**** routes Config_agency_id: %s", Config_agency_id)
   }
 
   if (grepl("nomad", Reseau)) {
@@ -123,6 +125,17 @@ tidytransit_zip_lire <- function(rds = 'gtfs') {
     confess("**** trips agency_id: %s", agency_id)
   }
   mga <<- tt
+  if (Reseau == "_lorient") {
+    tt$shapes %>%
+      filter(grepl("^T4A", shape_id)) %>%
+      glimpse()
+    df1 <- tt$shapes %>%
+      group_by(shape_id) %>%
+      summarize(nb = n()) %>%
+      filter(grepl("^T4", shape_id)) %>%
+      glimpse()
+    stop("lorient")
+  }
 # que les shapes de ces voyages
   if (!is.null(tt$shapes)) {
     tt$shapes <- tt$shapes %>%
@@ -160,8 +173,13 @@ tidytransit_zip_lire <- function(rds = 'gtfs') {
 #  if (nrow(df0) == 0) {
 #    confess("***** %s", stop)
 #  }
+  df1 <- tt$stops %>%
+    filter(stop_lat == "0" | stop_lon == "0")
+  if (nrow(df1) > 0) {
+    glimpse(df1)
+    confess("****coordonnées")
+  }
   tt$stops <- tt$stops %>%
-    glimpse() %>%
     (function(.df){
       cls <- c("stop_desc", "stop_code") # columns I need
       .df[cls[!(cls %in% colnames(.df))]] = NA
@@ -196,6 +214,12 @@ tidytransit_zip_lire <- function(rds = 'gtfs') {
   if (Reseau == "breizhgo56") {
     tt$routes <- tt$routes %>%
       mutate(route_short_name = gsub("^0", "", route_short_name))
+  }
+  if (Reseau == "_lorient") {
+    tt$shapes %>%
+      filter(grepl("^TA4", shape_id)) %>%
+      glimpse()
+    stop("lorient")
   }
   if (Reseau == "quimper") {
 #    tt$stops <- quimper_stops(tt$stops)
@@ -642,7 +666,7 @@ tidytransit_refs_shapes_stops_carto <- function(force = TRUE) {
   carp()
   df1 <- tidytransit_lire(rds = "tidytransit_shapes_stops")
   df1 <- df1 %>%
-#    filter(! grepl("^S", ref_network)) %>%
+#    filter(grepl("^T4", ref_network)) %>%
     group_by(ref_network, shape_id) %>%
     arrange(desc(nb), desc(nb_stops)) %>%
     filter(row_number() == 1) %>%
@@ -685,7 +709,13 @@ tidytransit_refs_shapes_stops_carto <- function(force = TRUE) {
     df2 <- df1 %>%
       filter(ref_network == df[[i, "ref_network"]]) %>%
       glimpse()
-#    stop("*****")
+    df21 <- df2 %>%
+      mutate(from = sprintf("%s (%s)", first_city, first_name)) %>%
+      mutate(to = sprintf("%s (%s)", last_city,  last_name)) %>%
+      dplyr::select(ref = ref_network, shape_id, from, to) %>%
+      glimpse()
+    tpl <- tex_df2kable(df21)
+    tex <- append(tex, tpl)
     ref_network <- df[[i, "ref_network"]]
     dsn <- misc_dsn(suffixe = ref_network, dossier = "images", extension = "pdf")
     if (! file.exists(dsn) | force == TRUE) {
@@ -696,7 +726,6 @@ tidytransit_refs_shapes_stops_carto <- function(force = TRUE) {
       tpl <- tex_df2tpl(df2, i2, template)
       tpl <- escapeLatexSpecials(tpl)
       tex <- append(tex, tpl)
-
     }
   }
   write(tex, file = TEX, append = FALSE)
@@ -1065,6 +1094,12 @@ tidytransit_stops_sf <- function(rds = "tidytransit_stops_sf") {
     mutate(lat = as.numeric(stop_lat)) %>%
     mutate(lon = as.numeric(stop_lon)) %>%
     glimpse()
+  df1 <- stops.df %>%
+    filter(lat < 45 | lat > 50 | lon < -6 | lon > 1) %>%
+    glimpse()
+  if (nrow(df1) > 0) {
+    confess("****hors zone")
+  }
 #  plot(stops.sf)
   stops.sf <- st_as_sf(stops.df, coords = c("lon", "lat"), crs = 4326, remove=FALSE)
   tidytransit_sauve(stops.sf, rds)
@@ -1572,7 +1607,7 @@ tidytransit_donnees_utiles <- function(tt, force = TRUE) {
       filter(!grepl("^5", stop_id))
   }
 # Lorient, pas les bateaux
-  if (grepl("lorient", Reseau)) {
+  if (Reseau == "lorient") {
     routes.df <- routes.df %>%
       filter(! grepl("^B", route_short_name))
   }

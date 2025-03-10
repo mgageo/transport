@@ -174,6 +174,8 @@ transport_df2html <- function(df1, dsn = FALSE, titre = "Titre") {
   df2 <- df1 %>%
     glimpse() %>%
     rename_with(~str_remove(., "@")) %>%
+    rowwise() %>%
+    mutate(type = ifelse("type" %in% names(.), type, "relation")) %>%
     mutate(level0 = sprintf("<a href='http://level0.osmz.ru/?url=%s/%s' target='level0'>%s</a>", type, id, id)) %>%
     mutate(josm = sprintf("<a href='http://localhost:8111/load_object?objects=%s%s,relation_members=true,referrers=true' target='josm'>josm</a>", str_sub(type, 1, 1), id)) %>%
     mutate(ptna = sprintf("<a href='https://www.openstreetmap.org/%s/%s' target='osm'>osm</a>", type, id)) %>%

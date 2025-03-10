@@ -53,10 +53,13 @@ ptna_wiki_config <- function() {
     carp("dsn: %s", dsn)
     tt <<- tidytransit::read_gtfs(dsn, quiet = FALSE)
   }
+# https://developers.google.com/transit/gtfs/reference/extended-route-types?hl=fr
   route_type.df <- tribble(
     ~type, ~libelle, ~code,
     1, "== Lignes de métro","subway",
     3, "== Lignes de bus","bus",
+    200, "== Lignes de bus","bus",
+    204, "== Lignes de bus","bus",
     4, "== Lignes de ferry","ferry"
   )
   routes.df <- tt$routes %>%

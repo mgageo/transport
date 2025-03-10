@@ -7,6 +7,13 @@
 #
 ############################################################################################
 #
+ign_dossier <- 'ADMIN-EXPRESS_2-1__SHP__FRA_2019-11-15/ADMIN-EXPRESS/1_DONNEES_LIVRAISON_2019-11-15/ADE_2-1_SHP_LAMB93_FR'
+ign_dossier <- 'ADMIN-EXPRESS_3-0__SHP__FRA_L93_2021-10-15/ADMIN-EXPRESS_3-0__SHP__FRA_2021-10-15/ADMIN-EXPRESS/1_DONNEES_LIVRAISON_2021-10-15/ADE_3-0_SHP_LAMB93_FR'
+ign_dossier <- 'ADMIN-EXPRESS_3-1__SHP_LAMB93_FXX_2023-01-16/ADMIN-EXPRESS/1_DONNEES_LIVRAISON_2023-01-16/ADE_3-1_SHP_LAMB93_FXX'
+ign_dossier <- 'ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2024-05-16/ADMIN-EXPRESS/1_DONNEES_LIVRAISON_2024-05-00047/ADE_3-2_SHP_LAMB93_FXX-ED2024-05-16'
+ign_dossier <- 'ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2025-02-17/ADMIN-EXPRESS/1_DONNEES_LIVRAISON_2025-02-00187/ADE_3-2_SHP_LAMB93_FXX-ED2025-02-17'
+
+ign_admin_express <- sprintf("%s/bvi35/CouchesIGN/%s", Drive, ign_dossier)
 
 # limite des départements
 ign_departement_lire <- function(les_departements) {
@@ -161,6 +168,9 @@ ign_bdtopo_hydrographie_lire_sf <- function(layer='COURS_D_EAU') {
 }
 #
 # Geofla remplacé par Admin Express depuis 2017
+#
+#
+#
 # source("geo/scripts/wetlands.R");nc <- ign_geofla_1_lire_sf()
 ign_geofla_1_lire_sf <- function(layer='COMMUNE') {
   carp()
@@ -179,11 +189,7 @@ ign_adminexpress_lire_sf <- function(layer = "COMMUNE", force = FALSE) {
     return(invisible(ign_adminexpress.list[[layer]]))
   }
   library(sf)
-  dossier <- 'ADMIN-EXPRESS_2-1__SHP__FRA_2019-11-15/ADMIN-EXPRESS/1_DONNEES_LIVRAISON_2019-11-15/ADE_2-1_SHP_LAMB93_FR'
-  dossier <- 'ADMIN-EXPRESS_3-0__SHP__FRA_L93_2021-10-15/ADMIN-EXPRESS_3-0__SHP__FRA_2021-10-15/ADMIN-EXPRESS/1_DONNEES_LIVRAISON_2021-10-15/ADE_3-0_SHP_LAMB93_FR'
-  dossier <- 'ADMIN-EXPRESS_3-1__SHP_LAMB93_FXX_2023-01-16/ADMIN-EXPRESS/1_DONNEES_LIVRAISON_2023-01-16/ADE_3-1_SHP_LAMB93_FXX'
-  dossier <- 'ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2024-05-16/ADMIN-EXPRESS/1_DONNEES_LIVRAISON_2024-05-00047/ADE_3-2_SHP_LAMB93_FXX-ED2024-05-16'
-  dsn <- sprintf('%s/%s/%s.shp', ignDir, dossier, layer)
+  dsn <- sprintf('%s/%s/%s.shp', ignDir, ign_dossier, layer)
   carp("dsn: %s", dsn)
   nc <- st_read(dsn, stringsAsFactors = FALSE, quiet = TRUE)
   ign_adminexpress.list[[layer]] <<- nc

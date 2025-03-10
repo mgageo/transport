@@ -880,12 +880,15 @@ lire_rds <- function(dsn = FALSE, suffixe = "", dossier = "") {
   if ( dossier !=  "" ) {
     dossier <- sprintf("%s/", dossier)
   }
+  if ( suffixe !=  "" ) {
+    suffixe <- sprintf("_%s", suffixe)
+  }
   dsn <- sprintf("%s/%s%s%s.Rds", cfgDir, dossier, dsn, suffixe)
   carp("dsn: %s", dsn)
   if (file.exists(dsn)) {
     object <- readRDS(dsn)
   } else {
-    carp("dsn: %s FALSE", dsn)
+    carp("dsn: %s file.exists FALSE", dsn)
     object <- FALSE
   }
   return(invisible(object))

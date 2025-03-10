@@ -1035,6 +1035,8 @@ osmapi_put <- function(osmchange = "create", text = "osm", comment = "", force =
   carp("changeset: %s/changeset/%s", api_url, changeset_id)
   return(invisible(changeset_id))
 }
+#
+# !!! bug si {...} dans les données
 # source("geo/scripts/transport.R"); osmapi_osmchange()
 osmapi_osmchange <- function(changeset_id = 200, change = "create", osm = "<node>") {
   timestamp <- format(Sys.time(), "%Y-%m-%dT%H:%M:%S.0+02:00")
@@ -1045,7 +1047,10 @@ osmapi_osmchange <- function(changeset_id = 200, change = "create", osm = "<node
 </{change}>
 </osmChange>'
   text <- str_glue(text)
+#  writeLines(text, sprintf("%s/osmapi_osmchange_1.txt", cfgDir))
+#  text <- str_replace(text, "\\{changeset_id\\}", changeset_id)
   text <- str_glue(text)
+#  writeLines(text, sprintf("%s/osmapi_osmchange_2.txt", cfgDir))
 #  print(text);exit;
   return(text)
 }

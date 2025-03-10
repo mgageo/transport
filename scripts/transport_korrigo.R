@@ -44,7 +44,7 @@ korrigo_dl <- function(reseau = "korrigo", force = TRUE) {
   dsn <- sprintf("%s/gtfs.zip", gtfsDir)
   file.copy(dsn_source, dsn, overwrite = TRUE)
   carp("dsn: %s", dsn)
-  archive_extract(dsn, gtfsDir)
+#  archive_extract(dsn, gtfsDir)
 }
 #
 # extraction par réseau et production du gtfs.zip

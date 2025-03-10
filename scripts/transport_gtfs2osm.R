@@ -17,7 +17,9 @@ gtfs2osm_jour <- function(force = TRUE, force_osm = TRUE) {
   library(tidyverse)
   library(rio)
   library(sf)
-  carp()
+  carp("Config_reseau: %s", Config_reseau)
+  carp("Config_route_prefixe: %s", Config_route_prefixe)
+#  stop("*****")
 # mise au format interne des fichiers gtfs pour les relations route_master
   gtfs2osm_jour_routemasters(force = force, force_osm = force_osm)
 # mise au format interne des fichiers gtfs pour les routes
@@ -126,14 +128,16 @@ gtfs2osm_relations_routemaster <- function(rds = "gtfs2osm_relations_routemaster
       mutate(Name = str_glue('{Config_route_name} {route_short_name} : {route_long_name}')) %>%
       glimpse()
   }
-
+  df$route_ref <- df$route_id
+  if (Config_reseau %in% c("breizhgo_pennarbed")) {
+    df$route_ref <- df$route_short_name
+  }
   df <- df %>%
     dplyr::select(
       description = route_long_name,
       colour = Route_color,
       name = Name,
-#      ref = route_short_name,
-      ref = route_id,
+      ref = route_ref,
       text_colour = Route_text_color,
       "gtfs:route_short_name" = route_short_name,
       "gtfs:route_long_name" = route_long_name,
@@ -142,7 +146,7 @@ gtfs2osm_relations_routemaster <- function(rds = "gtfs2osm_relations_routemaster
     mutate(`public_transport:version` = 2) %>%
     mutate(`route_master` = "bus") %>%
     mutate(`type` = "route_master")
-  if (Reseau %in% c("lamballe", "quimper")) {
+  if (Reseau %in% c("lamballe", "quimper", "breizhgo_tibus")) {
     df$ref <- df$"gtfs:route_short_name"
   }
   tags <- c("network", "operator", "website", "network:wikidata", "network:wikipedia", "operator:wikidata", "operator:wikipedia")
@@ -178,7 +182,6 @@ gtfs2osm_relations_routemaster_level0 <- function(rds = "gtfs2osm_relations_rout
     arrange(ref) %>%
     clean_names() %>%
     glimpse()
-#  stop("******")
   osm.df <- overpass_get(query = "relations_route_bus_network", format = "csv", force = force_osm) %>%
     clean_names() %>%
     mutate(id = sprintf("  rel %s", id)) %>%

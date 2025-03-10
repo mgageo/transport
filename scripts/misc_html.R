@@ -132,8 +132,9 @@ html_titre <- function(titre = "titre") {
     <meta http-equiv="expires" content="43200"/>
   </head>
   <body>
+  <h2>%s</h2>
 '
-  sprintf(html, titre)
+  sprintf(html, titre, titre)
 }
 html_pied <- function() {
   html <- sprintf('  </body>
