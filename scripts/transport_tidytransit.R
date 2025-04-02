@@ -100,8 +100,8 @@ tidytransit_zip_lire <- function(rds = 'gtfs') {
   }
 # https://developers.google.com/transit/gtfs/reference/extended-route-types?hl=fr
   tt$routes <- tt$routes %>%
-    filter(route_type %in% c(3, 200, 204)) %>%
-    mutate(route_long_name = gsub("  ", " ", route_long_name)) %>%
+    filter(route_type %in% c(3, 4, 200, 204)) %>%
+    mutate(route_long_name = trimws(gsub("\\s+", " ", route_long_name))) %>%
     glimpse()
   if (nrow(tt$routes) == 0) {
     confess("**** routes Config_agency_id: %s", Config_agency_id)
@@ -186,6 +186,10 @@ tidytransit_zip_lire <- function(rds = 'gtfs') {
       return(.df)
     }) %>%
     glimpse()
+  if (Reseau == "breizhgo_tim") {
+    tt$stops <- tt$stops %>%
+      mutate(stop_name = gsub("^_*", "", stop_name))
+  }
   tt$routes <- tt$routes %>%
     (function(.df){
       cls <- c("route_desc", "route_url") # columns I need
@@ -734,6 +738,92 @@ tidytransit_refs_shapes_stops_carto <- function(force = TRUE) {
   tex_pdflatex(sprintf("%s_tidytransit_refs_shapes_stops_carto.tex", Reseau))
   return(invisible())
 }
+#
+#
+## les trips des routes avec la carto
+#
+# source("geo/scripts/transport.R");tidytransit_trips()
+tidytransit_trips <- function(force = TRUE) {
+  reseau_tpl_tex()
+  tidytransit_refs_trips_stops_carto(force = FALSE)
+}
+#
+# source("geo/scripts/transport.R");tidytransit_refs_trips_stops_carto(force = FALSE)
+tidytransit_refs_trips_stops_carto <- function(force = TRUE) {
+  library(tidyverse)
+  library(tidytransit)
+  carp()
+  df1 <- tidytransit_lire(rds = "tidytransit_trips_stops")
+  df1 <- df1 %>%
+#    filter(grepl("^T4", ref_network)) %>%
+    group_by(ref_network, stops) %>%
+    arrange(desc(nb), desc(nb_stops)) %>%
+    filter(row_number() == 1) %>%
+    ungroup() %>%
+    arrange(ref_network)
+  df1$Ref_network <- escapeLatexSpecials(df1$ref_network)
+  df1$network <- Config_network
+  df <- df1 %>%
+    group_by(ref_network, Ref_network, route_long_name) %>%
+    summarize(nb = n())
+  if (Reseau == "rennes") {
+    df1 <- df1 %>%
+      arrange(route_sort_order, ref_network, desc(nb), desc(nb_stops))
+    df <- df1 %>%
+      group_by(route_sort_order, ref_network, Ref_network, route_long_name) %>%
+      summarize(nb = n())
+#    df1 <- df1 %>%
+#      filter(grepl("^38", ref_network))
+  }
+  glimpse(df1)
+#  stop("*****")
+#  writeLines(df1$shape_id);  stop("****")
+  df2 <- df1 %>%
+    dplyr::select(ref_network, route_desc, nb, nb_stops) %>%
+    arrange(ref_network, desc(nb), desc(nb_stops)) %>%
+    glimpse()
+
+  texFic <- sprintf("%s/%s", imagesDir, "tidytransit_refs_trips_stops_carto.tex")
+  TEX <- file(texFic)
+  tex <- "% <!-- coding: utf-8 -->"
+  dsn <- sprintf("%s/tidytransit_refs_trips_stops_tpl.tex", tplDir)
+  template <- readLines(dsn)
+  dsn <- sprintf("%s/tidytransit_refs_trips_stops_carto_tpl.tex", tplDir)
+  template_ref <- readLines(dsn)
+#  glimpse(df);stop("*****")
+  for (i in 1:nrow(df)) {
+    tpl <- tex_df2tpl(df, i, template_ref)
+#    tpl <- escapeLatexSpecials(tpl)
+    tex <- append(tex, tpl)
+    df2 <- df1 %>%
+      filter(ref_network == df[[i, "ref_network"]]) %>%
+      glimpse()
+    df21 <- df2 %>%
+      mutate(from = sprintf("%s (%s)", first_city, first_name)) %>%
+      mutate(to = sprintf("%s (%s)", last_city,  last_name)) %>%
+      dplyr::select(ref = ref_network, trip_id, from, to) %>%
+      glimpse()
+    tpl <- tex_df2kable(df21)
+    tex <- append(tex, tpl)
+    ref_network <- df[[i, "ref_network"]]
+    dsn <- misc_dsn(suffixe = ref_network, dossier = "images", extension = "pdf")
+    if (! file.exists(dsn) | force == TRUE) {
+#      carto_ref_shapes_stops_mapsf(df2)
+#      dsn <- dev2pdf(suffixe = ref_network, dossier = "images")
+    }
+    for (i2 in 1:nrow(df2)) {
+      tpl <- tex_df2tpl(df2, i2, template)
+      tpl <- escapeLatexSpecials(tpl)
+      tex <- append(tex, tpl)
+    }
+#    break
+  }
+  write(tex, file = TEX, append = FALSE)
+  close(TEX)
+  carp("texFic: %s", texFic)
+  tex_pdflatex(sprintf("%s_tidytransit_refs_trips_stops_carto.tex", Reseau))
+  return(invisible())
+}
 # source("geo/scripts/transport.R"); tidytransit_toto2()
 tidytransit_toto2 <- function(force = TRUE) {
   library(tidytransit)
@@ -1095,7 +1185,7 @@ tidytransit_stops_sf <- function(rds = "tidytransit_stops_sf") {
     mutate(lon = as.numeric(stop_lon)) %>%
     glimpse()
   df1 <- stops.df %>%
-    filter(lat < 45 | lat > 50 | lon < -6 | lon > 1) %>%
+    filter(lat < 45 | lat > 51 | lon < -6 | lon > 3) %>%
     glimpse()
   if (nrow(df1) > 0) {
     confess("****hors zone")

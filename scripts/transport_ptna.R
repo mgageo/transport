@@ -53,17 +53,27 @@ ptna_wiki_config <- function() {
     carp("dsn: %s", dsn)
     tt <<- tidytransit::read_gtfs(dsn, quiet = FALSE)
   }
+# https://gtfs.org/documentation/schedule/reference/#routestxt
 # https://developers.google.com/transit/gtfs/reference/extended-route-types?hl=fr
   route_type.df <- tribble(
     ~type, ~libelle, ~code,
+    0, "== Lignes de tram","tram",
     1, "== Lignes de métro","subway",
     3, "== Lignes de bus","bus",
     200, "== Lignes de bus","bus",
     204, "== Lignes de bus","bus",
-    4, "== Lignes de ferry","ferry"
+    4, "== Lignes de ferry","ferry",
+    6, "== Lignes de téléphérique","téléphérique"
   )
   routes.df <- tt$routes %>%
     glimpse()
+  df1 <- routes.df %>%
+    filter(route_type %notin% route_type.df$type)
+  if (nrow(df1) > 0 ) {
+    misc_print(df1)
+    confess("route_type")
+  }
+#  stop("*****")
   if (Config_reseau == "saintmalo") {
     routes.df <- routes.df %>%
       filter(!grepl("^S", route_id)) %>%
@@ -73,6 +83,13 @@ ptna_wiki_config <- function() {
   if (Config_reseau == "nantes") {
     routes.df <- routes.df %>%
       mutate(route_sort_order = as.numeric(route_sort_order)) %>%
+      glimpse()
+#    stop("*****")
+  }
+  if (Config_reseau == "rouen") {
+    routes.df <- routes.df %>%
+      mutate(route_sort_order = as.numeric(route_sort_order)) %>%
+      arrange(route_sort_order) %>%
       glimpse()
 #    stop("*****")
   }
@@ -246,7 +263,6 @@ ptna_gtfs_lire_v2 <- function() {
     df2 <- ptna_englobante(stops.df)
     misc_print(df2)
   }
-
 }
 ptna_englobante <- function(stops.df) {
   library(tidytransit)
@@ -332,7 +348,7 @@ ptna_wikidata <- function() {
   )
   query <- 'SELECT ?item ?itemLabel ?inseeCode {
   ?item wdt:%s ?inseeCode .
-  FILTER regex(?inseeCode, "^(22|29|35|56|50|53|44|49)", "i")
+  FILTER regex(?inseeCode, "^(22|29|35|56|50|53|44|49|76)", "i")
   SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],fr" }
 }'
   df2 <- data.frame()

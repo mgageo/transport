@@ -55,7 +55,7 @@ source("geo/scripts/transport_arrets.R"); # le nettoyage des arrêts
 source("geo/scripts/transport_carto.R"); # production des cartes
 source("geo/scripts/transport_config.R"); # lecture du fichier excel
 source("geo/scripts/transport_diff.R"); # différence entre gtfs et osm
-source("geo/scripts/transport_gtfs.R"); # la valadité, les différences entre versions
+source("geo/scripts/transport_gtfs.R"); # la validité, les différences entre versions
 source("geo/scripts/transport_gtfs2mga.R")
 source("geo/scripts/transport_gtfs2osm.R"); # mise en format compatible perl
 source("geo/scripts/transport_ign.R"); # pour la détermination des communes des arrêts
@@ -65,7 +65,7 @@ source("geo/scripts/transport_menu.R"); # les différents traitements suite à m
 source("geo/scripts/transport_misc.R")
 # source("geo/scripts/transport_mobibreizh.R"); # pour le gtfs de la région
 source("geo/scripts/transport_oapi.R")
-source("geo/scripts/transport_open.R"); # édition des fichiers
+source("geo/scripts/transport_open.R"); # édition des fichiers, téléchargement gtfs
 source("geo/scripts/transport_osm.R"); # les interrogations osm soit via l'api soit via l'overpass
 source("geo/scripts/transport_osmar.R")
 source("geo/scripts/transport_osmose.R")
@@ -140,7 +140,6 @@ Reseau <- "semo"; # SEMO (pour Seine-Eure MObilités)
 Reseau <- "bretagne"; # pseudo-réseau pour la Bretagne
 Reseau <- "strasbourg"; # Strasbourg CTS
 Reseau <- "morlaix"; # Morlaix Linéotim
-Reseau <- "saintbrieuc"; # Saint-Brieuc TUB
 Reseau <- "pontivy"; # Pontivy PondiBus
 Reseau <- "guingamp"; # Guingamp AXEOBUS
 Reseau <- "quimperle"; # Quimperlé TBK
@@ -170,20 +169,24 @@ Reseau <- "coutances"; # Coutances Cosibus
 Reseau <- "lannion"; # Lannion TILT
 Reseau <- "concarneau"; # Concarneau Coralie
 Reseau <- "vannes"; # Vannes Kicéo
-Reseau <- "quimper"; # Quimper QUB
 Reseau <- "nantes"; # Nantes TAN/Naolib
 Reseau <- "lamballe"; # Lamballe / Côtes d'Armor / Distribus
-Reseau <- "brest"; # Brest Bibus
-Reseau <- "saintmalo"; # Saint-Malo
-Reseau <- "lorient"; # Lorient CTRL IZILO
 Reseau <- "breizhgo_tim"; # pseudo-réseau pour BreizhGo en Morbihan
 Reseau <- "breizhgo_tibus"; # pseudo-réseau pour BreizhGo en Côtes d'Armor
-Reseau <- "breizhgo_illenoo2"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
 Reseau <- "breizhgo_pennarbed"; # pseudo-réseau pour BreizhGo en Finistère
+Reseau <- "saintmalo"; # Saint-Malo
+Reseau <- "quimper"; # Quimper QUB
 Reseau <- "rennes"; # Rennes STAR
+Reseau <- "breizhgo_illenoo2"; # pseudo-réseau pour BreizhGo en Ille-et-Vilaine
+Reseau <- "saintbrieuc"; # Saint-Brieuc TUB
+Reseau <- "brest"; # Brest Bibus
+Reseau <- "rennes"; # Rennes STAR
+Reseau <- "rouen"; # Rouen Astuce
+Reseau <- "breizhgo_bateau_29"; # les bateaux en 29
+Reseau <- "lorient"; # Lorient CTRL IZILO
 config_xls(Reseau)
 Tex <- TRUE
-Wiki <- TRUE
+Wiki <- FALSE
 HtmlBrowse <- TRUE
 OsmChange <- FALSE
 if ( interactive() ) {

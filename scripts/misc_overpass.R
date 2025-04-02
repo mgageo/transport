@@ -399,7 +399,7 @@ overpass_get <- function(query, format = "xml", force_osm = TRUE) {
     overpass_mtime <<- file.info(dsn)$mtime
 # , sep = "\t"
 #    res <- fread(dsn, encoding = "UTF-8", header = TRUE, sep = "|") %>%
-    res <- fread(dsn, encoding = "UTF-8", header = TRUE, sep = "\t") %>%
+    res <- fread(dsn, encoding = "UTF-8", header = TRUE, sep = "\t", colClasses=c("character")) %>%
       replace(is.na(.), "")
     return(invisible(res))
   }
@@ -645,7 +645,7 @@ out meta;', Config[1, 'zone'], Config[1, 'network'])
   return(invisible(requete))
 }
 overpass_query_relations_route_bus_network_csv <- function() {
-  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,type,route,"disused:route",operator,name,description,ref,"ref:network","gtfs:shape_id","gtfs:route_short_name","gtfs:route_long_name","gtfs:route_id","gtfs:trip_id:sample",from,to,colour,text_colour,"network:wikidata","network:wikipedia","note:mga","note:mga_geo";true;"\t")];
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,type,route,"disused:route",on_demand,operator,name,description,ref,"ref:network","gtfs:shape_id","gtfs:route_short_name","gtfs:route_long_name","gtfs:route_id","gtfs:trip_id:sample",from,to,colour,text_colour,"network:wikidata","network:wikipedia","note:mga","note:mga_geo";true;"\t")];
 area[name="%s"]->.a;
 relation(area.a)[type=route][route=bus][network="%s"];
 out meta;', Config[1, 'zone'], Config[1, 'network'])
@@ -686,6 +686,20 @@ relation(area.a)[type=route][route=bus];
 rel(br);
 out meta;', Config[1, 'zone'])
   carp("requete: %s", requete)
+  return(invisible(requete))
+}
+#
+## les requêtes pour les relations "network"
+#
+overpass_query_relations_network_network <- function() {
+  requete <- sprintf('relation[type=network][network="%s"];
+out meta;', Config[1, 'network'])
+  return(invisible(requete))
+}
+overpass_query_relations_network_bus_network_csv <- function() {
+  requete <- sprintf('[out:csv(::type,::id,::version,::timestamp,::user,network,name,ref,on_demand;true;"\t")];
+relation[type=network][network="%s"];
+out meta;', Config[1, 'network'])
   return(invisible(requete))
 }
 #

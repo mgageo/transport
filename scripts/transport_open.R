@@ -33,6 +33,7 @@ open_pdf <- function(force = TRUE) {
 #
 # source("geo/scripts/transport.R");open_gtfs()
 open_gtfs <- function(force = TRUE) {
+  dir.create(gtfsDir, showWarnings = FALSE, recursive = TRUE)
   url <- Config_gtfs_source
   aaaammjj <- format(Sys.time(),"%Y%m%d")
   dsn <- sprintf("%s/gtfs_%s.zip", gtfsDir, aaaammjj)

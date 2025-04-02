@@ -129,7 +129,7 @@ gtfs2osm_relations_routemaster <- function(rds = "gtfs2osm_relations_routemaster
       glimpse()
   }
   df$route_ref <- df$route_id
-  if (Config_reseau %in% c("breizhgo_pennarbed")) {
+  if (Config_reseau %in% c("breizhgo_pennarbed", "breizhgo_illenoo2")) {
     df$route_ref <- df$route_short_name
   }
   df <- df %>%
@@ -146,7 +146,7 @@ gtfs2osm_relations_routemaster <- function(rds = "gtfs2osm_relations_routemaster
     mutate(`public_transport:version` = 2) %>%
     mutate(`route_master` = "bus") %>%
     mutate(`type` = "route_master")
-  if (Reseau %in% c("lamballe", "quimper", "breizhgo_tibus")) {
+  if (Reseau %in% c("lamballe", "quimper", "breizhgo_tibus", "breizhgo_tim")) {
     df$ref <- df$"gtfs:route_short_name"
   }
   tags <- c("network", "operator", "website", "network:wikidata", "network:wikipedia", "operator:wikidata", "operator:wikipedia")
